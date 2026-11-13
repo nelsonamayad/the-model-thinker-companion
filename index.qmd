@@ -1,7 +1,7 @@
 ---
 title: "The Model Thinker Companion"
 date: 2026-11-13
-subtitle: "An homage to Scott E. Page's *The Model Thinker*"
+subtitle: "The missing computational companion you have been waiting for"
 description-meta: "Every model in Scott E. Page's The Model Thinker: its formulation, and an interactive application that runs in your browser."
 sidebar: false
 toc: false
