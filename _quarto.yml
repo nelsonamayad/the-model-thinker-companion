@@ -27,6 +27,7 @@ website:
   page-navigation: true
   back-to-top-navigation: true
   bread-crumbs: true
+  google-analytics: G-R14YE0E520
   navbar:
     logo: assets/logo.svg
     logo-alt: "The Model Thinker Companion logo"

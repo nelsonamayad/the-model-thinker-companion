@@ -1,14 +1,21 @@
-# The book is copyrighted. Never commit or publish it.
+# The book is copyrighted. Never commit or publish it (or extracts from it).
 *.epub
+*.mobi
+*.azw3
+*.pdf
 
+# Rendered site and Quarto's cache. The site is built from source and
+# published with `quarto publish netlify`; _site/ is never committed.
 _site/
-.quarto/
+/.quarto/
 /.luarc.json
 **/*.quarto_ipynb
 
 # Quarto writes outputs next to the sources during a render and moves them
 # into _site/ at the end; ignore leftovers from an interrupted render.
+# _a11y.html is a source file (included on every page), not a leftover.
 /*.html
+!/_a11y.html
 /site_libs/
 models/*.html
 families/*.html
@@ -16,14 +23,32 @@ families/*.html
 **/*_files/
 __pycache__/
 
+# Secrets and credentials. Tokens (Netlify, GitHub) live outside the
+# repository: Quarto keeps its Netlify account in %LOCALAPPDATA%/quarto, and
+# Git Credential Manager keeps the GitHub login.
+.env
+.env.*
+.Renviron
+*.pem
+*.key
+.netlify/
+.Rproj.user/
+
 # nlrx scratch output (the experiment results that the pages use are written
 # to data/ and committed).
 abm/out/
 .Rhistory
 .RData
+.Ruserdata
 Rplots.pdf
+
+# Editor and operating-system clutter.
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
 
 # Local planning notes.
 TODO.md
-
-/.quarto/

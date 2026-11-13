@@ -1,0 +1,19 @@
+<script>
+// Small accessibility fixes for elements that Quarto generates.
+document.addEventListener("DOMContentLoaded", function () {
+  // Icon-only links (navbar and footer): give the link an accessible name and
+  // a tooltip, taken from the icon's aria-label.
+  document.querySelectorAll("a.nav-link, .nav-footer a").forEach(function (a) {
+    if (a.textContent.trim() || a.hasAttribute("aria-label")) return;
+    var icon = a.querySelector("[aria-label]");
+    if (icon) {
+      a.setAttribute("aria-label", icon.getAttribute("aria-label"));
+      a.setAttribute("title", icon.getAttribute("aria-label"));
+    }
+  });
+  // The listing filter box has a placeholder but no label.
+  document.querySelectorAll("input.search").forEach(function (input) {
+    if (!input.getAttribute("aria-label")) input.setAttribute("aria-label", "Filter models by text");
+  });
+});
+</script>
