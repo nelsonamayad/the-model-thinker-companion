@@ -1,6 +1,6 @@
 # The Model Thinker Companion
 
-*The Model Thinker (Page, 2018) companion you didn't know you needed.*
+*The missing computational companion you have been waiting for.*
 
 **Every model in Scott E. Page's *The Model Thinker*, with its formulation and an interactive application that runs in your browser.**
 
