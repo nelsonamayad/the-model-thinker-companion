@@ -31,7 +31,7 @@ The site is built with [Quarto](https://quarto.org). It is modelled on a sibling
 
 ## Corrections
 
-If a page gets something wrong, or claims more than the book supports, please say so. Every page has **Report an issue** and **Edit this page** links that open the page's source in the project's [GitHub repository](https://github.com/nelsonamayad/model-thinker), where you can describe the problem or propose a fix. [GitHub Issues](https://github.com/nelsonamayad/model-thinker/issues) is the place for corrections and questions.
+If a page gets something wrong, or claims more than the book supports, please say so. Every page has **Report an issue** and **Edit this page** links that open the page's source in the project's [GitHub repository](https://github.com/nelsonamayad/the-model-thinker-companion), where you can describe the problem or propose a fix. [GitHub Issues](https://github.com/nelsonamayad/the-model-thinker-companion/issues) is the place for corrections and questions.
 
 ## How this site was built
 
