@@ -8,6 +8,8 @@
 [![Models: 55](https://img.shields.io/badge/models-55-0f6e74.svg)](https://the-model-thinker-companion.netlify.app/#all-models)
 [![Agent-based: NetLogo 6.4 + nlrx](https://img.shields.io/badge/agent--based-NetLogo%206.4%20%2B%20nlrx-d95f02.svg)](https://the-model-thinker-companion.netlify.app/agent-based.html)
 [![Built with Quarto](https://img.shields.io/badge/built%20with-Quarto-7570b3.svg)](https://quarto.org)
+[![Code: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
+[![Text: CC BY-NC 4.0](https://img.shields.io/badge/text-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE-CONTENT.md)
 
 **Visit the site: <https://the-model-thinker-companion.netlify.app>**
 
@@ -175,12 +177,20 @@ Built by [Nelson Amaya D](https://github.com/nelsonamayad) with Claude Opus 5.5
 Modelled on the sibling project, the
 [Andrew Gelman Statistical Lexicon Explorer](https://github.com/nelsonamayad/gelman-lexicon-explorer).
 
-- *The Model Thinker* and its cover belong to Scott E. Page and his publisher.
-  Cover design by Chin-Yee Lai; cover © 2021 Hachette Book Group. The cover is
-  shown at small size to identify the book.
+- **Code** (the JavaScript, R scripts, NetLogo models and nlrx experiments,
+  build scripts, site configuration and the simulation results in `data/`):
+  [MIT](LICENSE).
+- **Text written for this site** (the explanations, formulations as written
+  here, takeaways and uses):
+  [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). It is
+  non-commercial because the site follows a commercial book's selection of
+  models; reuse it for teaching, study and research, with credit.
+- **Not licensed by this project:** *The Model Thinker* (its text, figures,
+  title, and selection and arrangement of models, © Scott E. Page) and its
+  cover (design by Chin-Yee Lai, © 2021 Hachette Book Group), which is shown
+  at small size to identify the book. See [LICENSE-CONTENT.md](LICENSE-CONTENT.md).
 - NetLogo: Uri Wilensky (1999), Center for Connected Learning and
   Computer-Based Modeling, Northwestern University. The NetLogo models here are
-  our own code.
-- nlrx: Salecker, Sciaini, Meyer and Wiegand, *Methods in Ecology and Evolution*
-  10 (2019), [doi:10.1111/2041-210X.13286](https://doi.org/10.1111/2041-210X.13286).
-- A license for the code and the explanations has not been chosen yet.
+  our own code. nlrx: Salecker, Sciaini, Meyer and Wiegand, *Methods in
+  Ecology and Evolution* 10 (2019),
+  [doi:10.1111/2041-210X.13286](https://doi.org/10.1111/2041-210X.13286).

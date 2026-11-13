@@ -81,6 +81,8 @@ website:
     right:
       - text: About
         href: about.qmd
+      - text: License
+        href: about.qmd#license
       - icon: shuffle
         href: random.qmd
         aria-label: Random model

@@ -49,3 +49,11 @@ The site was built in November 2026 by [Nelson Amaya D](https://github.com/nelso
 - Cover image on the home page: the expanded edition's cover, shown at small size to identify the book. Cover design by Chin-Yee Lai; cover © 2021 Hachette Book Group.
 - NetLogo: Uri Wilensky (1999), Center for Connected Learning and Computer-Based Modeling, Northwestern University. The NetLogo models on this site are our own code, not NetLogo's sample models.
 - nlrx: Jan Salecker, Marco Sciaini, Katrin M. Meyer and Kerstin Wiegand, "The nlrx R package: A next-generation framework for reproducible NetLogo model analyses," *Methods in Ecology and Evolution* 10, no. 11 (2019): 1854–1863, [doi:10.1111/2041-210X.13286](https://doi.org/10.1111/2041-210X.13286).
+
+## License {#license}
+
+- The code (the simulations, `js/models.js`, the R scripts, the NetLogo models and nlrx experiments, the build scripts and the simulation results) is released under the [MIT License](https://github.com/nelsonamayad/the-model-thinker-companion/blob/main/LICENSE).
+- The text written for this site (the explanations, the formulations as written here, the takeaways and the uses) is released under [Creative Commons Attribution-NonCommercial 4.0 (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/). You may share and adapt it for teaching, study and research, with credit. It is non-commercial because the site follows a commercial book's selection and order of models and exists as free, educational commentary on it.
+- *The Model Thinker* (its text, figures, title, and selection and arrangement of models) belongs to Scott E. Page, and its cover to Hachette Book Group. Neither is covered by these licenses; the cover is shown only to identify the book.
+
+The full terms are in [LICENSE-CONTENT.md](https://github.com/nelsonamayad/the-model-thinker-companion/blob/main/LICENSE-CONTENT.md). We have not asked Scott E. Page or his publisher for permission; the site cites the book for commentary and teaching. If you hold rights to any material here and want it changed or removed, please [open an issue](https://github.com/nelsonamayad/the-model-thinker-companion/issues) and we will act on it.
