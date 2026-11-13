@@ -25,7 +25,9 @@ listing:
 
 :::: {.hero-wrap}
 ::: {.hero}
-In *The Model Thinker* (2018), Scott E. Page argues that to make sense of data and of the world we need not one model but many, each a different lens: crowds and categories, bell curves and long tails, networks and contagions, Markov chains and feedback loops, games, mechanisms and learning rules. This site gives each model in the book its own page with two things: the **formulation** (the assumptions, variables and equations, stated precisely) and an **interactive application** you can run in your browser.
+In *The Model Thinker* (2018), Scott E. Page is like a greatest hits album for social science. It collects almost 30 models, and describes even very complicated topics, like mechanism design, in an intuitive and clear way. 
+
+I always felt this book missed using digital tools to visualize and play around with the models, so I built this site to fill the gap. It extends each model's **formulation** (the assumptions, variables and equations, with an **interactive application** you can run in your browser.
 
 Each model is built with the tool that suits it. Equation-based models are computed live as you move the sliders. **Agent-based models** are written in [NetLogo](https://ccl.northwestern.edu/netlogo/) and run as designed experiments with [nlrx](https://docs.ropensci.org/nlrx/); their pages chart those results and replay the same rules so you can watch a run unfold.
 
