@@ -1,0 +1,230 @@
+---
+title: "Quality and Degree Network Formation"
+date: 2026-11-13
+description: "New nodes link to existing ones in proportion to their degree plus their quality, so hubs are made by a mix of early arrival and merit."
+order: 17
+chapter: 10
+chapter-title: "Network Models"
+pages: "122–124"
+family: "Networks and contagion"
+engine: "Equation-based"
+tool: "Observable JS (stochastic process)"
+reference: "R (igraph for statistics)"
+uses: [Explain, Reason, Predict]
+categories: ["Networks and contagion", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#17** · *The Model Thinker*, chapter 10, "Network Models", pp. 122–124.
+
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (stochastic process) · Reference implementation: R (igraph for statistics).
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Networks grow. New websites link to existing ones, new papers cite old ones, newcomers to a city make friends. Who do they connect to? Often to whoever is already well connected, which is preferential attachment, and partly to whoever is good: the most useful website, the best paper, the most interesting person. Page's formation model combines the two: a newcomer links to existing nodes in proportion to their degree plus their quality.
+
+The balance between the two decides who becomes a hub. When quality varies little, the network is pure preferential attachment and the hubs are simply the oldest nodes, whose head start compounds. When quality has a long tail, a brilliant latecomer can overtake the incumbents. The model lets us ask how much of a node's prominence reflects merit and how much reflects timing.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** Start with $d$ disconnected nodes. Each period $t$, a new node arrives with quality $Q_t$ drawn from a distribution $F$, and links to $d$ distinct existing nodes.
+
+**Rule.** With $D_{it}$ the degree of node $i$ at time $t$, the new node links to node $i$ with probability
+
+$$
+\Pr(i) = \frac{D_{it} + Q_{i}}{\sum_{j=1}^{N} \big(D_{jt} + Q_{j}\big)} .
+$$
+
+**Result.** With low-mean, low-variance quality, the model is preferential attachment: a long-tailed degree distribution whose hubs are the earliest nodes. With a long-tailed quality distribution, high-quality late arrivals can become hubs.
+:::
+
+We draw quality from a lognormal distribution with a chosen mean and spread; the book leaves $F$ general.
+
+## Interactive model
+
+Three hundred nodes arrive one at a time, each linking to two existing nodes. Each dot is a node: its arrival time against its final degree, coloured by quality. With little quality variation, degree falls steadily with arrival time: the first movers win. Increase the quality spread and the hubs become the high-quality nodes, whenever they arrived.
+
+```{ojs}
+//| echo: false
+import {rng, range, cor, C, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof meanQ = Inputs.range([0.1, 10], {value: 1, step: 0.1, label: "Mean quality"})
+viewof spreadQ = Inputs.range([0, 2.5], {value: 0.2, step: 0.1, label: "Quality spread (lognormal sd)"})
+viewof seed = Inputs.range([1, 500], {value: 17, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+formation = {
+  const r = rng(seed), N = 300, d = 2;
+  const drawQ = () => meanQ * Math.exp(r.normal(-spreadQ * spreadQ / 2, spreadQ));
+  const deg = [], Q = [];
+  for (let i = 0; i < d; i++) { deg.push(0); Q.push(drawQ()); }
+  for (let t = d; t < N; t++) {
+    const w = deg.map((k, i) => k + Q[i]), chosen = new Set();
+    while (chosen.size < d) chosen.add(r.weighted(w));
+    for (const i of chosen) deg[i]++;
+    deg.push(d); Q.push(drawQ());
+  }
+  const nodes = deg.map((k, i) => ({i, arrival: i + 1, degree: k, quality: Q[i]}));
+  const top = nodes.slice().sort((a, b) => b.degree - a.degree).slice(0, 10);
+  return {
+    nodes, top,
+    corAge: cor(nodes.map(n => -n.arrival), nodes.map(n => n.degree)),
+    corQ: cor(nodes.map(n => Math.log(n.quality)), nodes.map(n => n.degree))
+  };
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Quality and Degree Network Formation: arrival time against final degree",
+  ariaDescription: "Horizontal axis: arrival order of each node. Vertical axis: its final degree, on a log scale. Dots are coloured by quality from light (low) to dark (high). The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Arrival order"},
+  y: {label: "Final degree", type: "log", grid: true},
+  color: {type: "log", scheme: "viridis", label: "Quality", legend: true},
+  marks: [
+    Plot.dot(formation.nodes, {x: "arrival", y: "degree", fill: "quality", r: 3.5, stroke: "currentColor", strokeWidth: 0.2})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const early = formation.top.filter(d => d.arrival <= 30).length;
+  return html`<div class="sim-readout">${md`The best-connected node has **${formation.top[0].degree}** links; the median node has ${d3.median(formation.nodes, d => d.degree)}. Degree correlates **${fmt(formation.corAge, 2)}** with earliness of arrival and **${fmt(formation.corQ, 2)}** with (log) quality. ${early} of the 10 biggest hubs arrived among the first 30 nodes. ${formation.corQ > formation.corAge ? "Here quality, not timing, decides who becomes a hub." : "Here timing beats quality: early arrivals' head start compounds."}`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (R (igraph for statistics)): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, cor, C, fmt} from "../js/models.js"
+
+viewof meanQ = Inputs.range([0.1, 10], {value: 1, step: 0.1, label: "Mean quality"})
+viewof spreadQ = Inputs.range([0, 2.5], {value: 0.2, step: 0.1, label: "Quality spread (lognormal sd)"})
+viewof seed = Inputs.range([1, 500], {value: 17, step: 1, label: "Random seed"})
+
+formation = {
+  const r = rng(seed), N = 300, d = 2;
+  const drawQ = () => meanQ * Math.exp(r.normal(-spreadQ * spreadQ / 2, spreadQ));
+  const deg = [], Q = [];
+  for (let i = 0; i < d; i++) { deg.push(0); Q.push(drawQ()); }
+  for (let t = d; t < N; t++) {
+    const w = deg.map((k, i) => k + Q[i]), chosen = new Set();
+    while (chosen.size < d) chosen.add(r.weighted(w));
+    for (const i of chosen) deg[i]++;
+    deg.push(d); Q.push(drawQ());
+  }
+  const nodes = deg.map((k, i) => ({i, arrival: i + 1, degree: k, quality: Q[i]}));
+  const top = nodes.slice().sort((a, b) => b.degree - a.degree).slice(0, 10);
+  return {
+    nodes, top,
+    corAge: cor(nodes.map(n => -n.arrival), nodes.map(n => n.degree)),
+    corQ: cor(nodes.map(n => Math.log(n.quality)), nodes.map(n => n.degree))
+  };
+}
+
+Plot.plot({
+  ariaLabel: "Quality and Degree Network Formation: arrival time against final degree",
+  ariaDescription: "Horizontal axis: arrival order of each node. Vertical axis: its final degree, on a log scale. Dots are coloured by quality from light (low) to dark (high). The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Arrival order"},
+  y: {label: "Final degree", type: "log", grid: true},
+  color: {type: "log", scheme: "viridis", label: "Quality", legend: true},
+  marks: [
+    Plot.dot(formation.nodes, {x: "arrival", y: "degree", fill: "quality", r: 3.5, stroke: "currentColor", strokeWidth: 0.2})
+  ]
+})
+
+{
+  const early = formation.top.filter(d => d.arrival <= 30).length;
+  return html`<div class="sim-readout">${md`The best-connected node has **${formation.top[0].degree}** links; the median node has ${d3.median(formation.nodes, d => d.degree)}. Degree correlates **${fmt(formation.corAge, 2)}** with earliness of arrival and **${fmt(formation.corQ, 2)}** with (log) quality. ${early} of the 10 biggest hubs arrived among the first 30 nodes. ${formation.corQ > formation.corAge ? "Here quality, not timing, decides who becomes a hub." : "Here timing beats quality: early arrivals' head start compounds."}`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Quality and degree network formation.
+suppressPackageStartupMessages(library(igraph))
+n <- 300
+d <- 2 # links made by each new node
+mean_q <- 1
+spread_q <- 0.2 # lognormal sd of quality
+set.seed(17)
+
+draw_q <- function() mean_q * exp(rnorm(1, -spread_q^2 / 2, spread_q))
+deg <- rep(0, d)
+q <- replicate(d, draw_q())
+edges <- c()
+for (t in (d + 1):n) {
+  chosen <- sample.int(t - 1, d, prob = deg + q) # degree plus quality
+  deg[chosen] <- deg[chosen] + 1
+  deg <- c(deg, d)
+  q <- c(q, draw_q())
+  edges <- c(edges, rbind(t, chosen))
+}
+g <- make_graph(edges, n = n, directed = FALSE)
+
+cat(sprintf(
+  "Largest degree %d; cor(degree, earliness) %.2f; cor(degree, log q) %.2f\n",
+  max(degree(g)), cor(degree(g), -(1:n)), cor(degree(g), log(q))
+))
+plot(1:n, degree(g),
+  log = "y", pch = 19,
+  col = hcl.colors(10)[cut(log(q), 10)], xlab = "Arrival order",
+  ylab = "Final degree"
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Linking in proportion to degree makes the rich get richer and produces hubs.
+- Adding quality to the attachment rule lets merit compete with incumbency; how much depends on the spread of quality.
+- The same long-tailed network can arise from luck and timing or from differences in quality, so structure alone cannot tell us which.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Why the most-cited papers and most-linked websites are often old, and when newcomers break through.
+- **Reason.** Separate the roles of first-mover advantage and quality in markets with network effects.
+- **Predict.** Forecast which nodes will become hubs from their age and early growth.
+:::
+
+## Related models
+
+- [Power Laws and Preferential Attachment](power-laws.qmd): the same feedback, for sizes rather than links.
+- [Network Structures and Statistics](network-structure.qmd): how to describe the networks this process makes.
+- [Friendship Paradox](friendship-paradox.qmd): hubs are why your friends have more friends than you.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 10, "Network Models," pp. 122–124.
+- Albert-László Barabási and Réka Albert, "Emergence of Scaling in Random Networks," *Science* 286, no. 5439 (1999): 509–512, [doi:10.1126/science.286.5439.509](https://doi.org/10.1126/science.286.5439.509).
+- Matthew Jackson, *Social and Economic Networks* (Princeton University Press, 2008).

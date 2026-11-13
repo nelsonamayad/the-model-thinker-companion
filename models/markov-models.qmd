@@ -1,0 +1,270 @@
+---
+title: "Markov Models"
+date: 2026-11-13
+description: "A system that moves between a finite set of states with fixed transition probabilities settles into a unique statistical equilibrium, whatever its starting point."
+order: 33
+chapter: 17
+chapter-title: "Markov Models"
+pages: "189–200"
+family: "Processes and dynamics"
+engine: "Equation-based"
+tool: "Observable JS (matrix iteration)"
+reference: "base R (eigenvectors)"
+uses: [Predict, Explain, Act]
+categories: ["Processes and dynamics", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#33** · *The Model Thinker*, chapter 17, "Markov Models", pp. 189–200.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (matrix iteration) · Reference implementation: base R (eigenvectors).
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Students drift between paying attention and being bored. Countries move between free, partly free and not free. Floors get replaced with tile or linoleum. A Markov model describes any such system by its states and the probabilities of moving between them each period. Its central result, the Perron–Frobenius theorem, is surprising: if the probabilities stay fixed and every state can be reached from every other, the system converges to a unique *statistical equilibrium*. Individuals keep moving, but the share in each state stops changing, and the starting point does not matter.
+
+That makes Markov models a strong argument against both pessimism and optimism about history. A trend toward democracy will not continue linearly, because free countries also slip back; Page's calibrated model predicts a long-run world that is 62.5% free, not one that is all free. It also explains the *sales–durability paradox*: a product that outsells its rival three to one can still be the minority on the ground if it wears out faster.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A finite set of states $\{1, \dots, K\}$ and a transition matrix $P$, where $P_{ij}$ is the probability of moving from state $i$ to state $j$ in one period (each row sums to 1). The distribution over states is a row vector $x_t$, with
+
+$$
+x_{t+1} = x_t P .
+$$
+
+**Perron–Frobenius theorem.** If (1) there are finitely many states, (2) the transition probabilities are fixed, (3) every state can be reached from every other (ergodicity), and (4) the process does not cycle deterministically, then the process converges to a unique statistical equilibrium $x^*$ with
+
+$$
+x^* = x^* P, \qquad \sum_k x^*_k = 1,
+$$
+
+from every initial distribution.
+
+**Result.** History does not matter in the long run; only the transition probabilities do. To change the equilibrium, change the probabilities.
+:::
+
+For two states with switching probabilities $p$ (from 1 to 2) and $q$ (from 2 to 1), the equilibrium share in state 1 is $q/(p + q)$. *Markov decision models* add actions that earn rewards and change the transition probabilities; the best action then need not maximize the immediate reward, because it also changes which state you will be in.
+
+## Interactive model
+
+Choose an example. Solid and dashed lines start from opposite extremes, and both converge to the same equilibrium. In the floors example, linoleum outsells tile three to one, yet tile ends up on two-thirds of floors because it is replaced six times less often.
+
+```{ojs}
+//| echo: false
+import {range, vecMat, stationary, C, pct, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof example = Inputs.radio(["Engaged and bored students", "Free, partly free, not free countries", "Tile and linoleum floors"], {value: "Engaged and bored students", label: "Example"})
+```
+
+```{ojs}
+viewof params = example === "Engaged and bored students"
+  ? Inputs.form({p: Inputs.range([0, 1], {value: 0.1, step: 0.01, label: "Engaged → bored"}), q: Inputs.range([0, 1], {value: 0.3, step: 0.01, label: "Bored → engaged"})})
+  : example === "Tile and linoleum floors"
+  ? Inputs.form({ratio: Inputs.range([0.5, 6], {value: 3, step: 0.5, label: "Linoleum sales per tile sale"}), lin: Inputs.range([1, 30], {value: 10, step: 1, label: "Linoleum lasts (years)"}), tile: Inputs.range([10, 100], {value: 60, step: 5, label: "Tile lasts (years)"})})
+  : Inputs.form({stay: Inputs.range([0.8, 1], {value: 0.95, step: 0.01, label: "Free countries stay free"})})
+```
+
+```{ojs}
+markov = {
+  let states, P, starts, periodLabel;
+  if (example === "Engaged and bored students") {
+    states = ["Engaged", "Bored"];
+    P = [[1 - params.p, params.p], [params.q, 1 - params.q]];
+    starts = [[1, 0], [0, 1]]; periodLabel = "Day";
+  } else if (example === "Tile and linoleum floors") {
+    const shareLin = params.ratio / (params.ratio + 1);
+    states = ["Tile", "Linoleum"];
+    P = [[1 - (1 / params.tile) * shareLin, (1 / params.tile) * shareLin], [(1 / params.lin) * (1 - shareLin), 1 - (1 / params.lin) * (1 - shareLin)]];
+    starts = [[0, 1], [1, 0]]; periodLabel = "Year";
+  } else {
+    states = ["Free", "Partly free", "Not free"];
+    P = [[params.stay, 1 - params.stay, 0], [0.1, 0.8, 0.1], [0.05, 0.15, 0.8]];
+    starts = [[1, 0, 0], [0, 0, 1]]; periodLabel = "Five-year period";
+  }
+  const T = example === "Tile and linoleum floors" ? 200 : example.startsWith("Free") ? 40 : 30;
+  const rows = [];
+  starts.forEach((x0, s) => {
+    let x = x0;
+    for (let t = 0; t <= T; t++) {
+      x.forEach((v, k) => rows.push({t, state: states[k], share: v, start: s ? "Start B" : "Start A"}));
+      x = vecMat(x, P);
+    }
+  });
+  return {states, P, rows, eq: stationary(P), periodLabel};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Markov Models: convergence to the statistical equilibrium",
+  ariaDescription: "Horizontal axis: period. Vertical axis: share of the population in each state. Solid lines start from one extreme distribution and dashed lines from the other; both converge to the same equilibrium. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: markov.periodLabel},
+  y: {label: "Share in state", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: markov.states, range: [C.teal, C.orange, C.purple]},
+  marks: [
+    Plot.line(markov.rows, {x: "t", y: "share", stroke: "state", z: d => d.state + d.start, strokeDasharray: d => (d.start === "Start B" ? "5 4" : null), strokeWidth: 2})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`Transition matrix (rows: from, columns: to): ${markov.P.map((row, i) => `${markov.states[i]} → [${row.map(v => fmt(v, 3)).join(", ")}]`).join("; ")}. From either starting point the process converges to the same **statistical equilibrium**: ${markov.states.map((s, k) => `**${pct(markov.eq[k], 1)} ${s.toLowerCase()}**`).join(", ")}.${example === "Tile and linoleum floors" ? ` Linoleum makes up ${pct(params.ratio / (params.ratio + 1))} of sales but only ${pct(markov.eq[1])} of floors: durability beats sales.` : ""}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R (eigenvectors)): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {range, vecMat, stationary, C, pct, fmt} from "../js/models.js"
+
+viewof example = Inputs.radio(["Engaged and bored students", "Free, partly free, not free countries", "Tile and linoleum floors"], {value: "Engaged and bored students", label: "Example"})
+
+viewof params = example === "Engaged and bored students"
+  ? Inputs.form({p: Inputs.range([0, 1], {value: 0.1, step: 0.01, label: "Engaged → bored"}), q: Inputs.range([0, 1], {value: 0.3, step: 0.01, label: "Bored → engaged"})})
+  : example === "Tile and linoleum floors"
+  ? Inputs.form({ratio: Inputs.range([0.5, 6], {value: 3, step: 0.5, label: "Linoleum sales per tile sale"}), lin: Inputs.range([1, 30], {value: 10, step: 1, label: "Linoleum lasts (years)"}), tile: Inputs.range([10, 100], {value: 60, step: 5, label: "Tile lasts (years)"})})
+  : Inputs.form({stay: Inputs.range([0.8, 1], {value: 0.95, step: 0.01, label: "Free countries stay free"})})
+
+markov = {
+  let states, P, starts, periodLabel;
+  if (example === "Engaged and bored students") {
+    states = ["Engaged", "Bored"];
+    P = [[1 - params.p, params.p], [params.q, 1 - params.q]];
+    starts = [[1, 0], [0, 1]]; periodLabel = "Day";
+  } else if (example === "Tile and linoleum floors") {
+    const shareLin = params.ratio / (params.ratio + 1);
+    states = ["Tile", "Linoleum"];
+    P = [[1 - (1 / params.tile) * shareLin, (1 / params.tile) * shareLin], [(1 / params.lin) * (1 - shareLin), 1 - (1 / params.lin) * (1 - shareLin)]];
+    starts = [[0, 1], [1, 0]]; periodLabel = "Year";
+  } else {
+    states = ["Free", "Partly free", "Not free"];
+    P = [[params.stay, 1 - params.stay, 0], [0.1, 0.8, 0.1], [0.05, 0.15, 0.8]];
+    starts = [[1, 0, 0], [0, 0, 1]]; periodLabel = "Five-year period";
+  }
+  const T = example === "Tile and linoleum floors" ? 200 : example.startsWith("Free") ? 40 : 30;
+  const rows = [];
+  starts.forEach((x0, s) => {
+    let x = x0;
+    for (let t = 0; t <= T; t++) {
+      x.forEach((v, k) => rows.push({t, state: states[k], share: v, start: s ? "Start B" : "Start A"}));
+      x = vecMat(x, P);
+    }
+  });
+  return {states, P, rows, eq: stationary(P), periodLabel};
+}
+
+Plot.plot({
+  ariaLabel: "Markov Models: convergence to the statistical equilibrium",
+  ariaDescription: "Horizontal axis: period. Vertical axis: share of the population in each state. Solid lines start from one extreme distribution and dashed lines from the other; both converge to the same equilibrium. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: markov.periodLabel},
+  y: {label: "Share in state", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: markov.states, range: [C.teal, C.orange, C.purple]},
+  marks: [
+    Plot.line(markov.rows, {x: "t", y: "share", stroke: "state", z: d => d.state + d.start, strokeDasharray: d => (d.start === "Start B" ? "5 4" : null), strokeWidth: 2})
+  ]
+})
+
+html`<div class="sim-readout">${md`Transition matrix (rows: from, columns: to): ${markov.P.map((row, i) => `${markov.states[i]} → [${row.map(v => fmt(v, 3)).join(", ")}]`).join("; ")}. From either starting point the process converges to the same **statistical equilibrium**: ${markov.states.map((s, k) => `**${pct(markov.eq[k], 1)} ${s.toLowerCase()}**`).join(", ")}.${example === "Tile and linoleum floors" ? ` Linoleum makes up ${pct(params.ratio / (params.ratio + 1))} of sales but only ${pct(markov.eq[1])} of floors: durability beats sales.` : ""}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Markov models: the statistical equilibrium is the left eigenvector of P
+# with eigenvalue 1. Deterministic: no random numbers.
+freedom <- matrix(
+  c(
+    0.95, 0.05, 0.00,
+    0.10, 0.80, 0.10,
+    0.05, 0.15, 0.80
+  ),
+  nrow = 3, byrow = TRUE,
+  dimnames = list(
+    c("free", "partly", "not_free"),
+    c("free", "partly", "not_free")
+  )
+)
+equilibrium <- function(P) {
+  v <- Re(eigen(t(P))$vectors[, 1])
+  v / sum(v)
+}
+print(round(equilibrium(freedom), 3)) # 0.625, 0.25, 0.125
+
+# Convergence from two different starting points.
+x_a <- c(1, 0, 0)
+x_b <- c(0, 0, 1)
+for (t in 1:40) {
+  x_a <- x_a %*% freedom
+  x_b <- x_b %*% freedom
+}
+print(round(rbind(x_a, x_b), 3))
+
+# Sales-durability paradox: linoleum outsells tile 3:1 but wears out faster.
+share_lin <- 3 / 4
+floors <- matrix(
+  c(
+    1 - share_lin / 60, share_lin / 60,
+    (1 - share_lin) / 10, 1 - (1 - share_lin) / 10
+  ),
+  nrow = 2, byrow = TRUE
+)
+cat("Tile, linoleum floors in equilibrium:", round(equilibrium(floors), 3))
+cat("\n")
+
+barplot(equilibrium(freedom),
+  names.arg = colnames(freedom),
+  col = c("#148a91", "#d95f02", "#7570b3"), ylab = "Long-run share"
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- With fixed transition probabilities and reachable states, a Markov process converges to a unique statistical equilibrium.
+- Initial conditions and one-off shocks do not change the long run; only changing the transition probabilities does.
+- Prevalence depends on durability as much as on inflow: the sales–durability paradox and brand loyalty.
+:::
+
+## Uses
+
+::: uses
+- **Predict.** Long-run shares of democracies, market shares with brand switching, disease prevalence, or the share of people in poverty.
+- **Explain.** Why linear extrapolation of trends overshoots, and why a best-selling product can be less common.
+- **Act.** Target the transition probabilities (prevention, retention, relapse) rather than the current state.
+:::
+
+## Related models
+
+- [Lyapunov Functions](lyapunov-functions.qmd): equilibrium as a fixed point, rather than a statistical one.
+- [Random Walk](random-walk.qmd): a Markov process with infinitely many states, which never settles.
+- [Entropy](entropy.qmd): the sticky source there is a two-state Markov chain.
+- [SIR Model](sir-model.qmd): movement between health states, with probabilities that depend on how many are infected.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 17, "Markov Models," pp. 189–200.

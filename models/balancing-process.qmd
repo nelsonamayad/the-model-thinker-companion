@@ -1,0 +1,213 @@
+---
+title: "Balancing Process"
+date: 2026-11-13
+description: "An urn that adds a ball of the opposite colour to the one drawn corrects every imbalance, so every run converges to an even split."
+order: 29
+chapter: 14
+chapter-title: "Path Dependence"
+pages: "166–168"
+family: "Processes and dynamics"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Explain, Design, Reason]
+categories: ["Processes and dynamics", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#29** · *The Model Thinker*, chapter 14, "Path Dependence", pp. 166–168.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Not every feedback reinforces. Some correct. A parent who gave the last turn to one child gives the next to the other; a party that lost an election puts more effort into the next; a committee that hired from one department looks elsewhere next time. The balancing process is the Polya urn with the feedback reversed: draw a ball, and return it with a ball of the *opposite* colour.
+
+Now an early run of one colour makes the other colour more likely, so imbalances are corrected rather than amplified. Every urn ends up near half and half, regardless of the order of its early draws. Page uses the two urns side by side to separate processes in which history matters (Polya) from those in which it washes out (balancing).
+
+## Formulation
+
+::: {.model-box}
+**Setup.** An urn starts with one white and one gray ball. Each period a ball is drawn at random, and it is returned along with one more ball of the *opposite* colour.
+
+**Equation.** After $t$ draws with $w_t$ white draws, the urn holds $t + 2$ balls, of which $1 + (t - w_t)$ are white (one starting ball plus one for each gray draw), so
+
+$$
+\Pr(\text{white at } t + 1) = \frac{1 + t - w_t}{t + 2} .
+$$
+
+**Result.** The share of white balls converges to $\tfrac12$ in every run, and the outcome is not path dependent: early draws do not affect where the urn ends up.
+:::
+
+The correction is strong: the share of white *draws* deviates from one half by much less than in a sequence of fair coin flips, because every excess of one colour raises the odds of the other.
+
+## Interactive model
+
+Twelve balancing urns (teal) and, for comparison, twelve Polya urns (gray), followed for the same number of draws. The balancing urns all converge to 50%; the Polya urns lock in wherever their early draws pushed them.
+
+```{ojs}
+//| echo: false
+import {rng, range, sd, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof draws = Inputs.range([50, 2000], {value: 500, step: 50, label: "Draws"})
+viewof seed = Inputs.range([1, 500], {value: 29, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+balance = {
+  const r = rng(seed);
+  const run = (balancing, k) => {
+    let w = 1, g = 1;
+    const path = [{t: 0, share: 0.5, k, kind: balancing ? "Balancing" : "Polya"}];
+    for (let t = 1; t <= draws; t++) {
+      const white = r() < w / (w + g);
+      if (balancing) { if (white) g++; else w++; } else { if (white) w++; else g++; }
+      if (t % 5 === 0 || t < 50) path.push({t, share: w / (w + g), k: `${balancing ? "b" : "p"}${k}`, kind: balancing ? "Balancing" : "Polya"});
+    }
+    return path;
+  };
+  const paths = [...range(12).flatMap(k => run(false, k)), ...range(12).flatMap(k => run(true, k))];
+  const finals = kind => paths.filter(d => d.kind === kind && d.t === draws).map(d => d.share);
+  return {paths, bal: finals("Balancing"), pol: finals("Polya")};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Balancing Process: share of white balls, balancing versus Polya urns",
+  ariaDescription: "Horizontal axis: draws. Vertical axis: share of white balls. Teal lines are twelve balancing urns, which converge to one half; gray lines are twelve Polya urns, which settle at scattered values. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Draws"},
+  y: {label: "Share white", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [
+    Plot.line(balance.paths.filter(d => d.kind === "Polya"), {x: "t", y: "share", z: "k", stroke: C.gray, strokeOpacity: 0.7}),
+    Plot.line(balance.paths.filter(d => d.kind === "Balancing"), {x: "t", y: "share", z: "k", stroke: C.teal, strokeWidth: 1.6}),
+    Plot.ruleY([0.5], {stroke: "currentColor", strokeDasharray: "4 3"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`After ${draws} draws, the twelve balancing urns all sit between **${pct(Math.min(...balance.bal), 1)} and ${pct(Math.max(...balance.bal), 1)}** white (standard deviation ${fmt(100 * sd(balance.bal), 2)} points), while the Polya urns range from ${pct(Math.min(...balance.pol))} to ${pct(Math.max(...balance.pol))}. Balancing feedback erases the effect of early draws; reinforcing feedback preserves it.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, sd, C, fmt, pct} from "../js/models.js"
+
+viewof draws = Inputs.range([50, 2000], {value: 500, step: 50, label: "Draws"})
+viewof seed = Inputs.range([1, 500], {value: 29, step: 1, label: "Random seed"})
+
+balance = {
+  const r = rng(seed);
+  const run = (balancing, k) => {
+    let w = 1, g = 1;
+    const path = [{t: 0, share: 0.5, k, kind: balancing ? "Balancing" : "Polya"}];
+    for (let t = 1; t <= draws; t++) {
+      const white = r() < w / (w + g);
+      if (balancing) { if (white) g++; else w++; } else { if (white) w++; else g++; }
+      if (t % 5 === 0 || t < 50) path.push({t, share: w / (w + g), k: `${balancing ? "b" : "p"}${k}`, kind: balancing ? "Balancing" : "Polya"});
+    }
+    return path;
+  };
+  const paths = [...range(12).flatMap(k => run(false, k)), ...range(12).flatMap(k => run(true, k))];
+  const finals = kind => paths.filter(d => d.kind === kind && d.t === draws).map(d => d.share);
+  return {paths, bal: finals("Balancing"), pol: finals("Polya")};
+}
+
+Plot.plot({
+  ariaLabel: "Balancing Process: share of white balls, balancing versus Polya urns",
+  ariaDescription: "Horizontal axis: draws. Vertical axis: share of white balls. Teal lines are twelve balancing urns, which converge to one half; gray lines are twelve Polya urns, which settle at scattered values. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Draws"},
+  y: {label: "Share white", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [
+    Plot.line(balance.paths.filter(d => d.kind === "Polya"), {x: "t", y: "share", z: "k", stroke: C.gray, strokeOpacity: 0.7}),
+    Plot.line(balance.paths.filter(d => d.kind === "Balancing"), {x: "t", y: "share", z: "k", stroke: C.teal, strokeWidth: 1.6}),
+    Plot.ruleY([0.5], {stroke: "currentColor", strokeDasharray: "4 3"})
+  ]
+})
+
+html`<div class="sim-readout">${md`After ${draws} draws, the twelve balancing urns all sit between **${pct(Math.min(...balance.bal), 1)} and ${pct(Math.max(...balance.bal), 1)}** white (standard deviation ${fmt(100 * sd(balance.bal), 2)} points), while the Polya urns range from ${pct(Math.min(...balance.pol))} to ${pct(Math.max(...balance.pol))}. Balancing feedback erases the effect of early draws; reinforcing feedback preserves it.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Balancing process: add a ball of the opposite colour; urns converge to 1/2.
+draws <- 500
+set.seed(29)
+
+urn <- function(balancing) {
+  w <- 1
+  g <- 1
+  share <- numeric(draws)
+  for (t in 1:draws) {
+    white <- runif(1) < w / (w + g)
+    if (balancing == white) g <- g + 1 else w <- w + 1
+    share[t] <- w / (w + g)
+  }
+  share
+}
+bal <- replicate(12, urn(TRUE))
+pol <- replicate(12, urn(FALSE))
+cat("Final shares, balancing:", round(range(bal[draws, ]), 3), "\n")
+cat("Final shares, Polya:    ", round(range(pol[draws, ]), 3), "\n")
+
+matplot(pol,
+  type = "l", lty = 1, col = "grey70", ylim = c(0, 1),
+  xlab = "Draws", ylab = "Share white"
+)
+matlines(bal, lty = 1, col = "#148a91")
+abline(h = 0.5, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Negative (balancing) feedback corrects imbalances, so the process converges to the same outcome whatever its history.
+- Positive (reinforcing) feedback, as in the Polya urn, makes outcomes depend on the path.
+- Asking which kind of feedback dominates tells us whether history will matter.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Why some systems, such as alternating party control or rotating leadership, hover around balance.
+- **Design.** Build balancing rules (rotation, quotas, alternating turns) into institutions to keep allocations even.
+- **Reason.** Distinguish settings where early luck washes out from those where it locks in.
+:::
+
+## Related models
+
+- [Polya Process](polya-process.qmd): the reinforcing counterpart.
+- [Ping-Pong Model](ping-pong-model.qmd): negative feedback in a population with thresholds.
+- [Lyapunov Functions](lyapunov-functions.qmd): a general tool for proving that processes settle.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 14, "Path Dependence," pp. 166–168.
+- Scott E. Page, "Essay: Path Dependence," *Quarterly Journal of Political Science* 1 (2006): 87–115.

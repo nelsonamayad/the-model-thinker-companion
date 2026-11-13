@@ -1,0 +1,250 @@
+---
+title: "The Generous/Spiteful Game"
+date: 2026-11-13
+description: "Generosity is every player's best choice, yet spiteful players always out-earn their generous neighbours, so individual learners become generous while social learners become spiteful."
+order: 53
+chapter: 26
+chapter-title: "Learning Models"
+pages: "312–316"
+family: "Learning and search"
+engine: "Equation-based"
+tool: "Observable JS (simulation and difference equation)"
+reference: "base R"
+uses: [Explain, Reason, Predict]
+categories: ["Learning and search", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#53** · *The Model Thinker*, chapter 26, "Learning Models", pp. 312–316.
+
+Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation and difference equation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Do people care about their absolute payoff or about how they compare with others? Page tells the story of a spiteful man granted any wish by a genie, on condition that everyone he knows gets double; he asks to lose an eye. The generous/spiteful game builds that tension into a simple game. Being generous raises your own payoff and everyone else's. Being spiteful raises your payoff a little less but leaves everyone else's unchanged.
+
+So generosity is a dominant strategy: whatever others do, you earn more by being generous. But in any population, the spiteful players earn more than the generous ones, because they enjoy everyone else's generosity without adding to it. Which wins depends on how people learn. Someone who learns from their own experience (reinforcement learning) notices that switching to generosity pays and becomes generous. Someone who learns by copying the most successful people around them (replicator dynamics) sees the spiteful earning more and becomes spiteful. The same game, two learning models, opposite outcomes.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** Each of $N$ players chooses to be generous (G) or spiteful (S). Let $N_G$ be the number of generous players (counting oneself if generous).
+
+**Payoffs.**
+
+$$
+\text{Payoff}(G, N_G) = 1 + 2 N_G, \qquad \text{Payoff}(S, N_G) = 2 + 2 N_G .
+$$
+
+**Results.**
+
+- Generous is dominant: switching from S to G raises $N_G$ by one, so one's payoff goes from $2 + 2N_G$ to $1 + 2(N_G + 1) = 3 + 2N_G$.
+- At any mix, spiteful players earn 1 more than generous ones.
+- Reinforcement learning (aspiration = own average payoff) converges to everyone generous; replicator dynamics converge to everyone spiteful.
+:::
+
+## Interactive model
+
+Twenty players start with the chosen share generous. The teal line follows a population of individual reinforcement learners (averaged over 100 populations); the orange line follows a population learning socially by replicator dynamics. The individual learners discover that generosity pays them; the social learners copy the spiteful, who always look better off.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, C, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof start = Inputs.range([0.05, 0.95], {value: 0.5, step: 0.05, label: "Initial share generous"})
+viewof periods = Inputs.range([50, 500], {value: 300, step: 50, label: "Periods"})
+viewof seed = Inputs.range([1, 500], {value: 53, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+gs = {
+  const r = rng(seed), N = 20, pops = 100;
+  const pay = (g, nG) => (g ? 1 + 2 * nG : 2 + 2 * nG);
+  // Individual learning: each player has weights on G and S, aspiration = own average payoff.
+  const rlShare = new Array(periods).fill(0);
+  for (let k = 0; k < pops; k++) {
+    const w = range(N).map(() => [50 * (start / 0.5), 50 * ((1 - start) / 0.5)]);
+    const total = new Array(N).fill(0);
+    for (let t = 0; t < periods; t++) {
+      const choice = w.map(([wg, ws]) => (r() < wg / (wg + ws) ? 1 : 0));
+      const nG = choice.reduce((a, b) => a + b, 0);
+      rlShare[t] += nG / N / pops;
+      choice.forEach((g, i) => {
+        const p = pay(g, nG), theta = t ? total[i] / t : p;
+        w[i][g ? 0 : 1] = Math.max(1, w[i][g ? 0 : 1] + (p - theta));
+        total[i] += p;
+      });
+    }
+  }
+  // Social learning: replicator dynamics on the population share.
+  const rep = [start];
+  for (let t = 1; t < periods; t++) {
+    const x = rep[t - 1], nG = x * N, pg = pay(1, nG), ps = pay(0, nG), avg = x * pg + (1 - x) * ps;
+    rep.push(x * pg / avg);
+  }
+  return {rows: [...rlShare.map((s, t) => ({t, s, k: "Individual learning (reinforcement)"})), ...rep.map((s, t) => ({t, s, k: "Social learning (replicator)"}))], rl: rlShare[periods - 1], rep: rep[periods - 1]};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "The Generous/Spiteful Game: share generous under two learning rules",
+  ariaDescription: "Horizontal axis: period. Vertical axis: share of players who are generous. The teal line is individual reinforcement learning, rising toward everyone generous; the orange line is social learning by replicator dynamics, falling toward everyone spiteful. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Period"},
+  y: {label: "Share generous", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Individual learning (reinforcement)", "Social learning (replicator)"], range: [C.teal, C.orange]},
+  marks: [Plot.line(gs.rows, {x: "t", y: "s", stroke: "k", strokeWidth: 2.5})]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`Starting from ${pct(start)} generous, after ${periods} periods the individual learners are **${pct(gs.rl)} generous**, while the social learners are **${pct(gs.rep)} generous**. Each player is better off being generous, so learning from one's own payoffs leads there; but in every period the spiteful earn one more than the generous, so copying the most successful leads the other way.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, C, pct} from "../js/models.js"
+
+viewof start = Inputs.range([0.05, 0.95], {value: 0.5, step: 0.05, label: "Initial share generous"})
+viewof periods = Inputs.range([50, 500], {value: 300, step: 50, label: "Periods"})
+viewof seed = Inputs.range([1, 500], {value: 53, step: 1, label: "Random seed"})
+
+gs = {
+  const r = rng(seed), N = 20, pops = 100;
+  const pay = (g, nG) => (g ? 1 + 2 * nG : 2 + 2 * nG);
+  // Individual learning: each player has weights on G and S, aspiration = own average payoff.
+  const rlShare = new Array(periods).fill(0);
+  for (let k = 0; k < pops; k++) {
+    const w = range(N).map(() => [50 * (start / 0.5), 50 * ((1 - start) / 0.5)]);
+    const total = new Array(N).fill(0);
+    for (let t = 0; t < periods; t++) {
+      const choice = w.map(([wg, ws]) => (r() < wg / (wg + ws) ? 1 : 0));
+      const nG = choice.reduce((a, b) => a + b, 0);
+      rlShare[t] += nG / N / pops;
+      choice.forEach((g, i) => {
+        const p = pay(g, nG), theta = t ? total[i] / t : p;
+        w[i][g ? 0 : 1] = Math.max(1, w[i][g ? 0 : 1] + (p - theta));
+        total[i] += p;
+      });
+    }
+  }
+  // Social learning: replicator dynamics on the population share.
+  const rep = [start];
+  for (let t = 1; t < periods; t++) {
+    const x = rep[t - 1], nG = x * N, pg = pay(1, nG), ps = pay(0, nG), avg = x * pg + (1 - x) * ps;
+    rep.push(x * pg / avg);
+  }
+  return {rows: [...rlShare.map((s, t) => ({t, s, k: "Individual learning (reinforcement)"})), ...rep.map((s, t) => ({t, s, k: "Social learning (replicator)"}))], rl: rlShare[periods - 1], rep: rep[periods - 1]};
+}
+
+Plot.plot({
+  ariaLabel: "The Generous/Spiteful Game: share generous under two learning rules",
+  ariaDescription: "Horizontal axis: period. Vertical axis: share of players who are generous. The teal line is individual reinforcement learning, rising toward everyone generous; the orange line is social learning by replicator dynamics, falling toward everyone spiteful. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Period"},
+  y: {label: "Share generous", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Individual learning (reinforcement)", "Social learning (replicator)"], range: [C.teal, C.orange]},
+  marks: [Plot.line(gs.rows, {x: "t", y: "s", stroke: "k", strokeWidth: 2.5})]
+})
+
+html`<div class="sim-readout">${md`Starting from ${pct(start)} generous, after ${periods} periods the individual learners are **${pct(gs.rl)} generous**, while the social learners are **${pct(gs.rep)} generous**. Each player is better off being generous, so learning from one's own payoffs leads there; but in every period the spiteful earn one more than the generous, so copying the most successful leads the other way.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# The generous/spiteful game: individual versus social learning.
+n <- 20
+periods <- 300
+start <- 0.5
+set.seed(53)
+
+pay <- function(generous, n_g) if (generous) 1 + 2 * n_g else 2 + 2 * n_g
+
+# Individual reinforcement learning, aspiration = own average payoff.
+w <- matrix(50, n, 2) # columns: weight on G, weight on S
+total <- numeric(n)
+share_rl <- numeric(periods)
+for (t in 1:periods) {
+  g <- runif(n) < w[, 1] / rowSums(w)
+  n_g <- sum(g)
+  share_rl[t] <- n_g / n
+  for (i in 1:n) {
+    p <- pay(g[i], n_g)
+    aspiration <- if (t == 1) p else total[i] / (t - 1)
+    col <- if (g[i]) 1 else 2
+    w[i, col] <- max(1, w[i, col] + p - aspiration)
+    total[i] <- total[i] + p
+  }
+}
+# Social learning: replicator dynamics on the share generous.
+x <- numeric(periods)
+x[1] <- start
+for (t in 2:periods) {
+  n_g <- x[t - 1] * n
+  pg <- pay(TRUE, n_g)
+  ps <- pay(FALSE, n_g)
+  x[t] <- x[t - 1] * pg / (x[t - 1] * pg + (1 - x[t - 1]) * ps)
+}
+cat(sprintf(
+  "Share generous after %d periods: individual %.2f, social %.2f\n",
+  periods, share_rl[periods], x[periods]
+))
+
+plot(share_rl,
+  type = "l", lwd = 2, col = "#148a91", ylim = c(0, 1),
+  xlab = "Period", ylab = "Share generous"
+)
+lines(x, lwd = 2, col = "#d95f02")
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- A dominant strategy (generosity) can still earn less than the alternative relative to others.
+- Individual learning responds to absolute payoffs; social learning by imitation responds to relative ones.
+- Which learning model applies determines whether a population becomes generous or spiteful.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Why cultures that imitate visible success can drift toward status competition, and the debate between neoliberal (absolute gains) and neorealist (relative gains) views of international relations.
+- **Reason.** Ask how actors learn before predicting outcomes from incentives alone.
+- **Predict.** Organizational cultures that reward relative standing may breed spite even when cooperation pays everyone.
+:::
+
+## Related models
+
+- [Reinforcement Learning](reinforcement-learning.qmd): the individual learning rule.
+- [Replicator Dynamics](replicator-dynamics.qmd): the social learning rule.
+- [Repeated Prisoners' Dilemma](prisoners-dilemma.qmd): another game where individual and collective interest diverge.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 26, "Learning Models," pp. 312–316.
+- Drew Fudenberg and David Levine, *Theory of Learning in Games* (MIT Press, 1998).

@@ -1,0 +1,246 @@
+---
+title: "The Bass Model"
+date: 2026-11-13
+description: "Adoption driven by both broadcast and word of mouth: an S-curve whose shape depends on the mix of the two."
+order: 23
+chapter: 11
+chapter-title: "Broadcast, Diffusion, and Contagion"
+pages: "136–137"
+family: "Networks and contagion"
+engine: "Equation-based"
+tool: "Observable JS (difference equation)"
+reference: "base R"
+uses: [Predict, Explain, Act]
+categories: ["Networks and contagion", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#23** · *The Model Thinker*, chapter 11, "Broadcast, Diffusion, and Contagion", pp. 136–137.
+
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (difference equation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+New products, ideas and technologies reach people in two ways: from a source that reaches everyone at once (advertising, the news, an app store's front page) and from people who already have them (a friend's recommendation, a colleague's demo). The broadcast model captures the first, the diffusion model the second. Frank Bass's model adds them together.
+
+The mix decides the shape of the adoption curve. Broadcast alone produces an *r*-shaped curve: adoption is fastest at the start and slows as fewer people are left to reach. Word of mouth alone produces an *S*-shaped curve: slow at first, because few people are talking, then fast, then slow again. Most real products, from televisions to smartphones, show a blend, and the model lets us read the blend off the data.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A relevant population of $N_{\text{POP}}$ potential adopters. At time $t$, $I_t$ have adopted (are *informed*) and $S_t = N_{\text{POP}} - I_t$ have not (are *susceptible*). Initially $I_0 = 0$.
+
+**Equation.**
+
+$$
+I_{t+1} = I_t + \underbrace{P_{\text{broad}} \cdot S_t}_{\text{broadcast}} + \underbrace{P_{\text{diffuse}} \cdot \frac{I_t}{N_{\text{POP}}} \cdot S_t}_{\text{word of mouth}}
+$$
+
+where $P_{\text{broad}}$ is the chance per period that a susceptible person hears from the source, and $P_{\text{diffuse}} = P_{\text{contact}} \cdot P_{\text{spread}}$ is the chance of meeting an adopter times the chance that the meeting passes the product on.
+
+**Result.** Everyone eventually adopts. The curve is *r*-shaped when $P_{\text{broad}}$ dominates and *S*-shaped when $P_{\text{diffuse}}$ dominates. In the continuous-time version, new adoptions peak at $t^* = \ln(P_{\text{diffuse}}/P_{\text{broad}})\,/\,(P_{\text{broad}} + P_{\text{diffuse}})$ when $P_{\text{diffuse}} > P_{\text{broad}}$, and at the launch otherwise.
+:::
+
+Setting $P_{\text{diffuse}} = 0$ gives the [broadcast model](broadcast-model.qmd); setting $P_{\text{broad}} = 0$ gives the [diffusion model](diffusion-model.qmd), which needs at least one initial adopter to start. Page writes the equation for the change in $I$; we add $I_t$ on the right so the equation gives the level, as in the other two models.
+
+## Interactive model
+
+The chart splits each period's new adopters into those reached by broadcast and those reached by word of mouth. With the defaults, broadcast starts the process but word of mouth does most of the work, so adoption peaks well after launch. Lower the word-of-mouth probability to see the curve turn *r*-shaped.
+
+```{ojs}
+//| echo: false
+import {iterate, C, pct, fmt, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof pBroad = Inputs.range([0.001, 0.2], {value: 0.01, step: 0.001, label: "Broadcast probability P_broad"})
+viewof pDiffuse = Inputs.range([0, 0.8], {value: 0.4, step: 0.01, label: "Word-of-mouth probability P_diffuse"})
+viewof periods = Inputs.range([10, 80], {value: 40, step: 1, label: "Periods"})
+```
+
+```{ojs}
+bass = {
+  const N = 1e6;
+  const path = iterate(({I}) => {
+    const S = N - I, broad = pBroad * S, word = pDiffuse * (I / N) * S;
+    return {I: I + broad + word, broad, word};
+  }, {I: 0, broad: 0, word: 0}, periods);
+  return path.map((d, t) => ({t, share: d.I / N, broad: d.broad / N, word: d.word / N}));
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "The Bass Model: new adopters per period",
+  ariaDescription: "Horizontal axis: period. Vertical axis: new adopters as a share of the population, stacked into those reached by broadcast (teal) and by word of mouth (orange). The summary below the charts states the result in words.",
+  height: 240,
+  x: {label: "Period"},
+  y: {label: "New adopters (share of population)", tickFormat: ".0%", grid: true},
+  color: {legend: true, domain: ["Broadcast", "Word of mouth"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.areaY(bass.slice(1).flatMap(d => [{t: d.t, v: d.broad, k: "Broadcast"}, {t: d.t, v: d.word, k: "Word of mouth"}]), {x: "t", y: "v", fill: "k", curve: "step"}),
+    Plot.ruleY([0])
+  ]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "The Bass Model: cumulative adoption",
+  ariaDescription: "Horizontal axis: period. Vertical axis: share of the population that has adopted. The summary below the charts states the result in words.",
+  height: 200,
+  x: {label: "Period"},
+  y: {label: "Adopted (share)", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [
+    Plot.line(bass, {x: "t", y: "share", stroke: C.purple, strokeWidth: 2.5}),
+    Plot.ruleY([0.5], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const peak = bass.slice(1).reduce((b, d) => (d.broad + d.word > b.broad + b.word ? d : b));
+  const half = bass.find(d => d.share >= 0.5);
+  const wordShare = bass.reduce((s, d) => s + d.word, 0) / bass[bass.length - 1].share;
+  const tStar = pDiffuse > pBroad ? Math.log(pDiffuse / pBroad) / (pBroad + pDiffuse) : 0;
+  return html`<div class="sim-readout">${md`New adoptions peak in **period ${peak.t}**, when ${pct(peak.broad + peak.word, 1)} of the population adopts (the continuous-time formula gives ${fmt(tStar, 1)}). ${half ? `Half the population has adopted by **period ${half.t}**.` : `Fewer than half have adopted after ${periods} periods.`} Word of mouth accounts for **${pct(wordShare)}** of adoptions so far: the curve is ${wordShare > 0.6 ? "*S*-shaped" : wordShare > 0.3 ? "a blend of *r* and *S*" : "*r*-shaped"}.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {iterate, C, pct, fmt, num} from "../js/models.js"
+
+viewof pBroad = Inputs.range([0.001, 0.2], {value: 0.01, step: 0.001, label: "Broadcast probability P_broad"})
+viewof pDiffuse = Inputs.range([0, 0.8], {value: 0.4, step: 0.01, label: "Word-of-mouth probability P_diffuse"})
+viewof periods = Inputs.range([10, 80], {value: 40, step: 1, label: "Periods"})
+
+bass = {
+  const N = 1e6;
+  const path = iterate(({I}) => {
+    const S = N - I, broad = pBroad * S, word = pDiffuse * (I / N) * S;
+    return {I: I + broad + word, broad, word};
+  }, {I: 0, broad: 0, word: 0}, periods);
+  return path.map((d, t) => ({t, share: d.I / N, broad: d.broad / N, word: d.word / N}));
+}
+
+Plot.plot({
+  ariaLabel: "The Bass Model: new adopters per period",
+  ariaDescription: "Horizontal axis: period. Vertical axis: new adopters as a share of the population, stacked into those reached by broadcast (teal) and by word of mouth (orange). The summary below the charts states the result in words.",
+  height: 240,
+  x: {label: "Period"},
+  y: {label: "New adopters (share of population)", tickFormat: ".0%", grid: true},
+  color: {legend: true, domain: ["Broadcast", "Word of mouth"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.areaY(bass.slice(1).flatMap(d => [{t: d.t, v: d.broad, k: "Broadcast"}, {t: d.t, v: d.word, k: "Word of mouth"}]), {x: "t", y: "v", fill: "k", curve: "step"}),
+    Plot.ruleY([0])
+  ]
+})
+
+Plot.plot({
+  ariaLabel: "The Bass Model: cumulative adoption",
+  ariaDescription: "Horizontal axis: period. Vertical axis: share of the population that has adopted. The summary below the charts states the result in words.",
+  height: 200,
+  x: {label: "Period"},
+  y: {label: "Adopted (share)", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [
+    Plot.line(bass, {x: "t", y: "share", stroke: C.purple, strokeWidth: 2.5}),
+    Plot.ruleY([0.5], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6})
+  ]
+})
+
+{
+  const peak = bass.slice(1).reduce((b, d) => (d.broad + d.word > b.broad + b.word ? d : b));
+  const half = bass.find(d => d.share >= 0.5);
+  const wordShare = bass.reduce((s, d) => s + d.word, 0) / bass[bass.length - 1].share;
+  const tStar = pDiffuse > pBroad ? Math.log(pDiffuse / pBroad) / (pBroad + pDiffuse) : 0;
+  return html`<div class="sim-readout">${md`New adoptions peak in **period ${peak.t}**, when ${pct(peak.broad + peak.word, 1)} of the population adopts (the continuous-time formula gives ${fmt(tStar, 1)}). ${half ? `Half the population has adopted by **period ${half.t}**.` : `Fewer than half have adopted after ${periods} periods.`} Word of mouth accounts for **${pct(wordShare)}** of adoptions so far: the curve is ${wordShare > 0.6 ? "*S*-shaped" : wordShare > 0.3 ? "a blend of *r* and *S*" : "*r*-shaped"}.`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# The Bass model: adoption by broadcast plus word of mouth.
+# Deterministic: no random numbers.
+p_broad <- 0.01 # chance per period of hearing from the source
+p_diffuse <- 0.4 # chance per period of adopting from an adopter
+n_pop <- 1e6 # relevant population
+periods <- 40
+
+adopted <- numeric(periods + 1) # adopted[t + 1] is I_t; I_0 = 0
+broad <- numeric(periods + 1)
+word <- numeric(periods + 1)
+for (t in 1:periods) {
+  susceptible <- n_pop - adopted[t]
+  broad[t + 1] <- p_broad * susceptible
+  word[t + 1] <- p_diffuse * (adopted[t] / n_pop) * susceptible
+  adopted[t + 1] <- adopted[t] + broad[t + 1] + word[t + 1]
+}
+
+new <- broad + word
+peak <- which.max(new) - 1
+half <- which(adopted >= n_pop / 2)[1] - 1
+cat("New adoptions peak in period", peak, "\n")
+cat("Half the population has adopted by period", half, "\n")
+cat(sprintf(
+  "Word of mouth accounts for %.0f%% of adoptions\n",
+  100 * sum(word) / adopted[periods + 1]
+))
+
+barplot(rbind(broad, word)[, -1] / n_pop,
+  names.arg = 1:periods, col = c("#148a91", "#d95f02"),
+  border = NA, xlab = "Period", ylab = "New adopters (share)",
+  legend.text = c("Broadcast", "Word of mouth")
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Adoption curves are mixtures: broadcast gives an early, decelerating curve; word of mouth gives a late, S-shaped one.
+- The timing of peak sales depends on the ratio of word of mouth to broadcast, not on the population size.
+- Fitting both probabilities to early sales tells a firm what drives its growth, and so which lever (advertising or referrals) to pull.
+:::
+
+## Uses
+
+::: uses
+- **Predict.** Fit $P_{\text{broad}}$ and $P_{\text{diffuse}}$ to the first months of sales to forecast the peak and the eventual market, as marketers have done for consumer durables since 1969.
+- **Explain.** Why some products take off only after a long quiet period while others sell most units at launch.
+- **Act.** Decide between spending on advertising (raising $P_{\text{broad}}$) and on referral incentives (raising $P_{\text{diffuse}}$).
+:::
+
+## Related models
+
+- [Broadcast Model](broadcast-model.qmd): the special case with no word of mouth.
+- [Diffusion Model](diffusion-model.qmd): the special case with no broadcast.
+- [SIR Model](sir-model.qmd): adds recovery, so a contagion can die out before reaching everyone.
+- [Polya Process](polya-process.qmd): another process in which current adopters make adoption more likely.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 11, "Broadcast, Diffusion, and Contagion," pp. 136–137.
+- Frank Bass, "A New Product Growth Model for Consumer Durables," *Management Science* 15, no. 5 (1969): 215–227.

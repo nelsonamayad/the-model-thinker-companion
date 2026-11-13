@@ -1,0 +1,206 @@
+---
+title: "Public Projects and the Pivot Mechanism"
+date: 2026-11-13
+description: "Charging each person only when their report changes the decision makes truth-telling a dominant strategy and builds exactly the worthwhile projects, but it cannot also balance the budget."
+order: 49
+chapter: 24
+chapter-title: "Mechanism Design"
+pages: "291–295"
+family: "Value and power"
+engine: "Equation-based"
+tool: "Observable JS (closed form)"
+reference: "base R"
+uses: [Design, Reason, Act]
+categories: ["Value and power", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#49** · *The Model Thinker*, chapter 24, "Mechanism Design", pp. 291–295.
+
+Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+A town is deciding whether to build a park, a bridge or a broadband network. It is worth building if the residents' combined values exceed its cost. But values are private, and asking people what the project is worth to them invites strategic answers: overstate if you won't pay, understate if you will.
+
+Simple mechanisms fail. A majority vote with the cost shared equally can build a project that is worth less than it costs (a majority who each gain a little outvoting a minority who lose a lot), reject one that is worth more, and force people to pay more than the project is worth to them. The pivot mechanism, due to Edward Clarke and Theodore Groves, does better: build if reported values cover the cost, and charge each person only when their report is pivotal, the amount by which the others fell short. Truth-telling becomes a dominant strategy, by the same logic as a second-price auction. The catch, Page stresses, is that the taxes collected usually fall short of the cost, and no mechanism can have every property at once.
+
+## Formulation
+
+::: {.model-box}
+**Public project problem.** $N$ people attach monetary values $V_1, \dots, V_N$ to a project of cost $C$. The project should be undertaken if and only if
+
+$$
+C < V_1 + V_2 + \dots + V_N .
+$$
+
+**Majority vote with equal sharing.** Each votes for the project if $V_i \ge C/N$; if a majority votes yes, the project is built and each pays $C/N$. This can violate efficiency and voluntary participation.
+
+**Pivot mechanism.** Each person reports a valuation $\hat V_i$. The project is built if $\hat V_\Sigma = \hat V_1 + \dots + \hat V_N \ge C$. Person $i$ pays
+
+$$
+\text{tax}_i = \begin{cases} C - \sum_{j \ne i} \hat V_j & \text{if } \sum_{j \ne i} \hat V_j < C \le \hat V_\Sigma \quad (i \text{ is pivotal}) \\ 0 & \text{otherwise.} \end{cases}
+$$
+
+**Result.** Reporting $\hat V_i = V_i$ is a dominant strategy (incentive compatibility), the efficient decision is made, and nobody pays more than their value (voluntary participation). But taxes generally do not cover the cost: no mechanism for this problem is efficient, incentive compatible, individually rational and budget-balanced at once.
+:::
+
+Page's example: values $(60, 120, 150)$ and $C = 300$. The project is built (330 > 300). Person 1 pays $300 - 270 = 30$, person 2 pays $90$ and person 3 pays $120$: 240 in total, short of 300.
+
+## Interactive model
+
+Five residents value a project; set their values and the cost. The chart compares, for each resident, their value, their tax under the pivot mechanism and their payment under majority vote with equal shares. The readout reports what each mechanism decides and where each fails.
+
+```{ojs}
+//| echo: false
+import {C, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof vals = Inputs.form([10, 30, 60, 120, 150].map((v, i) => Inputs.range([0, 300], {value: v, step: 5, label: `Value of resident ${i + 1}`})))
+viewof cost = Inputs.range([50, 800], {value: 300, step: 10, label: "Cost of the project C"})
+```
+
+```{ojs}
+pivot = {
+  const N = vals.length, total = vals.reduce((a, b) => a + b, 0), build = total >= cost;
+  const taxes = vals.map((v, i) => { const others = total - v; return build && others < cost ? cost - others : 0; });
+  const yes = vals.filter(v => v >= cost / N).length, majority = yes > N / 2;
+  const rows = vals.flatMap((v, i) => [
+    {who: `Resident ${i + 1}`, k: "Value", x: v},
+    {who: `Resident ${i + 1}`, k: "Pivot tax", x: taxes[i]},
+    {who: `Resident ${i + 1}`, k: "Majority-vote share", x: majority ? cost / N : 0}
+  ]);
+  return {N, total, build, taxes, collected: taxes.reduce((a, b) => a + b, 0), majority, yes, rows, losers: majority ? vals.filter(v => v < cost / N).length : 0};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Public Projects and the Pivot Mechanism: values and payments",
+  ariaDescription: "For each resident, three bars: their value for the project (gray), their tax under the pivot mechanism (teal) and their payment under majority vote with equal cost shares (orange). The summary below the chart states the result in words.",
+  height: 260,
+  fx: {label: null},
+  x: {axis: null, domain: ["Value", "Pivot tax", "Majority-vote share"]},
+  y: {label: "Dollars", grid: true},
+  color: {legend: true, domain: ["Value", "Pivot tax", "Majority-vote share"], range: [C.gray, C.teal, C.orange]},
+  marks: [Plot.barY(pivot.rows, {fx: "who", x: "k", y: "x", fill: "k"}), Plot.ruleY([0])]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`Values sum to **${num(pivot.total)}** against a cost of ${num(cost)}, so the project ${pivot.build ? "**should be built**" : "**should not be built**"}. The pivot mechanism ${pivot.build ? `builds it and collects **${num(pivot.collected)}** in taxes, ${pivot.collected < cost ? `${num(cost - pivot.collected)} short of the cost: no budget balance` : "enough to cover the cost"}; nobody pays more than their value.` : "does not build it, and nobody pays anything."} Majority vote with equal shares of ${num(cost / pivot.N)}: ${pivot.yes} of ${pivot.N} vote yes, so it ${pivot.majority ? "builds" : "rejects"} the project${pivot.majority !== pivot.build ? " — **the wrong decision**" : ""}${pivot.losers ? `, and ${pivot.losers} resident${pivot.losers > 1 ? "s pay" : " pays"} more than the project is worth to them` : ""}.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {C, num} from "../js/models.js"
+
+viewof vals = Inputs.form([10, 30, 60, 120, 150].map((v, i) => Inputs.range([0, 300], {value: v, step: 5, label: `Value of resident ${i + 1}`})))
+viewof cost = Inputs.range([50, 800], {value: 300, step: 10, label: "Cost of the project C"})
+
+pivot = {
+  const N = vals.length, total = vals.reduce((a, b) => a + b, 0), build = total >= cost;
+  const taxes = vals.map((v, i) => { const others = total - v; return build && others < cost ? cost - others : 0; });
+  const yes = vals.filter(v => v >= cost / N).length, majority = yes > N / 2;
+  const rows = vals.flatMap((v, i) => [
+    {who: `Resident ${i + 1}`, k: "Value", x: v},
+    {who: `Resident ${i + 1}`, k: "Pivot tax", x: taxes[i]},
+    {who: `Resident ${i + 1}`, k: "Majority-vote share", x: majority ? cost / N : 0}
+  ]);
+  return {N, total, build, taxes, collected: taxes.reduce((a, b) => a + b, 0), majority, yes, rows, losers: majority ? vals.filter(v => v < cost / N).length : 0};
+}
+
+Plot.plot({
+  ariaLabel: "Public Projects and the Pivot Mechanism: values and payments",
+  ariaDescription: "For each resident, three bars: their value for the project (gray), their tax under the pivot mechanism (teal) and their payment under majority vote with equal cost shares (orange). The summary below the chart states the result in words.",
+  height: 260,
+  fx: {label: null},
+  x: {axis: null, domain: ["Value", "Pivot tax", "Majority-vote share"]},
+  y: {label: "Dollars", grid: true},
+  color: {legend: true, domain: ["Value", "Pivot tax", "Majority-vote share"], range: [C.gray, C.teal, C.orange]},
+  marks: [Plot.barY(pivot.rows, {fx: "who", x: "k", y: "x", fill: "k"}), Plot.ruleY([0])]
+})
+
+html`<div class="sim-readout">${md`Values sum to **${num(pivot.total)}** against a cost of ${num(cost)}, so the project ${pivot.build ? "**should be built**" : "**should not be built**"}. The pivot mechanism ${pivot.build ? `builds it and collects **${num(pivot.collected)}** in taxes, ${pivot.collected < cost ? `${num(cost - pivot.collected)} short of the cost: no budget balance` : "enough to cover the cost"}; nobody pays more than their value.` : "does not build it, and nobody pays anything."} Majority vote with equal shares of ${num(cost / pivot.N)}: ${pivot.yes} of ${pivot.N} vote yes, so it ${pivot.majority ? "builds" : "rejects"} the project${pivot.majority !== pivot.build ? " — **the wrong decision**" : ""}${pivot.losers ? `, and ${pivot.losers} resident${pivot.losers > 1 ? "s pay" : " pays"} more than the project is worth to them` : ""}.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# The pivot mechanism versus majority vote with equal cost shares.
+# Deterministic: no random numbers.
+pivot <- function(v, cost) {
+  build <- sum(v) >= cost
+  others <- sum(v) - v
+  tax <- ifelse(build & others < cost, cost - others, 0)
+  list(build = build, tax = tax, collected = sum(tax))
+}
+# Page's example: (60, 120, 150), cost 300.
+print(pivot(c(60, 120, 150), 300))
+
+v <- c(10, 30, 60, 120, 150)
+cost <- 300
+p <- pivot(v, cost)
+share <- cost / length(v)
+majority <- sum(v >= share) > length(v) / 2
+cat(sprintf(
+  "Should build: %s; pivot builds: %s (taxes %.0f); majority builds: %s\n",
+  sum(v) > cost, p$build, p$collected, majority
+))
+
+barplot(rbind(v, p$tax, if (majority) share else 0),
+  beside = TRUE,
+  col = c("grey60", "#148a91", "#d95f02"), names.arg = paste0("R", 1:5),
+  legend.text = c("Value", "Pivot tax", "Majority share")
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Simple voting with equal cost shares can build bad projects, reject good ones, and charge people more than their value.
+- The pivot mechanism charges people only for the difference their report makes, which makes honesty a dominant strategy and decisions efficient.
+- No public-project mechanism is efficient, truthful, voluntary and budget-balanced at once: designers must choose what to give up.
+:::
+
+## Uses
+
+::: uses
+- **Design.** Decision rules for public investments, shared facilities in firms, and spectrum and resource allocation.
+- **Reason.** Knowing an impossibility result saves effort, as knowing that perpetual-motion machines are impossible saves engineers.
+- **Act.** Use pivot-style charges where truthful information matters more than covering costs.
+:::
+
+## Related models
+
+- [Auctions and Revenue Equivalence](auctions.qmd): the second-price logic behind the pivot mechanism.
+- [Collective Action and Public Goods](public-goods.qmd): why voluntary contributions under-provide public goods.
+- [Shapley–Shubik Index](shapley-shubik-index.qmd): another model in which being pivotal is what counts.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 24, "Mechanism Design," pp. 291–295.
+- Edward H. Clarke, "Multipart Pricing of Public Goods," *Public Choice* 11, no. 1 (1971): 17–33, [doi:10.1007/BF01726210](https://doi.org/10.1007/BF01726210).
+- Scott E. Page, "An Appending Efficient Algorithm for Allocating Public Projects with Complementarities," *Journal of Public Economics* 64, no. 3 (1997): 291–322.

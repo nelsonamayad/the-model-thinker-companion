@@ -1,0 +1,225 @@
+---
+title: "Ping-Pong Model"
+date: 2026-11-13
+description: "When people act to correct an imbalance once it passes their personal threshold, similar thresholds make the system overshoot back and forth, while diverse thresholds let it settle."
+order: 37
+chapter: 19
+chapter-title: "Threshold Models with Feedbacks"
+pages: "220–223"
+family: "Processes and dynamics"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Explain, Design, Reason]
+categories: ["Processes and dynamics", "Equation-based"]
+verified: true
+source-note: "The book's boxed equation and its worked example differ; we follow the worked example, in which the state is the average of the latest total action and the previous state."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#37** · *The Model Thinker*, chapter 19, "Threshold Models with Feedbacks", pp. 220–223.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book. The book's boxed equation and its worked example differ; we follow the worked example, in which the state is the average of the latest total action and the previous state.
+:::
+
+## The idea
+
+Some thresholds trigger corrections rather than cascades. If one charity is flooded with donations, some donors switch to another; if one of two heritage sites has too many volunteers, some move to the other; if a crowd surges left, some people step right. Each person tolerates an imbalance up to a personal threshold and acts to reduce it beyond that. This is negative feedback, the opposite of the riot model's positive feedback.
+
+Negative feedback does not guarantee balance. If everyone has a similar, low threshold, then a small imbalance makes many people correct at once, they overshoot, and the system swings back and forth like a ping-pong ball. If thresholds are diverse, only a few people respond to small imbalances, the corrections are proportionate, and the system settles near balance. The diversity of responses, not just their direction, determines stability.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** $N$ entities each take an action $A_i(t) \in \{-1, +1\}$, initially at random. Entity $i$ has a response threshold $T_i$ drawn uniformly from $[0, \text{RANGE}]$. The state of the system starts at $S_0 = 0$ and then
+
+$$
+S_t = \tfrac12\Big(\sum_{i=1}^{N} A_i(t) + S_{t-1}\Big) + \varepsilon_t ,
+$$
+
+where $\varepsilon_t$ is $-1$ or $+1$ at random.
+
+**Rule.** An entity keeps its action while the imbalance is within its tolerance, and acts against the imbalance otherwise:
+
+$$
+A_i(t+1) = \begin{cases} A_i(t) & \text{if } |S_t| \le T_i \\ -\operatorname{sign}(S_t) & \text{otherwise.} \end{cases}
+$$
+
+**Result.** With low, similar thresholds (small RANGE), many entities respond together and overshoot, so the state cycles between large positive and negative values. With diverse thresholds (large RANGE), responses are graded and the state stays near zero.
+:::
+
+The box in the book writes the state as the previous state plus the average action plus noise; its worked example (a state of $-6$ prompts about 30 of 100 people to switch, the total action exceeds 50, and the new state, the average of the previous two values, exceeds 20) corresponds to the equation above, which we use.
+
+## Interactive model
+
+One hundred entities with thresholds spread uniformly between zero and the chosen range. The teal line is the state of the system; the gray line repeats the run with thresholds spread over 0 to 100 for comparison. With a range of 10, nearly everyone flips together each period: ping-pong. Widen the range and the swings die out.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, C, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof spread = Inputs.range([0, 100], {value: 10, step: 1, label: "Threshold range RANGE"})
+viewof seed = Inputs.range([1, 500], {value: 37, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+pingpong = {
+  const run = (R, label) => {
+    const r = rng(seed), N = 100, T = 80;
+    const thr = range(N).map(() => r() * R);
+    let A = range(N).map(() => (r() < 0.5 ? -1 : 1)), S = 0;
+    const rows = [];
+    for (let t = 1; t <= T; t++) {
+      S = 0.5 * (A.reduce((s, a) => s + a, 0) + S) + (r() < 0.5 ? -1 : 1);
+      rows.push({t, S, label});
+      A = A.map((a, i) => (Math.abs(S) <= thr[i] ? a : -Math.sign(S) || a));
+    }
+    const late = rows.slice(20);
+    return {rows, meanAbs: mean(late.map(d => Math.abs(d.S))), flips: late.filter((d, i) => i && Math.sign(d.S) !== Math.sign(late[i - 1].S)).length / (late.length - 1)};
+  };
+  return {chosen: run(spread, `RANGE = ${spread}`), wide: run(100, "RANGE = 100")};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Ping-Pong Model: state of the system over time",
+  ariaDescription: "Horizontal axis: period. Vertical axis: state of the system, the imbalance between the two actions. The teal line uses the chosen threshold range; the gray line uses thresholds spread from 0 to 100. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Period"},
+  y: {label: "State S_t", grid: true},
+  color: {legend: true, domain: [`RANGE = ${spread}`, "RANGE = 100"], range: [C.teal, C.gray]},
+  marks: [
+    Plot.ruleY([0]),
+    spread !== 100 ? Plot.line(pingpong.wide.rows, {x: "t", y: "S", stroke: "label", strokeWidth: 1.5}) : null,
+    Plot.line(pingpong.chosen.rows, {x: "t", y: "S", stroke: "label", strokeWidth: 2.2})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`With thresholds between 0 and ${spread}, the imbalance averages **${fmt(pingpong.chosen.meanAbs, 1)}** in absolute value after period 20, and it changes sign in **${Math.round(100 * pingpong.chosen.flips)}%** of periods. ${pingpong.chosen.flips > 0.6 && pingpong.chosen.meanAbs > 10 ? "Similar thresholds make everyone overcorrect together: the system ping-pongs." : "Corrections are graded, so the system stays near balance."} With thresholds spread from 0 to 100 the imbalance averages ${fmt(pingpong.wide.meanAbs, 1)}.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, C, fmt} from "../js/models.js"
+
+viewof spread = Inputs.range([0, 100], {value: 10, step: 1, label: "Threshold range RANGE"})
+viewof seed = Inputs.range([1, 500], {value: 37, step: 1, label: "Random seed"})
+
+pingpong = {
+  const run = (R, label) => {
+    const r = rng(seed), N = 100, T = 80;
+    const thr = range(N).map(() => r() * R);
+    let A = range(N).map(() => (r() < 0.5 ? -1 : 1)), S = 0;
+    const rows = [];
+    for (let t = 1; t <= T; t++) {
+      S = 0.5 * (A.reduce((s, a) => s + a, 0) + S) + (r() < 0.5 ? -1 : 1);
+      rows.push({t, S, label});
+      A = A.map((a, i) => (Math.abs(S) <= thr[i] ? a : -Math.sign(S) || a));
+    }
+    const late = rows.slice(20);
+    return {rows, meanAbs: mean(late.map(d => Math.abs(d.S))), flips: late.filter((d, i) => i && Math.sign(d.S) !== Math.sign(late[i - 1].S)).length / (late.length - 1)};
+  };
+  return {chosen: run(spread, `RANGE = ${spread}`), wide: run(100, "RANGE = 100")};
+}
+
+Plot.plot({
+  ariaLabel: "Ping-Pong Model: state of the system over time",
+  ariaDescription: "Horizontal axis: period. Vertical axis: state of the system, the imbalance between the two actions. The teal line uses the chosen threshold range; the gray line uses thresholds spread from 0 to 100. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Period"},
+  y: {label: "State S_t", grid: true},
+  color: {legend: true, domain: [`RANGE = ${spread}`, "RANGE = 100"], range: [C.teal, C.gray]},
+  marks: [
+    Plot.ruleY([0]),
+    spread !== 100 ? Plot.line(pingpong.wide.rows, {x: "t", y: "S", stroke: "label", strokeWidth: 1.5}) : null,
+    Plot.line(pingpong.chosen.rows, {x: "t", y: "S", stroke: "label", strokeWidth: 2.2})
+  ]
+})
+
+html`<div class="sim-readout">${md`With thresholds between 0 and ${spread}, the imbalance averages **${fmt(pingpong.chosen.meanAbs, 1)}** in absolute value after period 20, and it changes sign in **${Math.round(100 * pingpong.chosen.flips)}%** of periods. ${pingpong.chosen.flips > 0.6 && pingpong.chosen.meanAbs > 10 ? "Similar thresholds make everyone overcorrect together: the system ping-pongs." : "Corrections are graded, so the system stays near balance."} With thresholds spread from 0 to 100 the imbalance averages ${fmt(pingpong.wide.meanAbs, 1)}.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Ping-pong model: negative feedback with diverse or similar thresholds.
+n <- 100
+periods <- 80
+set.seed(37)
+
+run <- function(range_t) {
+  thr <- runif(n, 0, range_t)
+  act <- sample(c(-1, 1), n, replace = TRUE)
+  s <- 0
+  state <- numeric(periods)
+  for (t in 1:periods) {
+    s <- 0.5 * (sum(act) + s) + sample(c(-1, 1), 1)
+    state[t] <- s
+    act <- ifelse(abs(s) <= thr, act, -sign(s))
+  }
+  state
+}
+narrow <- run(10)
+wide <- run(100)
+cat(sprintf(
+  "Mean |S| after period 20: range 10 -> %.1f, range 100 -> %.1f\n",
+  mean(abs(narrow[21:periods])), mean(abs(wide[21:periods]))
+))
+
+plot(narrow,
+  type = "l", lwd = 2, col = "#148a91", xlab = "Period",
+  ylab = "State S"
+)
+lines(wide, lwd = 2, col = "grey60")
+abline(h = 0)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Threshold rules that act against an imbalance create negative feedback.
+- Homogeneous thresholds make the feedback overshoot, producing cycles; diverse thresholds produce graded corrections and stability.
+- Together with the riot model, this shows that the distribution of thresholds shapes outcomes as much as the direction of the feedback.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Oscillations in volunteer and donor allocations, crowding at two venues, and rebounds after market crashes, when bargain hunters buy in.
+- **Design.** Avoid synchronized responses (identical trigger rules in trading algorithms, identical policy thresholds) that turn corrections into swings.
+- **Reason.** Distinguish positive-feedback cascades from negative-feedback oscillations.
+:::
+
+## Related models
+
+- [Granovetter's Riot Model](riot-model.qmd): the positive-feedback threshold model.
+- [Balancing Process](balancing-process.qmd): smooth negative feedback, without thresholds.
+- [The El Farol Model](el-farol.qmd): people avoiding a crowd with rules rather than thresholds.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 19, "Threshold Models with Feedbacks," pp. 220–223.

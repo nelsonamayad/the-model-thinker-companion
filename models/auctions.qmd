@@ -1,0 +1,212 @@
+---
+title: "Auctions and Revenue Equivalence"
+date: 2026-11-13
+description: "Ascending, second-price and first-price auctions look very different, yet with rational bidders and independent private values they raise the same revenue on average."
+order: 48
+chapter: 24
+chapter-title: "Mechanism Design"
+pages: "286–291"
+family: "Value and power"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Design, Predict, Reason]
+categories: ["Value and power", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#48** · *The Model Thinker*, chapter 24, "Mechanism Design", pp. 286–291.
+
+Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Mechanism design asks how to build the rules of an interaction (an auction, an election, a matching market) so that self-interested participants produce a good outcome. Auctions are its showcase. A seller can let bidders raise their bids openly until one remains (an ascending auction), collect sealed bids and charge the winner the second-highest bid (a second-price auction), or charge the winner their own bid (a first-price auction).
+
+The rules change behaviour. In the ascending and second-price auctions, bidding your true value is a dominant strategy. In the first-price auction you should shade your bid below your value, because you pay what you bid. Yet the *revenue equivalence theorem* says these differences cancel exactly: with independent private values and rational bidders, all three raise the same expected revenue and give bidders the same expected payoff. Which format to use then depends on other things: simplicity, risk, collusion, or how far bidders depart from rationality.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** $N$ bidders, each with a private value $v_i$ for an object, drawn independently from a known common distribution (here uniform on $[0, 1]$).
+
+**Auctions and equilibrium bids.**
+
+- Ascending-bid: the price rises until one bidder remains; each stays in until the price reaches their value, so the winner pays the second-highest value.
+- Second-price sealed bid: bid your value ($b_i = v_i$); the winner pays the second-highest bid.
+- First-price sealed bid: the winner pays their own bid; in equilibrium $b_i = \dfrac{N - 1}{N}\, v_i$.
+
+**Revenue equivalence theorem.** Any auction in which each bidder maximizes expected payoff, the highest bidder always wins, and a bidder with value zero expects zero, gives the seller the same expected revenue and each bidder the same expected payoff. With uniform values, expected revenue is
+
+$$
+\mathbb E[\text{revenue}] = \frac{N - 1}{N + 1} .
+$$
+:::
+
+Expected revenue equals the expected second-highest of $N$ uniform values, $(N-1)/(N+1)$; in the first-price auction it equals the expected highest value, $N/(N+1)$, times the shading factor $(N-1)/N$. Pareto efficiency, the other design goal Page introduces in the chapter, is met by all three: the bidder who values the object most gets it.
+
+## Interactive model
+
+Each auction format is run 3,000 times with freshly drawn values. The distributions of revenue differ (the first-price auction's is narrower) but their averages, marked by the vertical lines, coincide with the theorem's prediction (dashed).
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, sd, C, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof N = Inputs.range([2, 20], {value: 4, step: 1, label: "Bidders N"})
+viewof seed = Inputs.range([1, 500], {value: 48, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+auction = {
+  const r = rng(seed), rows = [];
+  const formats = ["Ascending-bid", "Second-price sealed", "First-price sealed"];
+  const results = Object.fromEntries(formats.map(f => [f, {revenue: [], surplus: []}]));
+  for (let k = 0; k < 3000; k++) {
+    for (const f of formats) {
+      const v = range(N).map(() => r()).sort((a, b) => b - a);
+      const price = f === "First-price sealed" ? ((N - 1) / N) * v[0] : v[1];
+      results[f].revenue.push(price);
+      results[f].surplus.push(v[0] - price);
+      rows.push({format: f, revenue: price});
+    }
+  }
+  const summary = formats.map(f => ({format: f, mean: mean(results[f].revenue), sd: sd(results[f].revenue), bidder: mean(results[f].surplus)}));
+  return {rows, summary, theory: (N - 1) / (N + 1)};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Auctions and Revenue Equivalence: revenue distributions by format",
+  ariaDescription: "Three histograms, one per auction format, of the seller's revenue across 3,000 simulated auctions. Solid vertical lines mark each format's average revenue and the dashed line the theoretical expected revenue. The summary below the chart states the result in words.",
+  height: 340,
+  x: {label: "Seller's revenue", domain: [0, 1]},
+  y: {label: "Auctions", grid: true},
+  fy: {label: null, domain: ["Ascending-bid", "Second-price sealed", "First-price sealed"]},
+  marks: [
+    Plot.rectY(auction.rows, Plot.binX({y: "count"}, {x: "revenue", fy: "format", thresholds: 40, fill: C.teal, fillOpacity: 0.75})),
+    Plot.ruleX(auction.summary, {x: "mean", fy: "format", stroke: C.orange, strokeWidth: 2.5}),
+    Plot.ruleX([auction.theory], {stroke: "currentColor", strokeDasharray: "4 3"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`With ${N} bidders, the theorem predicts an expected revenue of (N − 1)/(N + 1) = **${fmt(auction.theory, 3)}**. Average revenue: ${auction.summary.map(d => `${d.format} **${fmt(d.mean, 3)}** (sd ${fmt(d.sd, 3)})`).join("; ")}. Winners keep ${auction.summary.map(d => fmt(d.bidder, 3)).join(", ")} on average. The formats differ in risk, not in expected revenue.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, sd, C, fmt} from "../js/models.js"
+
+viewof N = Inputs.range([2, 20], {value: 4, step: 1, label: "Bidders N"})
+viewof seed = Inputs.range([1, 500], {value: 48, step: 1, label: "Random seed"})
+
+auction = {
+  const r = rng(seed), rows = [];
+  const formats = ["Ascending-bid", "Second-price sealed", "First-price sealed"];
+  const results = Object.fromEntries(formats.map(f => [f, {revenue: [], surplus: []}]));
+  for (let k = 0; k < 3000; k++) {
+    for (const f of formats) {
+      const v = range(N).map(() => r()).sort((a, b) => b - a);
+      const price = f === "First-price sealed" ? ((N - 1) / N) * v[0] : v[1];
+      results[f].revenue.push(price);
+      results[f].surplus.push(v[0] - price);
+      rows.push({format: f, revenue: price});
+    }
+  }
+  const summary = formats.map(f => ({format: f, mean: mean(results[f].revenue), sd: sd(results[f].revenue), bidder: mean(results[f].surplus)}));
+  return {rows, summary, theory: (N - 1) / (N + 1)};
+}
+
+Plot.plot({
+  ariaLabel: "Auctions and Revenue Equivalence: revenue distributions by format",
+  ariaDescription: "Three histograms, one per auction format, of the seller's revenue across 3,000 simulated auctions. Solid vertical lines mark each format's average revenue and the dashed line the theoretical expected revenue. The summary below the chart states the result in words.",
+  height: 340,
+  x: {label: "Seller's revenue", domain: [0, 1]},
+  y: {label: "Auctions", grid: true},
+  fy: {label: null, domain: ["Ascending-bid", "Second-price sealed", "First-price sealed"]},
+  marks: [
+    Plot.rectY(auction.rows, Plot.binX({y: "count"}, {x: "revenue", fy: "format", thresholds: 40, fill: C.teal, fillOpacity: 0.75})),
+    Plot.ruleX(auction.summary, {x: "mean", fy: "format", stroke: C.orange, strokeWidth: 2.5}),
+    Plot.ruleX([auction.theory], {stroke: "currentColor", strokeDasharray: "4 3"})
+  ]
+})
+
+html`<div class="sim-readout">${md`With ${N} bidders, the theorem predicts an expected revenue of (N − 1)/(N + 1) = **${fmt(auction.theory, 3)}**. Average revenue: ${auction.summary.map(d => `${d.format} **${fmt(d.mean, 3)}** (sd ${fmt(d.sd, 3)})`).join("; ")}. Winners keep ${auction.summary.map(d => fmt(d.bidder, 3)).join(", ")} on average. The formats differ in risk, not in expected revenue.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Revenue equivalence: three auction formats, same expected revenue.
+n <- 4 # bidders
+reps <- 3000
+set.seed(48)
+
+revenue <- t(replicate(reps, {
+  v <- sort(runif(n), decreasing = TRUE)
+  c(
+    ascending = v[2], # price stops at the second-highest value
+    second_price = v[2], # winner pays the second-highest bid
+    first_price = (n - 1) / n * v[1] # winner pays own shaded bid
+  )
+}))
+print(round(rbind(mean = colMeans(revenue), sd = apply(revenue, 2, sd)), 3))
+cat(sprintf("Theory: (N - 1)/(N + 1) = %.3f\n", (n - 1) / (n + 1)))
+
+boxplot(revenue, col = "#148a91", ylab = "Seller's revenue")
+abline(h = (n - 1) / (n + 1), lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Auction rules change how people bid: truthfully in ascending and second-price auctions, shaded in first-price ones.
+- With independent private values and rational bidders, all standard formats raise the same expected revenue.
+- Choosing an auction format is about other features: simplicity, risk, resistance to collusion and robustness to irrational bidding.
+:::
+
+## Uses
+
+::: uses
+- **Design.** Spectrum auctions, online advertising auctions, government procurement and art sales.
+- **Predict.** Expected revenue from an auction given the number of bidders and their value distribution.
+- **Reason.** When revenue equivalence fails (correlated values, risk-averse bidders, asymmetries), the choice of format matters.
+:::
+
+## Related models
+
+- [Public Projects and the Pivot Mechanism](pivot-mechanism.qmd): the second-price logic applied to public decisions.
+- [The Effort Game](effort-game.qmd): a contest, like an all-pay auction.
+- [Signaling Models](signaling.qmd): another mechanism problem with private information.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 24, "Mechanism Design," pp. 283–291.
+- William Vickrey, "Counterspeculation, Auctions, and Competitive Sealed Tenders," *Journal of Finance* 16, no. 1 (1961): 8–37, [doi:10.1111/j.1540-6261.1961.tb02789.x](https://doi.org/10.1111/j.1540-6261.1961.tb02789.x).
+- Roger B. Myerson, "Optimal Auction Design," *Mathematics of Operations Research* 6, no. 1 (1981): 58–73, [doi:10.1287/moor.6.1.58](https://doi.org/10.1287/moor.6.1.58).

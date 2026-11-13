@@ -1,0 +1,433 @@
+---
+title: "The El Farol Model"
+date: 2026-11-13
+description: "People who each follow their best-performing rule of thumb about a crowded bar collectively fill it to capacity on average, without anyone planning it."
+order: 6
+chapter: 4
+chapter-title: "Modeling Human Actors"
+pages: "53–56"
+family: "Modeling people"
+engine: "Agent-based"
+tool: "NetLogo 6.4 + nlrx; JavaScript replay"
+reference: "NetLogo 6.4 model, nlrx experiment"
+uses: [Explain, Explore, Reason]
+categories: ["Modeling people", "Agent-based"]
+verified: true
+source-note: "The rule types are our own choice; the book specifies only fixed rules and rules based on recent attendance."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#6** · *The Model Thinker*, chapter 4, "Modeling Human Actors", pp. 53–56.
+
+Filed under [Modeling people](../families/modeling-people.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment.
+
+Source check: ✓ The formulation was checked against the book. The rule types are our own choice; the book specifies only fixed rules and rules based on recent attendance.
+:::
+
+## The idea
+
+El Farol is a bar in Santa Fe with live music on Tuesday nights. A hundred people would like to go, but only if it isn't packed: more than sixty people and everyone would rather have stayed home. There is no way to coordinate. If everyone expects a quiet night, everyone goes and it's packed; if everyone expects a crowd, nobody goes. Any forecast that everyone shares defeats itself, so no rational forecast exists. W. Brian Arthur used this puzzle to show what *rule-based* models of people can do that rational-actor models cannot.
+
+Each person carries a handful of rules of thumb (*same as last week*, *the average of the last month*, *the opposite of last week*, *always go*) and each week follows whichever rule would have done best so far. Nobody optimizes and nobody coordinates, yet attendance organizes itself around the capacity. This is Page's example of an *adaptive-rule* model: behaviour is fundamental, and better rules come to predominate.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** $N = 100$ people. Each week $t$, person $i$ either goes ($a_{it} = 1$) or stays home ($a_{it} = 0$); attendance is $A_t = \sum_i a_{it}$ and the capacity is $\bar A = 60$. Each person holds an ensemble of $K$ rules; rule $r$ maps past attendance $A_{t-1}, A_{t-2}, \dots$ to a forecast $f_r$ and advises going if $f_r \le \bar A$.
+
+**Payoffs.**
+
+$$
+\pi_{it} = \begin{cases} +1 & a_{it} = 1 \text{ and } A_t \le \bar A \\ -1 & a_{it} = 1 \text{ and } A_t > \bar A \\ \phantom{+}0 & a_{it} = 0 \end{cases}
+$$
+
+**Rules.** Each rule's score is the payoff its advice would have earned in all past weeks. Each week, every person follows their highest-scoring rule.
+
+**Result.** Attendance self-organizes: averaged over time it is close to the capacity, with no central planner. It keeps fluctuating, because a rule that works attracts users until it stops working.
+:::
+
+Our rules come in five types: the mirror image of last week ($100 - A_{t-1}$), last week's or an earlier week's attendance, the average of the last $k$ weeks, a trend extrapolation, and a fixed forecast (which amounts to *always go* or *never go*). Each person draws $K$ of them at random. Scoring rules by payoff, as Page's box does, or by the share of weeks their advice was right, as his text describes, ranks them identically: the two scores differ by the number of crowded weeks, which is the same for every rule.
+
+## Interactive model
+
+One run, replayed in your browser: each square is a person, teal if they go that week. Step through the weeks or press **Play**. Attendance hovers around 60 from early on. Then change the ensemble size: with very few rules people barely adapt, and with many rules they switch in herds and the swings grow.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, sd, argmax, drawGrid, player, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof K = Inputs.range([1, 12], {value: 3, step: 1, label: "Rules per person K"})
+viewof capacity = Inputs.range([20, 80], {value: 60, step: 5, label: "Capacity"})
+viewof seed = Inputs.range([1, 500], {value: 5, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+farol = {
+  const r = rng(seed), N = 100, weeks = 100;
+  const h = range(10).map(() => Math.floor(r() * 101));    // most recent first
+  const randomRule = () => {
+    const kind = Math.floor(r() * 5);
+    return [[0, 0], [1, 1 + Math.floor(r() * 5)], [2, 2 + Math.floor(r() * 7)], [3, 2 + Math.floor(r() * 4)], [4, Math.floor(r() * 101)]][kind];
+  };
+  const predict = ([kind, k]) => {
+    if (kind === 0) return 100 - h[0];
+    if (kind === 1) return h[k - 1];
+    if (kind === 2) return mean(h.slice(0, k));
+    if (kind === 3) return Math.max(0, Math.min(100, h[0] + (h[0] - h[k - 1]) / (k - 1)));
+    return k;
+  };
+  const people = range(N).map(() => ({rules: range(K).map(randomRule), scores: new Array(K).fill(0)}));
+  const log = [], frames = [];
+  for (let t = 0; t < weeks; t++) {
+    const going = people.map(p => (predict(p.rules[argmax(p.scores)]) <= capacity ? 1 : 0));
+    const A = going.reduce((s, v) => s + v, 0), pay = A <= capacity ? 1 : -1;
+    for (const p of people) p.rules.forEach((rule, j) => { if (predict(rule) <= capacity) p.scores[j] += pay; });
+    h.unshift(A);
+    log.push({week: t + 1, A});
+    frames.push(going);
+  }
+  const settled = log.slice(20).map(d => d.A);
+  return {log, frames, mean: mean(settled), sd: sd(settled), crowded: settled.filter(a => a > capacity).length / settled.length};
+}
+```
+
+```{ojs}
+viewof week = player(100, {value: 100, label: "Week", delay: 180})
+```
+
+```{ojs}
+drawGrid(farol.frames[Math.max(0, week - 1)], 10, [C.gray, C.teal], {
+  size: 200,
+  ariaLabel: "The El Farol Model: who goes this week",
+  ariaDescription: "A 10 by 10 grid of the 100 people; teal squares go to the bar this week, gray squares stay home. The summary below the charts states the result in words."
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "The El Farol Model: weekly attendance",
+  ariaDescription: "Horizontal axis: week. Vertical axis: number of people at the bar. The dashed line is the capacity and the vertical line marks the week shown in the grid. The summary below the charts states the result in words.",
+  height: 240,
+  x: {label: "Week", domain: [1, 100]},
+  y: {label: "Attendance", domain: [0, 100], grid: true},
+  marks: [
+    Plot.ruleY([capacity], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(farol.log, {x: "week", y: "A", stroke: C.teal, strokeWidth: 1.8}),
+    Plot.ruleX([Math.max(1, week)], {stroke: C.orange})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`In week ${Math.max(1, week)}, **${farol.log[Math.max(0, week - 1)].A}** people go. From week 21 on, attendance averages **${fmt(farol.mean, 1)}** against a capacity of ${capacity}, with weekly swings of ±${fmt(farol.sd, 1)} (one standard deviation), and the bar is overcrowded in ${pct(farol.crowded)} of weeks. Nobody coordinates: each person just follows whichever of their ${K} rule${K > 1 ? "s" : ""} has paid best so far.`}</div>`
+```
+
+### NetLogo experiment
+
+The same model in NetLogo, run by nlrx for 100 weeks at eight ensemble sizes with eight random seeds each (capacity 60). Each dot is one run's average attendance from week 21 on; the bars show the typical weekly swing (± one standard deviation, averaged over runs).
+
+```{ojs}
+//| echo: false
+nlRuns = FileAttachment("../data/el-farol.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => ({
+  mean: d3.mean(v, d => d.mean_attendance),
+  sd: d3.mean(v, d => d.sd_attendance)
+}), d => d.ensemble_size).map(([K, s]) => ({K, ...s})).sort((a, b) => a.K - b.K)
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "The El Farol Model: NetLogo experiment",
+  ariaDescription: "Horizontal axis: rules per person. Vertical axis: attendance. Gray dots are individual NetLogo runs' average attendance; teal bars span the average attendance plus and minus the typical weekly standard deviation. The dashed line is the capacity of 60. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Rules per person K", ticks: nlMeans.map(d => d.K)},
+  y: {label: "Attendance (weeks 21–100)", domain: [0, 100], grid: true},
+  marks: [
+    Plot.ruleY([60], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleX(nlMeans, {x: "K", y1: d => d.mean - d.sd, y2: d => d.mean + d.sd, stroke: C.teal, strokeWidth: 6, strokeOpacity: 0.5}),
+    Plot.dot(nlRuns, {x: "ensemble_size", y: "mean_attendance", fill: C.gray, r: 3}),
+    Plot.dot(nlMeans, {x: "K", y: "mean", fill: C.teal, r: 5})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const lo = nlMeans.reduce((b, d) => (d.sd < b.sd ? d : b)), hi = nlMeans[nlMeans.length - 1];
+  return html`<div class="sim-readout">${md`In NetLogo, average attendance stays between **${fmt(d3.min(nlMeans, d => d.mean), 1)} and ${fmt(d3.max(nlMeans, d => d.mean), 1)}** at every ensemble size: the bar fills to capacity on average without coordination. What changes is the volatility. Weekly swings are smallest with ${lo.K} rules per person (±${fmt(lo.sd, 1)}) and largest with ${hi.K} (±${fmt(hi.sd, 1)}): with more rules to switch to, many people adopt the same newly successful rule at once and overshoot together.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **NetLogo** model is the reference implementation, and the **nlrx** script runs the experiment whose results are charted above (NetLogo 6.4, nlrx 0.4). The **Observable JS** replays the same rules in your browser, with its own random numbers.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, sd, argmax, drawGrid, player, C, fmt, pct} from "../js/models.js"
+
+viewof K = Inputs.range([1, 12], {value: 3, step: 1, label: "Rules per person K"})
+viewof capacity = Inputs.range([20, 80], {value: 60, step: 5, label: "Capacity"})
+viewof seed = Inputs.range([1, 500], {value: 5, step: 1, label: "Random seed"})
+
+farol = {
+  const r = rng(seed), N = 100, weeks = 100;
+  const h = range(10).map(() => Math.floor(r() * 101));    // most recent first
+  const randomRule = () => {
+    const kind = Math.floor(r() * 5);
+    return [[0, 0], [1, 1 + Math.floor(r() * 5)], [2, 2 + Math.floor(r() * 7)], [3, 2 + Math.floor(r() * 4)], [4, Math.floor(r() * 101)]][kind];
+  };
+  const predict = ([kind, k]) => {
+    if (kind === 0) return 100 - h[0];
+    if (kind === 1) return h[k - 1];
+    if (kind === 2) return mean(h.slice(0, k));
+    if (kind === 3) return Math.max(0, Math.min(100, h[0] + (h[0] - h[k - 1]) / (k - 1)));
+    return k;
+  };
+  const people = range(N).map(() => ({rules: range(K).map(randomRule), scores: new Array(K).fill(0)}));
+  const log = [], frames = [];
+  for (let t = 0; t < weeks; t++) {
+    const going = people.map(p => (predict(p.rules[argmax(p.scores)]) <= capacity ? 1 : 0));
+    const A = going.reduce((s, v) => s + v, 0), pay = A <= capacity ? 1 : -1;
+    for (const p of people) p.rules.forEach((rule, j) => { if (predict(rule) <= capacity) p.scores[j] += pay; });
+    h.unshift(A);
+    log.push({week: t + 1, A});
+    frames.push(going);
+  }
+  const settled = log.slice(20).map(d => d.A);
+  return {log, frames, mean: mean(settled), sd: sd(settled), crowded: settled.filter(a => a > capacity).length / settled.length};
+}
+
+viewof week = player(100, {value: 100, label: "Week", delay: 180})
+
+drawGrid(farol.frames[Math.max(0, week - 1)], 10, [C.gray, C.teal], {
+  size: 200,
+  ariaLabel: "The El Farol Model: who goes this week",
+  ariaDescription: "A 10 by 10 grid of the 100 people; teal squares go to the bar this week, gray squares stay home. The summary below the charts states the result in words."
+})
+
+Plot.plot({
+  ariaLabel: "The El Farol Model: weekly attendance",
+  ariaDescription: "Horizontal axis: week. Vertical axis: number of people at the bar. The dashed line is the capacity and the vertical line marks the week shown in the grid. The summary below the charts states the result in words.",
+  height: 240,
+  x: {label: "Week", domain: [1, 100]},
+  y: {label: "Attendance", domain: [0, 100], grid: true},
+  marks: [
+    Plot.ruleY([capacity], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(farol.log, {x: "week", y: "A", stroke: C.teal, strokeWidth: 1.8}),
+    Plot.ruleX([Math.max(1, week)], {stroke: C.orange})
+  ]
+})
+
+html`<div class="sim-readout">${md`In week ${Math.max(1, week)}, **${farol.log[Math.max(0, week - 1)].A}** people go. From week 21 on, attendance averages **${fmt(farol.mean, 1)}** against a capacity of ${capacity}, with weekly swings of ±${fmt(farol.sd, 1)} (one standard deviation), and the bar is overcrowded in ${pct(farol.crowded)} of weeks. Nobody coordinates: each person just follows whichever of their ${K} rule${K > 1 ? "s" : ""} has paid best so far.`}</div>`
+
+nlRuns = FileAttachment("../data/el-farol.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => ({
+  mean: d3.mean(v, d => d.mean_attendance),
+  sd: d3.mean(v, d => d.sd_attendance)
+}), d => d.ensemble_size).map(([K, s]) => ({K, ...s})).sort((a, b) => a.K - b.K)
+
+Plot.plot({
+  ariaLabel: "The El Farol Model: NetLogo experiment",
+  ariaDescription: "Horizontal axis: rules per person. Vertical axis: attendance. Gray dots are individual NetLogo runs' average attendance; teal bars span the average attendance plus and minus the typical weekly standard deviation. The dashed line is the capacity of 60. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Rules per person K", ticks: nlMeans.map(d => d.K)},
+  y: {label: "Attendance (weeks 21–100)", domain: [0, 100], grid: true},
+  marks: [
+    Plot.ruleY([60], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleX(nlMeans, {x: "K", y1: d => d.mean - d.sd, y2: d => d.mean + d.sd, stroke: C.teal, strokeWidth: 6, strokeOpacity: 0.5}),
+    Plot.dot(nlRuns, {x: "ensemble_size", y: "mean_attendance", fill: C.gray, r: 3}),
+    Plot.dot(nlMeans, {x: "K", y: "mean", fill: C.teal, r: 5})
+  ]
+})
+
+{
+  const lo = nlMeans.reduce((b, d) => (d.sd < b.sd ? d : b)), hi = nlMeans[nlMeans.length - 1];
+  return html`<div class="sim-readout">${md`In NetLogo, average attendance stays between **${fmt(d3.min(nlMeans, d => d.mean), 1)} and ${fmt(d3.max(nlMeans, d => d.mean), 1)}** at every ensemble size: the bar fills to capacity on average without coordination. What changes is the volatility. Weekly swings are smallest with ${lo.K} rules per person (±${fmt(lo.sd, 1)}) and largest with ${hi.K} (±${fmt(hi.sd, 1)}): with more rules to switch to, many people adopt the same newly successful rule at once and overshoot together.`}</div>`;
+}
+```
+
+## NetLogo {.unlisted}
+
+```{.netlogo}
+; The El Farol model (The Model Thinker, chapter 4).
+; The Model Thinker Companion: reference implementation, run with nlrx by
+; abm/el-farol.R. The page replays the same rules in JavaScript.
+;
+; 100 people decide each week whether to go to a bar. Going pays +1 if at
+; most `capacity` people go and -1 otherwise; staying home pays 0. Each person
+; holds an ensemble of `ensemble-size` rules. A rule predicts this week's
+; attendance from past attendance and advises going if its prediction is at
+; most `capacity`. Each rule keeps a score: the payoff its advice would have
+; earned so far. Each week every person follows their highest-scoring rule
+; (the first one, if tied). Rule types, with their parameter k:
+;   0 mirror: 100 minus last week's attendance
+;   1 lag: attendance k weeks ago (k = 1..5)
+;   2 average: mean of the last k weeks (k = 2..8)
+;   3 trend: last week plus the average weekly change over the last k
+;     weeks, kept within 0..100 (k = 2..5)
+;   4 fixed: always predicts k (k = 0..100)
+; Attendance history starts with 10 random weeks.
+
+globals [
+  history          ; past attendance, most recent first
+  attendance       ; this week's attendance
+  attendance-log   ; attendance in every simulated week, oldest first
+]
+
+turtles-own [
+  rules            ; list of [type k] pairs
+  scores           ; payoff each rule's advice would have earned
+  going?
+]
+
+to setup
+  clear-all
+  set history n-values 10 [ random 101 ]
+  set attendance-log []
+  create-turtles 100 [
+    set rules n-values ensemble-size [ random-rule ]
+    set scores n-values ensemble-size [ 0 ]
+    set hidden? true
+  ]
+  reset-ticks
+end
+
+to-report random-rule
+  let kind random 5
+  if kind = 0 [ report list 0 0 ]
+  if kind = 1 [ report list 1 (1 + random 5) ]
+  if kind = 2 [ report list 2 (2 + random 7) ]
+  if kind = 3 [ report list 3 (2 + random 4) ]
+  report list 4 random 101
+end
+
+to-report predict [ rule ]
+  let kind first rule
+  let k last rule
+  if kind = 0 [ report 100 - item 0 history ]
+  if kind = 1 [ report item (k - 1) history ]
+  if kind = 2 [ report mean sublist history 0 k ]
+  if kind = 3 [
+    let change (item 0 history - item (k - 1) history) / (k - 1)
+    report max list 0 min list 100 (item 0 history + change)
+  ]
+  report k
+end
+
+to go
+  ask turtles [
+    let best position (max scores) scores
+    set going? predict (item best rules) <= capacity
+  ]
+  set attendance count turtles with [ going? ]
+  let pay ifelse-value (attendance <= capacity) [ 1 ] [ -1 ]
+  ask turtles [
+    set scores (map [ [r s] ->
+      s + ifelse-value (predict r <= capacity) [ pay ] [ 0 ] ] rules scores)
+  ]
+  set history fput attendance history
+  set attendance-log lput attendance attendance-log
+  tick
+end
+
+; Summaries over the weeks after a 20-week burn-in.
+to-report settled-log
+  ifelse length attendance-log > 20
+    [ report sublist attendance-log 20 length attendance-log ]
+    [ report attendance-log ]
+end
+
+to-report mean-attendance
+  report mean settled-log
+end
+
+to-report sd-attendance
+  report standard-deviation settled-log
+end
+
+to-report share-crowded
+  report (length filter [ a -> a > capacity ] settled-log)
+    / length settled-log
+end
+```
+
+## nlrx (R) {.unlisted}
+
+```{.r}
+# The El Farol model: does attendance self-organize around capacity, and how
+# does that depend on how many rules each person holds?
+# NetLogo model: abm/el-farol.nlogo. Output: data/el-farol.csv (one row per
+# ensemble size and seed).
+source("abm/_nlrx.R")
+
+nl <- nl_model("el-farol")
+nl@experiment <- experiment(
+  expname = "ensemble_sweep",
+  outpath = tempdir(),
+  repetition = 1,
+  tickmetrics = "false", # measure once, at the end of the run
+  idsetup = "setup",
+  idgo = "go",
+  runtime = 100, # weeks; summaries skip the first 20
+  metrics = c("mean-attendance", "sd-attendance", "share-crowded"),
+  variables = list(
+    "ensemble-size" = list(values = c(1, 2, 3, 4, 6, 8, 10, 12))
+  ),
+  constants = list("capacity" = 60)
+)
+set.seed(4) # makes nlrx draw the same NetLogo seeds every time
+nl@simdesign <- simdesign_ff(nl, nseeds = 8)
+
+results <- run_experiment(nl)
+save_results(results, "el-farol",
+  keep = c(
+    "ensemble_size", "random_seed", "mean_attendance", "sd_attendance",
+    "share_crowded"
+  )
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- A population of simple, adaptive rule-followers can solve a coordination problem that has no rational-expectations solution.
+- The micro–macro loop drives the result: rules produce attendance, and attendance feeds back into which rules people use.
+- Self-organization gets the average right but not the fluctuations; more adaptive people can make the aggregate more volatile.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Why markets, traffic and crowds settle near capacity on average yet keep swinging around it.
+- **Explore.** Change the rule set, the scoring or the capacity and see when coordination breaks down.
+- **Reason.** Contrast with the rational-actor model: here there is no consistent forecast for anyone to be rational about.
+:::
+
+## Related models
+
+- [Rational-Actor Model](rational-actor.qmd): the optimizing alternative, which has no clean answer here.
+- [Reinforcement Learning](reinforcement-learning.qmd): another way people come to favour rules that pay.
+- [Congestion Model](congestion-model.qmd): the same crowding payoff, analysed with game theory.
+- [Ping-Pong Model](ping-pong-model.qmd): negative feedback that keeps a system near a target but never still.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 4, "Modeling Human Actors," pp. 53–56.
+- W. Brian Arthur, "Inductive Reasoning and Bounded Rationality (The El Farol Problem)," *American Economic Review Papers and Proceedings* 84 (1994): 406–411.

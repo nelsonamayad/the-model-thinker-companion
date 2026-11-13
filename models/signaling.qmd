@@ -1,0 +1,219 @@
+---
+title: "Signaling Models"
+date: 2026-11-13
+description: "A costly action can reveal a hidden quality only if it costs the low-quality types more than the high-quality ones; otherwise everyone signals, or no signal separates them."
+order: 50
+chapter: 25
+chapter-title: "Signaling Models"
+pages: "297–304"
+family: "Value and power"
+engine: "Equation-based"
+tool: "Observable JS (closed form)"
+reference: "base R"
+uses: [Explain, Design, Predict]
+categories: ["Value and power", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#50** · *The Model Thinker*, chapter 25, "Signaling Models", pp. 297–304.
+
+Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Employers can't see a job candidate's ability, lenders can't see a borrower's honesty, and peahens can't see a peacock's health. Each relies on signals: degrees, collateral, extravagant tails. Michael Spence's insight was that a signal can be informative even if it is useless in itself, as long as it is more costly for weak types to send than for strong ones. A degree is credible evidence of ability if it is harder to earn for less able students.
+
+Page's signaling models make the conditions exact. With a fixed, all-or-nothing signal, three outcomes are possible: everyone signals (pooling), only the strong types signal (separating), or the strong types and some weak types signal (partial pooling). With a signal that can be any size, the strong types can always separate by sending a signal big enough that it isn't worth copying, but it may be cheaper for them to pool. The signals themselves are often wasteful, which is the price of credible information.
+
+## Formulation
+
+::: {.model-box}
+**Discrete signals.** A population of $N$ has $S$ strong and $W$ weak types, whose costs of sending a signal are $c$ and $C$, with $c < C$. Those who send the signal share a benefit $B > 0$ equally. Three equilibria:
+
+- **Pooling**, $C < \dfrac{B}{N}$: both types signal.
+- **Separating**, $c < \dfrac{B}{S}$ and $\dfrac{B}{S + 1} < C$: only strong types signal.
+- **Partial pooling**, $c < \dfrac{B}{N} < C < \dfrac{B}{S + 1}$: strong types and a fraction of weak types signal, until a signaler's share equals $C$.
+
+**Continuous signals.** Types have per-unit signaling costs $c$ and $C > c$; those sending the largest signal split $B$. A signal of magnitude
+
+$$
+M \ge \frac{B}{S\,C}
+$$
+
+separates the strong types: a weak type copying it would pay at least $B/S$, more than its share. All strong types separate if $C W \ge c N$; otherwise a partial pooling equilibrium exists.
+:::
+
+In partial pooling every signaler earns $C > c$, so strong types always signal; we therefore classify outcomes by the weak types' cost alone. The condition for full separation with continuous signals compares a strong type's payoff from separating, $\frac BS(1 - \frac cC)$, with its payoff from pooling, $\frac BN$; rearranging gives $CW \ge cN$.
+
+## Interactive model
+
+A population of 100 with a benefit shared among those who signal. The chart shows each signaler's share of the benefit as a function of how many signal, against each type's cost: a type keeps signaling while its share exceeds its cost. Raise the weak types' cost to move from pooling, through partial pooling, to separation.
+
+```{ojs}
+//| echo: false
+import {range, C as palette, fmt, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof S = Inputs.range([5, 95], {value: 20, step: 5, label: "Strong types S (of 100)"})
+viewof B = Inputs.range([100, 5000], {value: 1000, step: 100, label: "Benefit B"})
+viewof cs = Inputs.range([0, 60], {value: 10, step: 1, label: "Strong types' cost c"})
+viewof cw = Inputs.range([0, 100], {value: 30, step: 1, label: "Weak types' cost C"})
+```
+
+```{ojs}
+signal = {
+  const N = 100, W = N - S;
+  let outcome, signalers, weakSignal = 0;
+  if (cw < B / N) { outcome = "Pooling"; signalers = N; weakSignal = W; }
+  else if (B / (S + 1) < cw) {
+    if (cs < B / S) { outcome = "Separating"; signalers = S; } else { outcome = "No signaling"; signalers = 0; }
+  } else { weakSignal = Math.floor(B / cw - S); outcome = "Partial pooling"; signalers = S + weakSignal; }
+  const share = range(N).map(i => ({n: i + 1, share: B / (i + 1)}));
+  const M = B / (S * Math.max(cw, 1e-9)), fullSep = cw * W >= cs * N;
+  return {N, W, outcome, signalers, weakSignal, share, M, fullSep};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Signaling Models: benefit per signaler against signaling costs",
+  ariaDescription: "Horizontal axis: number of people who signal. Vertical axis, log scale: dollars. The purple curve is each signaler's share of the benefit, B divided by the number of signalers; horizontal lines mark the strong types' cost (teal) and the weak types' cost (orange); the vertical line marks the equilibrium number of signalers. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Number who signal", domain: [1, 100]},
+  y: {label: "Dollars", type: "log", grid: true},
+  marks: [
+    Plot.line(signal.share, {x: "n", y: "share", stroke: palette.purple, strokeWidth: 2.5}),
+    cs > 0 ? Plot.ruleY([cs], {stroke: palette.teal, strokeWidth: 2}) : null,
+    cw > 0 ? Plot.ruleY([cw], {stroke: palette.orange, strokeWidth: 2}) : null,
+    Plot.ruleX([signal.signalers || 1], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleX([S], {stroke: palette.teal, strokeOpacity: 0.4})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`With ${S} strong and ${signal.W} weak types, a benefit of ${num(B)}, and costs ${cs} (strong) and ${cw} (weak), the equilibrium is **${signal.outcome.toLowerCase()}**: ${signal.outcome === "Pooling" ? `everyone signals, since even with all 100 signaling each gets ${fmt(B / 100, 1)} > ${cw}. The signal reveals nothing.` : signal.outcome === "Separating" ? `only the ${S} strong types signal, each receiving ${fmt(B / S, 1)}; a weak type joining would get ${fmt(B / (S + 1), 1)} < ${cw}. The signal reveals type perfectly.` : signal.outcome === "Partial pooling" ? `the ${S} strong types and **${signal.weakSignal} weak types** signal, until a signaler's share falls to the weak types' cost. The signal is informative but noisy.` : "no type finds the signal worth its cost."} With a continuous signal, a signal of size **${fmt(signal.M, 1)}** would separate the strong types, and ${signal.fullSep ? "they would all prefer to separate (CW ≥ cN)." : "but they would rather pool (CW < cN), so some strong types do not separate."}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {range, C as palette, fmt, num} from "../js/models.js"
+
+viewof S = Inputs.range([5, 95], {value: 20, step: 5, label: "Strong types S (of 100)"})
+viewof B = Inputs.range([100, 5000], {value: 1000, step: 100, label: "Benefit B"})
+viewof cs = Inputs.range([0, 60], {value: 10, step: 1, label: "Strong types' cost c"})
+viewof cw = Inputs.range([0, 100], {value: 30, step: 1, label: "Weak types' cost C"})
+
+signal = {
+  const N = 100, W = N - S;
+  let outcome, signalers, weakSignal = 0;
+  if (cw < B / N) { outcome = "Pooling"; signalers = N; weakSignal = W; }
+  else if (B / (S + 1) < cw) {
+    if (cs < B / S) { outcome = "Separating"; signalers = S; } else { outcome = "No signaling"; signalers = 0; }
+  } else { weakSignal = Math.floor(B / cw - S); outcome = "Partial pooling"; signalers = S + weakSignal; }
+  const share = range(N).map(i => ({n: i + 1, share: B / (i + 1)}));
+  const M = B / (S * Math.max(cw, 1e-9)), fullSep = cw * W >= cs * N;
+  return {N, W, outcome, signalers, weakSignal, share, M, fullSep};
+}
+
+Plot.plot({
+  ariaLabel: "Signaling Models: benefit per signaler against signaling costs",
+  ariaDescription: "Horizontal axis: number of people who signal. Vertical axis, log scale: dollars. The purple curve is each signaler's share of the benefit, B divided by the number of signalers; horizontal lines mark the strong types' cost (teal) and the weak types' cost (orange); the vertical line marks the equilibrium number of signalers. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Number who signal", domain: [1, 100]},
+  y: {label: "Dollars", type: "log", grid: true},
+  marks: [
+    Plot.line(signal.share, {x: "n", y: "share", stroke: palette.purple, strokeWidth: 2.5}),
+    cs > 0 ? Plot.ruleY([cs], {stroke: palette.teal, strokeWidth: 2}) : null,
+    cw > 0 ? Plot.ruleY([cw], {stroke: palette.orange, strokeWidth: 2}) : null,
+    Plot.ruleX([signal.signalers || 1], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleX([S], {stroke: palette.teal, strokeOpacity: 0.4})
+  ]
+})
+
+html`<div class="sim-readout">${md`With ${S} strong and ${signal.W} weak types, a benefit of ${num(B)}, and costs ${cs} (strong) and ${cw} (weak), the equilibrium is **${signal.outcome.toLowerCase()}**: ${signal.outcome === "Pooling" ? `everyone signals, since even with all 100 signaling each gets ${fmt(B / 100, 1)} > ${cw}. The signal reveals nothing.` : signal.outcome === "Separating" ? `only the ${S} strong types signal, each receiving ${fmt(B / S, 1)}; a weak type joining would get ${fmt(B / (S + 1), 1)} < ${cw}. The signal reveals type perfectly.` : signal.outcome === "Partial pooling" ? `the ${S} strong types and **${signal.weakSignal} weak types** signal, until a signaler's share falls to the weak types' cost. The signal is informative but noisy.` : "no type finds the signal worth its cost."} With a continuous signal, a signal of size **${fmt(signal.M, 1)}** would separate the strong types, and ${signal.fullSep ? "they would all prefer to separate (CW ≥ cN)." : "but they would rather pool (CW < cN), so some strong types do not separate."}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Discrete signaling: pooling, separating or partial pooling.
+# Deterministic: no random numbers.
+signal_outcome <- function(strong, benefit, c_strong, c_weak, n = 100) {
+  if (c_weak < benefit / n) {
+    return("pooling")
+  }
+  if (benefit / (strong + 1) < c_weak) {
+    return(if (c_strong < benefit / strong) "separating" else "no signaling")
+  }
+  sprintf(
+    "partial pooling (%d weak signal)",
+    floor(benefit / c_weak - strong)
+  )
+}
+for (cw in c(5, 30, 60)) {
+  cat("Weak cost", cw, "->", signal_outcome(20, 1000, 10, cw), "\n")
+}
+# Continuous signal that separates, and whether strong types want it.
+strong <- 20
+weak <- 80
+cat(sprintf("Separating signal M >= B/(S C) = %.2f\n", 1000 / (strong * 30)))
+cat("All strong types separate (C W >= c N):", 30 * weak >= 10 * 100, "\n")
+
+n_sig <- 1:100
+plot(n_sig, 1000 / n_sig,
+  log = "y", type = "l", lwd = 2, col = "#7570b3",
+  xlab = "Number who signal", ylab = "Share of benefit"
+)
+abline(h = c(10, 30), col = c("#148a91", "#d95f02"), lwd = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- A signal is credible only if it costs low types more than high types.
+- Depending on costs and benefits, signals separate types, pool them, or partially separate them.
+- Signals can be socially wasteful: their value lies in what they reveal, not in what they produce.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Education as a signal of ability, warranties as signals of quality, costly advertising, and peacocks' tails.
+- **Design.** Screening devices (probation periods, deposits, costly applications) that only serious types will accept.
+- **Predict.** When a credential will stop being informative: once it becomes cheap enough for everyone to obtain, it pools.
+:::
+
+## Related models
+
+- [Sequential Games](sequential-games.qmd): reputations, another way actions reveal hidden types.
+- [Auctions and Revenue Equivalence](auctions.qmd): mechanism design under private information.
+- [The Effort Game](effort-game.qmd): costly effort in pursuit of a shared prize.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 25, "Signaling Models," pp. 297–304.
+- A. Michael Spence, "Job Market Signaling," *Quarterly Journal of Economics* 87, no. 3 (1973): 355–374.
+- Amotz Zahavi, "Mate Selection: A Selection for a Handicap," *Journal of Theoretical Biology* 53, no. 1 (1974): 205–214.

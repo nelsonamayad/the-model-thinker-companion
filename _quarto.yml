@@ -1,0 +1,116 @@
+project:
+  type: website
+  output-dir: _site
+  # Only .qmd files are pages. README.md, CLAUDE.md, the R and NetLogo
+  # sources and the book's EPUB never become pages.
+  render:
+    - "**/*.qmd"
+  resources:
+    - js/models.js
+    - data/
+    - assets/
+
+website:
+  title: "The Model Thinker Companion"
+  description: "Every model in Scott E. Page's The Model Thinker: its formulation, and an interactive application that runs in your browser."
+  favicon: assets/logo.svg
+  # Public URL (Netlify site recorded in _publish.yml), used for the sitemap
+  # and canonical links.
+  site-url: https://the-model-thinker-companion.netlify.app
+  # "Edit this page" and "Report an issue" links on every page.
+  repo-url: https://github.com/nelsonamayad/model-thinker
+  repo-branch: main
+  repo-actions: [edit, issue]
+  search:
+    location: navbar
+    type: overlay
+  page-navigation: true
+  back-to-top-navigation: true
+  bread-crumbs: true
+  navbar:
+    logo: assets/logo.svg
+    logo-alt: "The Model Thinker Companion logo"
+    title: false
+    # Icons are Bootstrap Icons (https://icons.getbootstrap.com). The family
+    # icons match ICONS in scripts/build_site.py (the home-page cards).
+    left:
+      - href: index.qmd
+        text: Browse all
+        icon: grid-3x3-gap
+      - text: Families
+        icon: collection
+        menu:
+          - href: families/many-models.qmd
+            icon: intersect
+          - href: families/modeling-people.qmd
+            icon: person
+          - href: families/distributions.qmd
+            icon: bar-chart
+          - href: families/linear-nonlinear.qmd
+            icon: graph-up
+          - href: families/value-power.qmd
+            icon: bank
+          - href: families/networks-contagion.qmd
+            icon: share
+          - href: families/processes-dynamics.qmd
+            icon: arrow-repeat
+          - href: families/games-cooperation.qmd
+            icon: people
+          - href: families/learning-search.qmd
+            icon: lightbulb
+      - href: agent-based.qmd
+        text: Agent-based models
+        icon: grid-3x3
+      - href: many-models.qmd
+        text: Many-model thinking
+        icon: stack
+      - href: random.qmd
+        text: Random model
+        icon: shuffle
+      - href: about.qmd
+        text: About
+        icon: info-circle
+    right:
+      - icon: github
+        href: https://github.com/nelsonamayad/model-thinker
+        aria-label: Source code on GitHub
+  # The sidebar (models grouped by family, in book order) is generated into
+  # _sidebar.yml by scripts/build_site.py and merged in below.
+  page-footer:
+    left: "An independent homage to Scott E. Page's *The Model Thinker* (Basic Books, 2018). Not affiliated with or endorsed by the author or the publisher."
+    right:
+      - text: About
+        href: about.qmd
+      - icon: shuffle
+        href: random.qmd
+        aria-label: Random model
+      - icon: github
+        href: https://github.com/nelsonamayad/model-thinker
+        aria-label: Source code on GitHub
+
+brand: _brand.yml
+
+metadata-files:
+  - _sidebar.yml
+
+date-modified: last-modified
+date-format: long
+
+format:
+  html:
+    css: styles.css
+    html-math-method:
+      method: mathjax
+      url: "https://cdn.jsdelivr.net/npm/mathjax@4.1.3/tex-chtml.js"
+    include-after-body:
+      - _a11y.html
+    toc: true
+    toc-title: "On this page"
+    code-fold: true
+    code-summary: "Show code"
+    code-tools: false
+    smooth-scroll: true
+    anchor-sections: true
+
+execute:
+  echo: true

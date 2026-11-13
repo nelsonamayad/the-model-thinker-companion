@@ -1,0 +1,257 @@
+---
+title: "Lotka–Volterra Model"
+date: 2026-11-13
+description: "Predators and prey linked by feedbacks rise and fall in endless cycles around an equilibrium that neither population ever settles at."
+order: 34
+chapter: 18
+chapter-title: "Systems Dynamics Models"
+pages: "201–208"
+family: "Processes and dynamics"
+engine: "Equation-based"
+tool: "Observable JS (Runge–Kutta integration)"
+reference: "R with deSolve"
+uses: [Explain, Predict, Act]
+categories: ["Processes and dynamics", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#34** · *The Model Thinker*, chapter 18, "Systems Dynamics Models", pp. 201–208.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (Runge–Kutta integration) · Reference implementation: R with deSolve.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Systems dynamics models describe a system as stocks (quantities that accumulate, like populations, inventories or money) connected by flows, with feedback loops that speed flows up or slow them down. The founding example is the predator–prey model of Alfred Lotka and Vito Volterra. Hares breed and grow; foxes eat hares and grow; without hares, foxes starve.
+
+The feedbacks produce cycles. Many hares feed many foxes; many foxes eat the hares down; with few hares the foxes decline; with few foxes the hares recover, and the cycle starts again, with the fox peaks lagging the hare peaks. The model has an equilibrium where both populations would hold steady, but unless they start exactly there they orbit it forever. Its counterintuitive lessons for action are typical of systems dynamics: the equilibrium number of hares depends only on the foxes' parameters, and vice versa.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** An ecosystem with $H$ hares and $F$ foxes. Hares grow at rate $g$; foxes die off at rate $d$; when hares and foxes meet, hares are eaten at rate $a$ and foxes grow at rate $b$.
+
+**Equations.**
+
+$$
+\frac{dH}{dt} = gH - aFH, \qquad \frac{dF}{dt} = bFH - dF .
+$$
+
+**Results.** Besides extinction, the only equilibrium is
+
+$$
+H^* = \frac{d}{b}, \qquad F^* = \frac{g}{a} .
+$$
+
+Away from it, populations cycle around it forever: the quantity $V = bH - d\ln H + aF - g\ln F$ stays constant along every path, so each orbit is a closed loop. Fox peaks lag hare peaks by about a quarter of a cycle.
+:::
+
+The equilibrium shows the model's counterintuitive side: the long-run average number of hares is set by the foxes' death and growth rates ($d/b$), and the number of foxes by the hares' growth and the predation rate ($g/a$). Making hares breed faster raises the number of foxes, not hares.
+
+## Interactive model
+
+The equations are solved numerically with a fourth-order Runge–Kutta method. The left chart shows the two populations over time; the right chart plots foxes against hares, where each cycle is a closed loop around the equilibrium (the cross). Start the system closer to the equilibrium for smaller cycles.
+
+```{ojs}
+//| echo: false
+import {rk4, C, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof g = Inputs.range([0.1, 2], {value: 1, step: 0.05, label: "Hare growth rate g"})
+viewof a = Inputs.range([0.01, 0.3], {value: 0.1, step: 0.01, label: "Predation rate a"})
+viewof b = Inputs.range([0.005, 0.1], {value: 0.02, step: 0.005, label: "Fox growth from hares b"})
+viewof d = Inputs.range([0.1, 2], {value: 0.5, step: 0.05, label: "Fox death rate d"})
+viewof H0 = Inputs.range([1, 100], {value: 40, step: 1, label: "Starting hares"})
+viewof F0 = Inputs.range([1, 50], {value: 9, step: 1, label: "Starting foxes"})
+```
+
+```{ojs}
+lv = {
+  const path = rk4((t, [H, F]) => [g * H - a * F * H, b * F * H - d * F], [H0, F0], {t1: 60, dt: 0.005, every: 10})
+    .map(({t, y: [H, F]}) => ({t, H, F}));
+  const Hs = d / b, Fs = g / a;
+  const V = ({H, F}) => b * H - d * Math.log(H) + a * F - g * Math.log(F);
+  const peaks = path.filter((p, i) => i > 0 && i < path.length - 1 && p.H > path[i - 1].H && p.H >= path[i + 1].H).map(p => p.t);
+  const period = peaks.length > 1 ? (peaks[peaks.length - 1] - peaks[0]) / (peaks.length - 1) : NaN;
+  return {path, Hs, Fs, period, drift: Math.abs(V(path[path.length - 1]) - V(path[0])), maxH: Math.max(...path.map(p => p.H)), minH: Math.min(...path.map(p => p.H))};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Lotka–Volterra Model: populations over time",
+  ariaDescription: "Horizontal axis: time. Vertical axis: population. The teal line is hares and the orange line foxes; dashed lines mark their equilibrium levels. The summary below the charts states the result in words.",
+  height: 250,
+  x: {label: "Time"},
+  y: {label: "Population", grid: true},
+  color: {legend: true, domain: ["Hares H", "Foxes F"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([lv.Hs], {stroke: C.teal, strokeDasharray: "4 3", strokeOpacity: 0.7}),
+    Plot.ruleY([lv.Fs], {stroke: C.orange, strokeDasharray: "4 3", strokeOpacity: 0.7}),
+    Plot.line(lv.path, {x: "t", y: "H", stroke: () => "Hares H", strokeWidth: 2}),
+    Plot.line(lv.path, {x: "t", y: "F", stroke: () => "Foxes F", strokeWidth: 2})
+  ]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Lotka–Volterra Model: phase plane",
+  ariaDescription: "Horizontal axis: hares. Vertical axis: foxes. The purple loop is the path of the two populations, which circles the equilibrium marked with a cross. The summary below the charts states the result in words.",
+  height: 280,
+  width: 360,
+  x: {label: "Hares H", grid: true},
+  y: {label: "Foxes F", grid: true},
+  marks: [
+    Plot.line(lv.path, {x: "H", y: "F", stroke: C.purple, strokeWidth: 2}),
+    Plot.dot([{H: lv.Hs, F: lv.Fs}], {x: "H", y: "F", symbol: "cross", r: 7, stroke: "currentColor", strokeWidth: 2}),
+    Plot.dot([lv.path[0]], {x: "H", y: "F", fill: C.purple, r: 4})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`The equilibrium is **${fmt(lv.Hs, 1)} hares** (d/b) and **${fmt(lv.Fs, 1)} foxes** (g/a). Starting from ${H0} hares and ${F0} foxes, the populations cycle around it with a period of about **${fmt(lv.period, 1)} time units**, hares swinging between ${fmt(lv.minH, 1)} and ${fmt(lv.maxH, 1)}. The conserved quantity V drifts by only ${lv.drift.toExponential(1)} over the run, so the loop closes on itself: the cycle neither grows nor dies away.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (R with deSolve): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rk4, C, fmt} from "../js/models.js"
+
+viewof g = Inputs.range([0.1, 2], {value: 1, step: 0.05, label: "Hare growth rate g"})
+viewof a = Inputs.range([0.01, 0.3], {value: 0.1, step: 0.01, label: "Predation rate a"})
+viewof b = Inputs.range([0.005, 0.1], {value: 0.02, step: 0.005, label: "Fox growth from hares b"})
+viewof d = Inputs.range([0.1, 2], {value: 0.5, step: 0.05, label: "Fox death rate d"})
+viewof H0 = Inputs.range([1, 100], {value: 40, step: 1, label: "Starting hares"})
+viewof F0 = Inputs.range([1, 50], {value: 9, step: 1, label: "Starting foxes"})
+
+lv = {
+  const path = rk4((t, [H, F]) => [g * H - a * F * H, b * F * H - d * F], [H0, F0], {t1: 60, dt: 0.005, every: 10})
+    .map(({t, y: [H, F]}) => ({t, H, F}));
+  const Hs = d / b, Fs = g / a;
+  const V = ({H, F}) => b * H - d * Math.log(H) + a * F - g * Math.log(F);
+  const peaks = path.filter((p, i) => i > 0 && i < path.length - 1 && p.H > path[i - 1].H && p.H >= path[i + 1].H).map(p => p.t);
+  const period = peaks.length > 1 ? (peaks[peaks.length - 1] - peaks[0]) / (peaks.length - 1) : NaN;
+  return {path, Hs, Fs, period, drift: Math.abs(V(path[path.length - 1]) - V(path[0])), maxH: Math.max(...path.map(p => p.H)), minH: Math.min(...path.map(p => p.H))};
+}
+
+Plot.plot({
+  ariaLabel: "Lotka–Volterra Model: populations over time",
+  ariaDescription: "Horizontal axis: time. Vertical axis: population. The teal line is hares and the orange line foxes; dashed lines mark their equilibrium levels. The summary below the charts states the result in words.",
+  height: 250,
+  x: {label: "Time"},
+  y: {label: "Population", grid: true},
+  color: {legend: true, domain: ["Hares H", "Foxes F"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([lv.Hs], {stroke: C.teal, strokeDasharray: "4 3", strokeOpacity: 0.7}),
+    Plot.ruleY([lv.Fs], {stroke: C.orange, strokeDasharray: "4 3", strokeOpacity: 0.7}),
+    Plot.line(lv.path, {x: "t", y: "H", stroke: () => "Hares H", strokeWidth: 2}),
+    Plot.line(lv.path, {x: "t", y: "F", stroke: () => "Foxes F", strokeWidth: 2})
+  ]
+})
+
+Plot.plot({
+  ariaLabel: "Lotka–Volterra Model: phase plane",
+  ariaDescription: "Horizontal axis: hares. Vertical axis: foxes. The purple loop is the path of the two populations, which circles the equilibrium marked with a cross. The summary below the charts states the result in words.",
+  height: 280,
+  width: 360,
+  x: {label: "Hares H", grid: true},
+  y: {label: "Foxes F", grid: true},
+  marks: [
+    Plot.line(lv.path, {x: "H", y: "F", stroke: C.purple, strokeWidth: 2}),
+    Plot.dot([{H: lv.Hs, F: lv.Fs}], {x: "H", y: "F", symbol: "cross", r: 7, stroke: "currentColor", strokeWidth: 2}),
+    Plot.dot([lv.path[0]], {x: "H", y: "F", fill: C.purple, r: 4})
+  ]
+})
+
+html`<div class="sim-readout">${md`The equilibrium is **${fmt(lv.Hs, 1)} hares** (d/b) and **${fmt(lv.Fs, 1)} foxes** (g/a). Starting from ${H0} hares and ${F0} foxes, the populations cycle around it with a period of about **${fmt(lv.period, 1)} time units**, hares swinging between ${fmt(lv.minH, 1)} and ${fmt(lv.maxH, 1)}. The conserved quantity V drifts by only ${lv.drift.toExponential(1)} over the run, so the loop closes on itself: the cycle neither grows nor dies away.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Lotka-Volterra predator-prey model, solved with deSolve.
+# Deterministic: no random numbers.
+suppressPackageStartupMessages(library(deSolve))
+parms <- c(g = 1, a = 0.1, b = 0.02, d = 0.5)
+start <- c(hares = 40, foxes = 9)
+
+lv <- function(t, y, p) {
+  with(as.list(c(y, p)), {
+    list(c(g * hares - a * foxes * hares, b * foxes * hares - d * foxes))
+  })
+}
+out <- ode(start, times = seq(0, 60, by = 0.05), func = lv, parms = parms)
+
+cat(sprintf(
+  "Equilibrium: %.1f hares (d/b), %.1f foxes (g/a)\n",
+  parms[["d"]] / parms[["b"]], parms[["g"]] / parms[["a"]]
+))
+v <- with(as.list(parms), {
+  b * out[, "hares"] - d * log(out[, "hares"]) +
+    a * out[, "foxes"] - g * log(out[, "foxes"])
+})
+cat(sprintf("Conserved quantity drifts by %.1e\n", diff(range(v))))
+
+par(mfrow = c(1, 2))
+matplot(out[, 1], out[, 2:3],
+  type = "l", lty = 1, lwd = 2,
+  col = c("#148a91", "#d95f02"), xlab = "Time", ylab = "Population"
+)
+plot(out[, "hares"], out[, "foxes"],
+  type = "l", col = "#7570b3", lwd = 2,
+  xlab = "Hares", ylab = "Foxes"
+)
+points(parms[["d"]] / parms[["b"]], parms[["g"]] / parms[["a"]], pch = 3)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Coupled feedbacks between stocks can produce sustained cycles rather than convergence.
+- The equilibrium of each population is set by the other population's parameters.
+- Systems dynamics models reveal unintended consequences of interventions, which often work through feedback loops.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Population cycles of predators and prey, from lynx and hares to fish and fishing fleets.
+- **Predict.** The direction of effects of interventions: helping prey breed raises predator numbers.
+- **Act.** Systems dynamics models such as WORLD3 (*The Limits to Growth*) are used to explore policies for resources and pollution, and to anticipate side effects.
+:::
+
+## Related models
+
+- [Renewable Resource Extraction](renewable-resource.qmd): a stock with growth and harvesting.
+- [Lyapunov Functions](lyapunov-functions.qmd): here the conserved quantity neither falls nor rises, so no equilibrium is reached.
+- [SIR Model](sir-model.qmd): another stocks-and-flows model with a feedback through contacts.
+- [Replicator Dynamics](replicator-dynamics.qmd): population dynamics driven by relative payoffs.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 18, "Systems Dynamics Models," pp. 201–208.
+- Vito Volterra, "Fluctuations in the Abundance of a Species Considered Mathematically," *Nature* 118, no. 2972 (1926): 558–560, [doi:10.1038/118558a0](https://doi.org/10.1038/118558a0).
+- John D. Sterman, *Business Dynamics: Systems Thinking and Modeling for a Complex World* (McGraw-Hill, 2000).
+- D. Meadows, G. Meadows, J. Randers and W. W. Behrens III, *The Limits to Growth* (Universe Books, 1972).

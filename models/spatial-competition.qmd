@@ -1,0 +1,276 @@
+---
+title: "Spatial Competition Model"
+date: 2026-11-13
+description: "When people prefer the alternative closest to their ideal point, two competitors in one dimension converge on the median, while in more dimensions no position is safe."
+order: 38
+chapter: 20
+chapter-title: "Spatial and Hedonic Choice Models"
+pages: "227–236"
+family: "Games and cooperation"
+engine: "Equation-based"
+tool: "Observable JS (best-response dynamics)"
+reference: "base R"
+uses: [Predict, Explain, Design]
+categories: ["Games and cooperation", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#38** · *The Model Thinker*, chapter 20, "Spatial and Hedonic Choice Models", pp. 227–236.
+
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (best-response dynamics) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Many choices are about *where* an alternative sits rather than how much of something it offers: how sweet a chocolate bar, how far left or right a candidate, how formal a restaurant. In a spatial model, each person has an ideal point and prefers alternatives closer to it. Harold Hotelling used the idea for two shops on a street; Anthony Downs applied it to elections.
+
+The striking prediction in one dimension is convergence. Each candidate wins the voters on their side of the midpoint between them, so a candidate gains by moving toward the opponent, and both end up at the position of the *median voter*. That explains why many two-party elections are close and fought over the centre. With several dimensions the logic breaks down: for almost any position there is another that a majority prefers, so there need be no stable platform at all, and whoever controls the agenda or defends the status quo gains power.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** An alternative is a point $\vec a = (a_1, \dots, a_N)$ in an $N$-dimensional attribute space; each individual has an ideal point $\vec x = (x_1, \dots, x_N)$.
+
+**Payoff.** An individual's utility from an alternative falls with squared distance from the ideal point:
+
+$$
+\pi(\vec x, \vec a) = C - (x_1 - a_1)^2 - (x_2 - a_2)^2 - \dots - (x_N - a_N)^2 ,
+$$
+
+so each individual chooses the nearest alternative.
+
+**Results.** In one dimension with two competitors seeking the most support, the unique equilibrium is for both to locate at the median ideal point (the median voter theorem). In two or more dimensions, a position that beats every other in a pairwise majority vote exists only under special symmetry conditions, so generally no equilibrium exists.
+:::
+
+For example, with ideal point $\vec x = (3, 4, 6)$, alternative $\vec a = (2, 1, 8)$ and $C = 20$, the payoff is $20 - 1 - 9 - 4 = 6$.
+
+## Interactive model
+
+Two thousand voters with ideal points from 0 to 10, and two candidates. The histogram colours each voter by the candidate they prefer. Move the candidates by hand, then look at the lower chart: starting from your positions, each candidate in turn moves to the position that wins the most votes against the other, and both converge on the median voter, even when the electorate is polarized.
+
+```{ojs}
+//| echo: false
+import {rng, range, median, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof shape = Inputs.radio(["Centred", "Skewed", "Polarized (two camps)"], {value: "Polarized (two camps)", label: "Electorate"})
+viewof posA = Inputs.range([0, 10], {value: 2, step: 0.1, label: "Candidate A's position"})
+viewof posB = Inputs.range([0, 10], {value: 8.5, step: 0.1, label: "Candidate B's position"})
+viewof seed = Inputs.range([1, 500], {value: 38, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+spatial = {
+  const r = rng(seed), clip = v => Math.min(10, Math.max(0, v));
+  const voters = range(2000).map(() => clip(
+    shape === "Centred" ? r.normal(5, 1.6) : shape === "Skewed" ? 1 + r.gamma(2, 1.3) : (r() < 0.55 ? r.normal(3, 1) : r.normal(7.5, 1))));
+  const share = (a, b) => {
+    if (a === b) return 0.5;
+    let n = 0;
+    for (const v of voters) { const da = Math.abs(v - a), db = Math.abs(v - b); n += da < db ? 1 : da === db ? 0.5 : 0; }
+    return n / voters.length;
+  };
+  const grid = range(101).map(i => i / 10);
+  const best = other => grid.reduce((b, x) => (share(x, other) > share(b, other) + 1e-12 ? x : b), grid[0]);
+  let a = posA, b = posB;
+  const path = [{round: 0, a, b}];
+  for (let k = 1; k <= 120; k++) {
+    if (k % 2) a = best(b); else b = best(a);
+    path.push({round: k, a, b});
+    if (k > 4 && Math.abs(a - b) <= 0.21 && Math.abs((a + b) / 2 - path[k - 4].a / 2 - path[k - 4].b / 2) < 0.11) break;
+  }
+  return {voters, med: median(voters), shareA: share(posA, posB), path};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Spatial Competition Model: voters and candidates",
+  ariaDescription: "Horizontal axis: ideal point from 0 to 10. Vertical axis: number of voters. Bars are coloured by the candidate each voter prefers (teal for A, orange for B). Labelled vertical lines mark the candidates and the dashed line the median voter. The summary below the charts states the result in words.",
+  height: 230,
+  x: {label: "Ideal point", domain: [0, 10]},
+  y: {label: "Voters", grid: true},
+  marks: [
+    Plot.rectY(spatial.voters, Plot.binX({y: "count"}, {x: d => d, fill: d => (Math.abs(d - posA) <= Math.abs(d - posB) ? C.teal : C.orange), thresholds: 50, domain: [0, 10]})),
+    Plot.ruleX([spatial.med], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleX([posA], {stroke: C.teal, strokeWidth: 3}),
+    Plot.ruleX([posB], {stroke: C.orange, strokeWidth: 3}),
+    Plot.text([{x: posA, t: "A"}, {x: posB, t: "B"}], {x: "x", text: "t", frameAnchor: "top", dy: -4, fontWeight: "bold", fill: "currentColor"})
+  ]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Spatial Competition Model: best-response dynamics",
+  ariaDescription: "Horizontal axis: round of best responses. Vertical axis: candidate positions, with candidate A in teal and B in orange; both converge to the median voter, marked by the dashed line. The summary below the charts states the result in words.",
+  height: 200,
+  x: {label: "Round (candidates take turns moving to their best position)"},
+  y: {label: "Position", domain: [0, 10], grid: true},
+  marks: [
+    Plot.ruleY([spatial.med], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(spatial.path, {x: "round", y: "a", stroke: C.teal, strokeWidth: 2, marker: "circle"}),
+    Plot.line(spatial.path, {x: "round", y: "b", stroke: C.orange, strokeWidth: 2, marker: "circle"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const end = spatial.path[spatial.path.length - 1];
+  return html`<div class="sim-readout">${md`At these positions candidate A wins **${pct(spatial.shareA, 1)}** of the vote and B ${pct(1 - spatial.shareA, 1)}. The median voter sits at **${fmt(spatial.med, 2)}**. When each candidate in turn moves to their best position, after ${end.round} moves they end up at ${fmt(end.a, 1)} and ${fmt(end.b, 1)}, next to the median${shape.startsWith("Polarized") ? ", even though few voters live there: the centre is where elections are won, not where voters are" : ""}.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, median, C, fmt, pct} from "../js/models.js"
+
+viewof shape = Inputs.radio(["Centred", "Skewed", "Polarized (two camps)"], {value: "Polarized (two camps)", label: "Electorate"})
+viewof posA = Inputs.range([0, 10], {value: 2, step: 0.1, label: "Candidate A's position"})
+viewof posB = Inputs.range([0, 10], {value: 8.5, step: 0.1, label: "Candidate B's position"})
+viewof seed = Inputs.range([1, 500], {value: 38, step: 1, label: "Random seed"})
+
+spatial = {
+  const r = rng(seed), clip = v => Math.min(10, Math.max(0, v));
+  const voters = range(2000).map(() => clip(
+    shape === "Centred" ? r.normal(5, 1.6) : shape === "Skewed" ? 1 + r.gamma(2, 1.3) : (r() < 0.55 ? r.normal(3, 1) : r.normal(7.5, 1))));
+  const share = (a, b) => {
+    if (a === b) return 0.5;
+    let n = 0;
+    for (const v of voters) { const da = Math.abs(v - a), db = Math.abs(v - b); n += da < db ? 1 : da === db ? 0.5 : 0; }
+    return n / voters.length;
+  };
+  const grid = range(101).map(i => i / 10);
+  const best = other => grid.reduce((b, x) => (share(x, other) > share(b, other) + 1e-12 ? x : b), grid[0]);
+  let a = posA, b = posB;
+  const path = [{round: 0, a, b}];
+  for (let k = 1; k <= 120; k++) {
+    if (k % 2) a = best(b); else b = best(a);
+    path.push({round: k, a, b});
+    if (k > 4 && Math.abs(a - b) <= 0.21 && Math.abs((a + b) / 2 - path[k - 4].a / 2 - path[k - 4].b / 2) < 0.11) break;
+  }
+  return {voters, med: median(voters), shareA: share(posA, posB), path};
+}
+
+Plot.plot({
+  ariaLabel: "Spatial Competition Model: voters and candidates",
+  ariaDescription: "Horizontal axis: ideal point from 0 to 10. Vertical axis: number of voters. Bars are coloured by the candidate each voter prefers (teal for A, orange for B). Labelled vertical lines mark the candidates and the dashed line the median voter. The summary below the charts states the result in words.",
+  height: 230,
+  x: {label: "Ideal point", domain: [0, 10]},
+  y: {label: "Voters", grid: true},
+  marks: [
+    Plot.rectY(spatial.voters, Plot.binX({y: "count"}, {x: d => d, fill: d => (Math.abs(d - posA) <= Math.abs(d - posB) ? C.teal : C.orange), thresholds: 50, domain: [0, 10]})),
+    Plot.ruleX([spatial.med], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleX([posA], {stroke: C.teal, strokeWidth: 3}),
+    Plot.ruleX([posB], {stroke: C.orange, strokeWidth: 3}),
+    Plot.text([{x: posA, t: "A"}, {x: posB, t: "B"}], {x: "x", text: "t", frameAnchor: "top", dy: -4, fontWeight: "bold", fill: "currentColor"})
+  ]
+})
+
+Plot.plot({
+  ariaLabel: "Spatial Competition Model: best-response dynamics",
+  ariaDescription: "Horizontal axis: round of best responses. Vertical axis: candidate positions, with candidate A in teal and B in orange; both converge to the median voter, marked by the dashed line. The summary below the charts states the result in words.",
+  height: 200,
+  x: {label: "Round (candidates take turns moving to their best position)"},
+  y: {label: "Position", domain: [0, 10], grid: true},
+  marks: [
+    Plot.ruleY([spatial.med], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(spatial.path, {x: "round", y: "a", stroke: C.teal, strokeWidth: 2, marker: "circle"}),
+    Plot.line(spatial.path, {x: "round", y: "b", stroke: C.orange, strokeWidth: 2, marker: "circle"})
+  ]
+})
+
+{
+  const end = spatial.path[spatial.path.length - 1];
+  return html`<div class="sim-readout">${md`At these positions candidate A wins **${pct(spatial.shareA, 1)}** of the vote and B ${pct(1 - spatial.shareA, 1)}. The median voter sits at **${fmt(spatial.med, 2)}**. When each candidate in turn moves to their best position, after ${end.round} moves they end up at ${fmt(end.a, 1)} and ${fmt(end.b, 1)}, next to the median${shape.startsWith("Polarized") ? ", even though few voters live there: the centre is where elections are won, not where voters are" : ""}.`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Spatial competition: two candidates best-respond and converge to the median.
+set.seed(38)
+voters <- pmin(10, pmax(0, ifelse(runif(2000) < 0.55,
+  rnorm(2000, 3, 1), rnorm(2000, 7.5, 1)
+))) # a polarized electorate
+
+share <- function(a, b) {
+  if (a == b) {
+    return(0.5)
+  }
+  mean(ifelse(abs(voters - a) < abs(voters - b), 1,
+    ifelse(abs(voters - a) == abs(voters - b), 0.5, 0)
+  ))
+}
+grid <- seq(0, 10, by = 0.1)
+best <- function(other) grid[which.max(sapply(grid, share, b = other))]
+
+a <- 2
+b <- 8.5
+cat(sprintf("Starting shares: A %.3f\n", share(a, b)))
+for (round in 1:120) { # each best response leapfrogs the rival
+  if (round %% 2 == 1) a <- best(b) else b <- best(a)
+}
+cat(sprintf(
+  "After best responses: A at %.1f, B at %.1f; median %.2f\n",
+  a, b, median(voters)
+))
+
+hist(voters,
+  breaks = 50, col = "grey80", border = "white", main = "",
+  xlab = "Ideal point"
+)
+abline(v = c(a, b), col = c("#148a91", "#d95f02"), lwd = 3)
+abline(v = median(voters), lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- With one dimension and two competitors, competition pulls both to the median ideal point.
+- Convergence explains close elections and similar products, and it happens even when voters are polarized.
+- In several dimensions there is usually no unbeatable position, so agenda setters, veto players and the status quo matter.
+:::
+
+## Uses
+
+::: uses
+- **Predict.** Where parties will position themselves, and that two-party elections will be close.
+- **Explain.** Why competing products, stores and policies cluster together, and why multi-issue politics is unstable.
+- **Design.** Locate a new product where its *Voronoi neighbourhood* (the people it is closest to) is large, rather than at the crowded centre.
+:::
+
+## Related models
+
+- [Hedonic Competition Model](hedonic-competition.qmd): attributes where more is better, rather than where each person has an ideal.
+- [Shapley–Shubik Index](shapley-shubik-index.qmd): power in voting bodies.
+- [Zero-Sum Games](zero-sum-games.qmd): electoral competition between two candidates is zero-sum.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 20, "Spatial and Hedonic Choice Models," pp. 227–236.
+- Harold Hotelling, "Stability in Competition," *Economic Journal* 39, no. 153 (1929): 41–57.
+- Anthony Downs, "An Economic Theory of Political Action in a Democracy," *Journal of Political Economy* 65, no. 2 (1957): 135–150, [doi:10.1086/257897](https://doi.org/10.1086/257897).

@@ -1,0 +1,222 @@
+---
+title: "Lognormal Distribution"
+date: 2026-11-13
+description: "When many independent shocks multiply rather than add, outcomes follow a skewed lognormal distribution in which the mean exceeds the median."
+order: 8
+chapter: 5
+chapter-title: "Normal Distributions: The Bell Curve"
+pages: "66–68"
+family: "Distributions"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Explain, Predict]
+categories: ["Distributions", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#8** · *The Model Thinker*, chapter 5, "Normal Distributions: The Bell Curve", pp. 66–68.
+
+Filed under [Distributions](../families/distributions.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Some quantities grow by percentages rather than by amounts. A salary rises 4% one year and 1% the next; a firm grows 10% then shrinks 5%; a city, a bacterial colony or an investment compounds. When effects multiply like this, the central limit theorem applies to the *logarithm* of the outcome, because the log of a product is a sum of logs. The outcome itself is then lognormal: bunched at the low end with a long tail to the right.
+
+The consequences are easy to see in incomes and firm sizes. A lognormal distribution is skewed, so the average is pulled above the typical (median) value, and a modest share of people or firms accounts for a large share of the total. Two populations hit by shocks of the same size end up looking very different depending on whether the shocks add or multiply.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** An outcome starts at $X_0 > 0$ and is hit each period by an independent proportional shock $\varepsilon_t$ (with $1 + \varepsilon_t > 0$):
+
+$$
+X_T = X_0 \prod_{t=1}^{T} (1 + \varepsilon_t).
+$$
+
+**Result.** Taking logs, $\ln X_T = \ln X_0 + \sum_{t=1}^T \ln(1 + \varepsilon_t)$ is a sum of independent terms, so by the central limit theorem $\ln X_T$ is approximately normal, with some mean $m$ and standard deviation $s$; $X_T$ is then lognormal, with
+
+$$
+\text{median} = e^{m}, \qquad \text{mean} = e^{m + s^2/2} > \text{median}.
+$$
+
+The skew grows with $s$, and $s$ grows like $\sqrt{T}$.
+:::
+
+## Interactive model
+
+Five thousand people start with an income of 100 and receive a shock every year for $T$ years. With **multiplicative** shocks each year's change is a percentage of current income; with **additive** shocks it is the same size in dollars, so the two populations face equally large shocks in the first year. Compare the shapes, and how far the mean drifts above the median.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, median, quantile, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof years = Inputs.range([1, 80], {value: 40, step: 1, label: "Years T"})
+viewof shock = Inputs.range([0.01, 0.25], {value: 0.12, step: 0.01, label: "Shock size (sd, share of 100)"})
+viewof seed = Inputs.range([1, 500], {value: 8, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+logn = {
+  const r = rng(seed), people = 5000;
+  const mult = [], add = [];
+  for (let i = 0; i < people; i++) {
+    let x = 100, y = 100;
+    for (let t = 0; t < years; t++) {
+      x *= Math.max(0.01, 1 + r.normal(0, shock));
+      y += 100 * r.normal(0, shock);
+    }
+    mult.push(x); add.push(y);
+  }
+  const summary = (v, label) => {
+    const s = v.slice().sort((a, b) => b - a), total = s.reduce((a, b) => a + b, 0);
+    return {label, mean: mean(v), median: median(v), top1: s.slice(0, people / 100).reduce((a, b) => a + b, 0) / total};
+  };
+  return {mult, add, m: summary(mult, "Multiplicative"), a: summary(add, "Additive")};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Lognormal Distribution: incomes after multiplicative and additive shocks",
+  ariaDescription: "Two histograms on a shared horizontal axis of income: multiplicative shocks (teal, top) are right-skewed with a long tail; additive shocks (orange, bottom) are symmetric. Vertical rules mark each group's median (dashed) and mean (solid). The summary below the chart states the result in words.",
+  height: 340,
+  x: {label: "Income after T years", domain: [Math.min(0, quantile(logn.add, 0.005)), quantile(logn.mult, 0.99)]},
+  y: {label: "People", grid: true},
+  fy: {label: null, domain: ["Multiplicative", "Additive"]},
+  color: {domain: ["Multiplicative", "Additive"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.rectY([...logn.mult.map(v => ({v, k: "Multiplicative"})), ...logn.add.map(v => ({v, k: "Additive"}))].filter(d => d.v <= quantile(logn.mult, 0.99)), Plot.binX({y: "count"}, {x: "v", fy: "k", fill: "k", thresholds: 60, fillOpacity: 0.8})),
+    Plot.ruleX([logn.m, logn.a], {x: "median", fy: "label", stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleX([logn.m, logn.a], {x: "mean", fy: "label", stroke: "currentColor", strokeWidth: 2})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`After ${years} years of multiplicative shocks, the median income is **${fmt(logn.m.median, 0)}** but the mean is **${fmt(logn.m.mean, 0)}**, ${fmt(logn.m.mean / logn.m.median, 2)} times higher, and the top 1% hold **${pct(logn.m.top1, 1)}** of all income. With additive shocks of the same first-year size, the mean (${fmt(logn.a.mean, 0)}) and median (${fmt(logn.a.median, 0)}) stay together and the top 1% hold ${pct(logn.a.top1, 1)}.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, median, quantile, C, fmt, pct} from "../js/models.js"
+
+viewof years = Inputs.range([1, 80], {value: 40, step: 1, label: "Years T"})
+viewof shock = Inputs.range([0.01, 0.25], {value: 0.12, step: 0.01, label: "Shock size (sd, share of 100)"})
+viewof seed = Inputs.range([1, 500], {value: 8, step: 1, label: "Random seed"})
+
+logn = {
+  const r = rng(seed), people = 5000;
+  const mult = [], add = [];
+  for (let i = 0; i < people; i++) {
+    let x = 100, y = 100;
+    for (let t = 0; t < years; t++) {
+      x *= Math.max(0.01, 1 + r.normal(0, shock));
+      y += 100 * r.normal(0, shock);
+    }
+    mult.push(x); add.push(y);
+  }
+  const summary = (v, label) => {
+    const s = v.slice().sort((a, b) => b - a), total = s.reduce((a, b) => a + b, 0);
+    return {label, mean: mean(v), median: median(v), top1: s.slice(0, people / 100).reduce((a, b) => a + b, 0) / total};
+  };
+  return {mult, add, m: summary(mult, "Multiplicative"), a: summary(add, "Additive")};
+}
+
+Plot.plot({
+  ariaLabel: "Lognormal Distribution: incomes after multiplicative and additive shocks",
+  ariaDescription: "Two histograms on a shared horizontal axis of income: multiplicative shocks (teal, top) are right-skewed with a long tail; additive shocks (orange, bottom) are symmetric. Vertical rules mark each group's median (dashed) and mean (solid). The summary below the chart states the result in words.",
+  height: 340,
+  x: {label: "Income after T years", domain: [Math.min(0, quantile(logn.add, 0.005)), quantile(logn.mult, 0.99)]},
+  y: {label: "People", grid: true},
+  fy: {label: null, domain: ["Multiplicative", "Additive"]},
+  color: {domain: ["Multiplicative", "Additive"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.rectY([...logn.mult.map(v => ({v, k: "Multiplicative"})), ...logn.add.map(v => ({v, k: "Additive"}))].filter(d => d.v <= quantile(logn.mult, 0.99)), Plot.binX({y: "count"}, {x: "v", fy: "k", fill: "k", thresholds: 60, fillOpacity: 0.8})),
+    Plot.ruleX([logn.m, logn.a], {x: "median", fy: "label", stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleX([logn.m, logn.a], {x: "mean", fy: "label", stroke: "currentColor", strokeWidth: 2})
+  ]
+})
+
+html`<div class="sim-readout">${md`After ${years} years of multiplicative shocks, the median income is **${fmt(logn.m.median, 0)}** but the mean is **${fmt(logn.m.mean, 0)}**, ${fmt(logn.m.mean / logn.m.median, 2)} times higher, and the top 1% hold **${pct(logn.m.top1, 1)}** of all income. With additive shocks of the same first-year size, the mean (${fmt(logn.a.mean, 0)}) and median (${fmt(logn.a.median, 0)}) stay together and the top 1% hold ${pct(logn.a.top1, 1)}.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Lognormal distribution: multiplicative versus additive shocks.
+years <- 40
+shock <- 0.12 # sd of each year's shock, as a share of the starting 100
+people <- 5000
+set.seed(8)
+
+mult <- replicate(people, 100 * prod(pmax(0.01, 1 + rnorm(years, 0, shock))))
+add <- replicate(people, 100 + sum(100 * rnorm(years, 0, shock)))
+
+top1 <- function(v) {
+  s <- sort(v, decreasing = TRUE)
+  sum(s[seq_len(length(v) / 100)]) / sum(v)
+}
+cat(sprintf(
+  "Multiplicative: median %.0f, mean %.0f, top 1%% share %.1f%%\n",
+  median(mult), mean(mult), 100 * top1(mult)
+))
+cat(sprintf(
+  "Additive:       median %.0f, mean %.0f, top 1%% share %.1f%%\n",
+  median(add), mean(add), 100 * top1(add)
+))
+
+hist(mult[mult < quantile(mult, 0.99)],
+  breaks = 60, col = "#148a91",
+  border = "white", main = "", xlab = "Income after multiplicative shocks"
+)
+abline(v = c(median(mult), mean(mult)), lty = c(2, 1))
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Multiplying independent shocks yields a lognormal distribution, because the logarithm turns the product into a sum.
+- Lognormal outcomes are right-skewed: the mean exceeds the median and the top holds a disproportionate share.
+- Whether shocks add or multiply is a modelling choice with large consequences for predicted inequality.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** The skewed distributions of incomes, firm sizes, city populations and stock prices.
+- **Predict.** Use log scales and medians, not means, to forecast typical outcomes of compounding processes.
+:::
+
+## Related models
+
+- [Normal Distribution and the Central Limit Theorem](normal-distribution.qmd): the additive case, and the theorem that drives both.
+- [Power Laws and Preferential Attachment](power-laws.qmd): even longer tails, from feedback rather than independent shocks.
+- [Exponential Growth](exponential-growth.qmd): compounding without randomness.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 5, "Normal Distributions: The Bell Curve," pp. 66–68.

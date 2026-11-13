@@ -1,0 +1,244 @@
+---
+title: "Bernoulli Urn Model"
+date: 2026-11-13
+description: "Independent draws from an urn: the count of one colour averages N·P with spread √(NP(1−P)), the benchmark for asking whether a streak or a cluster of outcomes is just chance."
+order: 26
+chapter: 13
+chapter-title: "Random Walks"
+pages: "153–155"
+family: "Processes and dynamics"
+engine: "Equation-based"
+tool: "Observable JS (simulation and exact binomial)"
+reference: "base R"
+uses: [Reason, Predict, Explain]
+categories: ["Processes and dynamics", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#26** · *The Model Thinker*, chapter 13, "Random Walks", pp. 153–155.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation and exact binomial) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+The simplest model of randomness is an urn of coloured balls. Draw one, note its colour, put it back, and draw again. Each draw is independent of all the others, and the chance of each colour never changes. Coin flips, free throws by a steady shooter, whether each of a firm's products succeeds, and whether a patient responds to a drug can all be modelled this way.
+
+The urn gives a precise benchmark for what chance alone produces. In $N$ draws, the number of gray balls has a known mean and a known spread, and chance produces more streaks and clusters than intuition expects. That makes the urn the null model behind many-model thinking about luck: before crediting skill for a winning streak, or blaming a cause for a cluster of failures, ask how often an urn would produce the same pattern.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** An urn contains $G$ gray and $W$ white balls. Each period a ball is drawn at random and returned before the next draw; the outcome is its colour. The share of gray balls is
+
+$$
+P = \frac{G}{G + W}.
+$$
+
+**Results.** In $N$ draws, the number of gray balls $N_G$ is binomial, with
+
+$$
+\mathbb E[N_G] = N \cdot P, \qquad \sigma_{N_G} = \sqrt{N \cdot P \cdot (1 - P)} .
+$$
+
+The share of gray draws has standard deviation $\sqrt{P(1-P)/N}$, which shrinks with the square root of $N$, so the observed share converges to $P$ (the law of large numbers).
+:::
+
+## Interactive model
+
+The top chart is one sequence of draws: the running share of gray balls wanders at first and settles near $P$, inside a band of two standard deviations. The bottom chart repeats the $N$ draws 3,000 times and compares the counts with the binomial distribution. The readout reports the longest streak in the sequence, which is usually longer than people expect.
+
+```{ojs}
+//| echo: false
+import {rng, range, dbinom, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof G = Inputs.range([1, 20], {value: 3, step: 1, label: "Gray balls G"})
+viewof W = Inputs.range([1, 20], {value: 7, step: 1, label: "White balls W"})
+viewof N = Inputs.range([10, 1000], {value: 200, step: 10, label: "Draws N"})
+viewof seed = Inputs.range([1, 500], {value: 26, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+urn = {
+  const r = rng(seed), P = G / (G + W);
+  const draws = range(N).map(() => r.bernoulli(P));
+  let gray = 0, streak = 0, best = 0;
+  const path = draws.map((d, i) => {
+    gray += d; streak = i && d === draws[i - 1] ? streak + 1 : 1; best = Math.max(best, streak);
+    const n = i + 1, s = Math.sqrt(P * (1 - P) / n);
+    return {n, share: gray / n, lo: Math.max(0, P - 2 * s), hi: Math.min(1, P + 2 * s)};
+  });
+  const counts = range(3000).map(() => r.binomial(N, P));
+  const sd = Math.sqrt(N * P * (1 - P));
+  const exact = range(N + 1).map(k => ({k, p: dbinom(k, N, P)})).filter(d => d.p > 1e-5);
+  return {P, path, counts, sd, exact, best, within2: counts.filter(c => Math.abs(c - N * P) <= 2 * sd).length / counts.length};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Bernoulli Urn Model: running share of gray draws",
+  ariaDescription: "Horizontal axis: number of draws. Vertical axis: share of draws that were gray. The teal line is one sequence; the shaded band is P plus or minus two standard deviations; the dashed line is P. The summary below the charts states the result in words.",
+  height: 220,
+  x: {label: "Draws so far"},
+  y: {label: "Share gray", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [
+    Plot.areaY(urn.path, {x: "n", y1: "lo", y2: "hi", fill: C.teal, fillOpacity: 0.15}),
+    Plot.ruleY([urn.P], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(urn.path, {x: "n", y: "share", stroke: C.teal, strokeWidth: 2})
+  ]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Bernoulli Urn Model: distribution of gray counts",
+  ariaDescription: "Horizontal axis: number of gray balls in N draws. Vertical axis: probability. Gray bars are 3,000 repetitions; the orange line is the exact binomial distribution. The summary below the charts states the result in words.",
+  height: 220,
+  x: {label: `Gray balls in ${N} draws`},
+  y: {label: "Probability", grid: true},
+  marks: [
+    Plot.rectY(urn.counts, Plot.binX({y: "proportion"}, {x: d => d, interval: 1, fill: C.gray, fillOpacity: 0.7})),
+    Plot.line(urn.exact, {x: d => d.k + 0.5, y: "p", stroke: C.orange, strokeWidth: 2})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`With P = ${G}/${G + W} = ${fmt(urn.P, 2)}, the model expects **${fmt(N * urn.P, 1)}** gray balls in ${N} draws, with a standard deviation of **${fmt(urn.sd, 1)}**; ${pct(urn.within2)} of the 3,000 repetitions landed within two standard deviations. This sequence ended at ${pct(urn.path[N - 1].share, 1)} gray, and its longest run of one colour was **${urn.best} in a row**, by chance alone.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, dbinom, C, fmt, pct} from "../js/models.js"
+
+viewof G = Inputs.range([1, 20], {value: 3, step: 1, label: "Gray balls G"})
+viewof W = Inputs.range([1, 20], {value: 7, step: 1, label: "White balls W"})
+viewof N = Inputs.range([10, 1000], {value: 200, step: 10, label: "Draws N"})
+viewof seed = Inputs.range([1, 500], {value: 26, step: 1, label: "Random seed"})
+
+urn = {
+  const r = rng(seed), P = G / (G + W);
+  const draws = range(N).map(() => r.bernoulli(P));
+  let gray = 0, streak = 0, best = 0;
+  const path = draws.map((d, i) => {
+    gray += d; streak = i && d === draws[i - 1] ? streak + 1 : 1; best = Math.max(best, streak);
+    const n = i + 1, s = Math.sqrt(P * (1 - P) / n);
+    return {n, share: gray / n, lo: Math.max(0, P - 2 * s), hi: Math.min(1, P + 2 * s)};
+  });
+  const counts = range(3000).map(() => r.binomial(N, P));
+  const sd = Math.sqrt(N * P * (1 - P));
+  const exact = range(N + 1).map(k => ({k, p: dbinom(k, N, P)})).filter(d => d.p > 1e-5);
+  return {P, path, counts, sd, exact, best, within2: counts.filter(c => Math.abs(c - N * P) <= 2 * sd).length / counts.length};
+}
+
+Plot.plot({
+  ariaLabel: "Bernoulli Urn Model: running share of gray draws",
+  ariaDescription: "Horizontal axis: number of draws. Vertical axis: share of draws that were gray. The teal line is one sequence; the shaded band is P plus or minus two standard deviations; the dashed line is P. The summary below the charts states the result in words.",
+  height: 220,
+  x: {label: "Draws so far"},
+  y: {label: "Share gray", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [
+    Plot.areaY(urn.path, {x: "n", y1: "lo", y2: "hi", fill: C.teal, fillOpacity: 0.15}),
+    Plot.ruleY([urn.P], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(urn.path, {x: "n", y: "share", stroke: C.teal, strokeWidth: 2})
+  ]
+})
+
+Plot.plot({
+  ariaLabel: "Bernoulli Urn Model: distribution of gray counts",
+  ariaDescription: "Horizontal axis: number of gray balls in N draws. Vertical axis: probability. Gray bars are 3,000 repetitions; the orange line is the exact binomial distribution. The summary below the charts states the result in words.",
+  height: 220,
+  x: {label: `Gray balls in ${N} draws`},
+  y: {label: "Probability", grid: true},
+  marks: [
+    Plot.rectY(urn.counts, Plot.binX({y: "proportion"}, {x: d => d, interval: 1, fill: C.gray, fillOpacity: 0.7})),
+    Plot.line(urn.exact, {x: d => d.k + 0.5, y: "p", stroke: C.orange, strokeWidth: 2})
+  ]
+})
+
+html`<div class="sim-readout">${md`With P = ${G}/${G + W} = ${fmt(urn.P, 2)}, the model expects **${fmt(N * urn.P, 1)}** gray balls in ${N} draws, with a standard deviation of **${fmt(urn.sd, 1)}**; ${pct(urn.within2)} of the 3,000 repetitions landed within two standard deviations. This sequence ended at ${pct(urn.path[N - 1].share, 1)} gray, and its longest run of one colour was **${urn.best} in a row**, by chance alone.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Bernoulli urn: counts of gray balls in N draws with replacement.
+gray <- 3
+white <- 7
+n_draws <- 200
+set.seed(26)
+
+p <- gray / (gray + white)
+draws <- rbinom(n_draws, 1, p)
+cat(sprintf(
+  "Expected %.1f gray, sd %.1f; this sequence had %d\n",
+  n_draws * p, sqrt(n_draws * p * (1 - p)), sum(draws)
+))
+cat("Longest run of one colour:", max(rle(draws)$lengths), "\n")
+
+counts <- rbinom(3000, n_draws, p)
+cat(sprintf(
+  "Within 2 sd in 3000 repetitions: %.0f%%\n",
+  100 * mean(abs(counts - n_draws * p) <= 2 * sqrt(n_draws * p * (1 - p)))
+))
+
+running <- cumsum(draws) / seq_len(n_draws)
+plot(running,
+  type = "l", lwd = 2, col = "#148a91", ylim = c(0, 1),
+  xlab = "Draws", ylab = "Share gray"
+)
+band <- 2 * sqrt(p * (1 - p) / seq_len(n_draws))
+lines(p + band, lty = 3)
+lines(p - band, lty = 3)
+abline(h = p, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Independent draws give a count with mean $NP$ and standard deviation $\sqrt{NP(1-P)}$.
+- Shares converge to $P$, but only at the rate $1/\sqrt N$, and long streaks are normal along the way.
+- The urn is the null model of luck: compare observed streaks and clusters with what it produces.
+:::
+
+## Uses
+
+::: uses
+- **Reason.** Decide whether a fund manager's winning years, a basketball player's hot hand or a run of defects could be chance.
+- **Predict.** Forecast how many of a portfolio of independent projects will succeed, with an error band.
+- **Explain.** Why small samples (small schools, small hospitals) dominate the extremes of rankings.
+:::
+
+## Related models
+
+- [Random Walk](random-walk.qmd): the running total of urn draws.
+- [Polya Process](polya-process.qmd): an urn whose draws change its contents, so outcomes are not independent.
+- [Normal Distribution and the Central Limit Theorem](normal-distribution.qmd): the bell shape the counts approach.
+- [Condorcet Jury Theorem](condorcet-jury-theorem.qmd): the number of correct votes is a Bernoulli urn count.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 13, "Random Walks," pp. 153–155.

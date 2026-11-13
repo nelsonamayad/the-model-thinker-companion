@@ -1,0 +1,224 @@
+---
+title: "Network Robustness"
+date: 2026-11-13
+description: "Whether a network stays connected as nodes fail depends on its structure: networks with hubs shrug off random failures but collapse when the hubs are targeted."
+order: 20
+chapter: 10
+chapter-title: "Network Models"
+pages: "127–128"
+family: "Networks and contagion"
+engine: "Equation-based"
+tool: "Observable JS (network simulation)"
+reference: "R with igraph"
+uses: [Design, Act, Explain]
+categories: ["Networks and contagion", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#20** · *The Model Thinker*, chapter 10, "Network Models", pp. 127–128.
+
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (network simulation) · Reference implementation: R with igraph.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Power grids, the internet, airline routes and supply chains must keep working when parts fail. A network's most basic property is whether it stays connected, and that is a question about structure. As nodes fail, a random network holds together for a while and then shatters abruptly. A small world, where most links sit inside clusters that can absorb failures, degrades gracefully. A network with a long-tailed degree distribution, like the internet, barely notices random failures, because almost every node is minor.
+
+The same feature that protects long-tailed networks from accidents makes them fragile to attack. Take out the hubs on purpose, and the network falls apart quickly. Page notes that this cuts both ways: it tells engineers which nodes to harden, and it tells those trying to disrupt a criminal or terrorist network where to strike.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A network of $N$ nodes. Nodes are removed one at a time, either at random (*failure*) or in order of decreasing degree (*attack*). After removing a fraction $f$ of nodes, let $G(f)$ be the size of the largest connected component (the giant component) as a share of $N$.
+
+**Result.** In a random network with mean degree $\bar k$, the giant component disappears when the remaining nodes' mean degree drops to about 1, near $f_c = 1 - 1/\bar k$. Networks with long-tailed degree distributions keep a giant component under random failure until nearly all nodes are gone, but lose it after removing a small fraction of their highest-degree nodes.
+:::
+
+## Interactive model
+
+Each curve shows the giant component as nodes are removed from a network of 500 nodes with mean degree about 4: teal for random failure, orange for a targeted attack on the best-connected nodes. Compare the preferential-attachment network (hubs), the random network and the small world.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, graphRandom, graphPrefAttach, graphSmallWorld, components, C, pct, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof kind = Inputs.radio(["Preferential attachment (hubs)", "Random", "Small world"], {value: "Preferential attachment (hubs)", label: "Network"})
+viewof seed = Inputs.range([1, 500], {value: 20, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+robust = {
+  const r = rng(seed), n = 500;
+  const adj = kind.startsWith("Pref") ? graphPrefAttach(n, 2, r) : kind === "Random" ? graphRandom(n, 4 / (n - 1), r) : graphSmallWorld(n, 4, 0.1, r);
+  const curve = (order) => {
+    const alive = new Uint8Array(n).fill(1), out = [];
+    for (let s = 0; s <= 45; s++) {
+      const f = s / 50, target = Math.round(f * n);
+      for (let k = 0; k < target; k++) alive[order[k]] = 0;
+      const sizes = components(adj, alive).sizes;
+      out.push({f, G: (sizes.length ? Math.max(...sizes) : 0) / n});
+    }
+    return out;
+  };
+  const byDegree = range(n).sort((a, b) => adj[b].length - adj[a].length);
+  const failure = range(5).map(() => curve(r.shuffle(range(n))));
+  const fail = failure[0].map((d, i) => ({f: d.f, G: mean(failure.map(c => c[i].G)), mode: "Random failure"}));
+  const attack = curve(byDegree).map(d => ({...d, mode: "Targeted attack"}));
+  const collapse = rows => (rows.find(d => d.G < 0.1) || {f: NaN}).f;
+  return {rows: [...fail, ...attack], fail, attack, cFail: collapse(fail), cAttack: collapse(attack)};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Network Robustness: giant component as nodes are removed",
+  ariaDescription: "Horizontal axis: share of nodes removed. Vertical axis: size of the largest connected component as a share of the original network. Teal: random failure, averaged over five orders. Orange: targeted removal of the highest-degree nodes. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Share of nodes removed f", tickFormat: "%"},
+  y: {label: "Giant component G(f)", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Random failure", "Targeted attack"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.line(robust.rows, {x: "f", y: "G", stroke: "mode", strokeWidth: 2.5}),
+    Plot.ruleY([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const at = (rows, f) => rows.find(d => Math.abs(d.f - f) < 1e-9).G;
+  return html`<div class="sim-readout">${md`After removing **20%** of the nodes of this ${kind.toLowerCase()} network, the giant component still holds **${pct(at(robust.fail, 0.2))}** of the nodes under random failure but only **${pct(at(robust.attack, 0.2))}** under a targeted attack. The network shatters (giant component below 10%) after ${Number.isFinite(robust.cAttack) ? `${pct(robust.cAttack)} of nodes are attacked` : "more than 90% of nodes are attacked"}, versus ${Number.isFinite(robust.cFail) ? `${pct(robust.cFail)} removed at random` : "more than 90% removed at random"}.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (R with igraph): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, graphRandom, graphPrefAttach, graphSmallWorld, components, C, pct, fmt} from "../js/models.js"
+
+viewof kind = Inputs.radio(["Preferential attachment (hubs)", "Random", "Small world"], {value: "Preferential attachment (hubs)", label: "Network"})
+viewof seed = Inputs.range([1, 500], {value: 20, step: 1, label: "Random seed"})
+
+robust = {
+  const r = rng(seed), n = 500;
+  const adj = kind.startsWith("Pref") ? graphPrefAttach(n, 2, r) : kind === "Random" ? graphRandom(n, 4 / (n - 1), r) : graphSmallWorld(n, 4, 0.1, r);
+  const curve = (order) => {
+    const alive = new Uint8Array(n).fill(1), out = [];
+    for (let s = 0; s <= 45; s++) {
+      const f = s / 50, target = Math.round(f * n);
+      for (let k = 0; k < target; k++) alive[order[k]] = 0;
+      const sizes = components(adj, alive).sizes;
+      out.push({f, G: (sizes.length ? Math.max(...sizes) : 0) / n});
+    }
+    return out;
+  };
+  const byDegree = range(n).sort((a, b) => adj[b].length - adj[a].length);
+  const failure = range(5).map(() => curve(r.shuffle(range(n))));
+  const fail = failure[0].map((d, i) => ({f: d.f, G: mean(failure.map(c => c[i].G)), mode: "Random failure"}));
+  const attack = curve(byDegree).map(d => ({...d, mode: "Targeted attack"}));
+  const collapse = rows => (rows.find(d => d.G < 0.1) || {f: NaN}).f;
+  return {rows: [...fail, ...attack], fail, attack, cFail: collapse(fail), cAttack: collapse(attack)};
+}
+
+Plot.plot({
+  ariaLabel: "Network Robustness: giant component as nodes are removed",
+  ariaDescription: "Horizontal axis: share of nodes removed. Vertical axis: size of the largest connected component as a share of the original network. Teal: random failure, averaged over five orders. Orange: targeted removal of the highest-degree nodes. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Share of nodes removed f", tickFormat: "%"},
+  y: {label: "Giant component G(f)", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Random failure", "Targeted attack"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.line(robust.rows, {x: "f", y: "G", stroke: "mode", strokeWidth: 2.5}),
+    Plot.ruleY([0])
+  ]
+})
+
+{
+  const at = (rows, f) => rows.find(d => Math.abs(d.f - f) < 1e-9).G;
+  return html`<div class="sim-readout">${md`After removing **20%** of the nodes of this ${kind.toLowerCase()} network, the giant component still holds **${pct(at(robust.fail, 0.2))}** of the nodes under random failure but only **${pct(at(robust.attack, 0.2))}** under a targeted attack. The network shatters (giant component below 10%) after ${Number.isFinite(robust.cAttack) ? `${pct(robust.cAttack)} of nodes are attacked` : "more than 90% of nodes are attacked"}, versus ${Number.isFinite(robust.cFail) ? `${pct(robust.cFail)} removed at random` : "more than 90% removed at random"}.`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Network robustness: random failure versus targeted attack.
+suppressPackageStartupMessages(library(igraph))
+n <- 500
+set.seed(20)
+
+g <- sample_pa(n, m = 2, directed = FALSE) # hubs
+giant <- function(g, removed) {
+  h <- delete_vertices(g, removed)
+  if (vcount(h) == 0) {
+    return(0)
+  }
+  max(components(h)$csize) / n
+}
+f <- seq(0, 0.9, by = 0.02)
+by_degree <- order(degree(g), decreasing = TRUE)
+attack <- sapply(f, function(x) giant(g, by_degree[seq_len(round(x * n))]))
+failure <- rowMeans(replicate(5, {
+  o <- sample(n)
+  sapply(f, function(x) giant(g, o[seq_len(round(x * n))]))
+}))
+cat(sprintf(
+  "At 20%% removed: failure %.0f%%, attack %.0f%%\n",
+  100 * failure[f == 0.2], 100 * attack[f == 0.2]
+))
+
+plot(f, failure,
+  type = "l", lwd = 2, col = "#148a91", ylim = c(0, 1),
+  xlab = "Share of nodes removed", ylab = "Giant component"
+)
+lines(f, attack, lwd = 2, col = "#d95f02")
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Robustness depends on structure: random networks collapse abruptly, small worlds degrade gracefully.
+- Networks with hubs survive random failures but are fragile to targeted attacks on the hubs.
+- Knowing which nodes matter tells you both what to protect and what to remove.
+:::
+
+## Uses
+
+::: uses
+- **Design.** Add redundancy and clusters to power grids and supply chains; protect or duplicate hubs.
+- **Act.** Disrupt criminal, terrorist or drug-supply networks by removing their best-connected members.
+- **Explain.** Why the internet tolerates millions of failing routers while a few failures can black out a power grid.
+:::
+
+## Related models
+
+- [Network Structures and Statistics](network-structure.qmd): the structures being compared.
+- [Forest Fire Model](forest-fire-model.qmd): connectivity and the size of the cluster a spark reaches.
+- [SIR Model](sir-model.qmd): vaccinating hubs is a targeted attack on a disease's network.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 10, "Network Models," pp. 127–128.
+- Rika Albert, Istvan Albert and Gary L. Nakarado, "Structural Vulnerability of the North American Power Grid," *Physical Review E* 69 (2004): 025103.
+- Mark E. Newman, *Networks: An Introduction* (Oxford University Press, 2010).

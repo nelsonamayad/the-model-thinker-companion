@@ -1,0 +1,240 @@
+---
+title: "Lyapunov Functions"
+date: 2026-11-13
+description: "If some quantity falls by at least a fixed amount whenever a system moves and cannot fall forever, the system must come to rest, and we can bound how long it takes."
+order: 32
+chapter: 16
+chapter-title: "Lyapunov Functions and Equilibria"
+pages: "181–188"
+family: "Processes and dynamics"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Reason, Predict, Design]
+categories: ["Processes and dynamics", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#32** · *The Model Thinker*, chapter 16, "Lyapunov Functions and Equilibria", pp. 181–188.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Some systems settle down; others cycle or wander forever. How can we tell which, without running them forever? A Lyapunov function answers the question with a single argument. Find a quantity that drops by at least some fixed amount every time the system changes, and that cannot drop below some floor. Then the system cannot keep changing: it must stop, and it must stop within (starting value − floor) ÷ (minimum drop) steps.
+
+Page applies the idea to a *race to the bottom*, where governments each try to undercut the average support they offer to the poor: the highest offer falls every period until everyone offers nothing. He applies it to the [local majority model](local-majority.qmd), where total disagreement between neighbours falls by at least four with every switch. And he applies it to people choosing daily routines in a city, who sort themselves to avoid crowds. The flip side is just as useful: when no Lyapunov function exists, as in many markets or games with cycles, we should not expect equilibrium.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A discrete-time dynamical system $x_{t+1} = G(x_t)$.
+
+**Lyapunov theorem.** Suppose a real-valued function $F$ satisfies $F(x_t) \ge M$ for all $x_t$ (a floor), and there is an $A > 0$ such that
+
+$$
+F(x_{t+1}) \le F(x_t) - A \quad \text{whenever } G(x_t) \ne x_t .
+$$
+
+Then the system reaches an equilibrium ($G(x) = x$) in at most $\dfrac{F(x_0) - M}{A}$ periods.
+
+**Examples.**
+
+- *Race to the bottom:* $N$ players propose support levels in $\{0, 1, \dots, 100\}$; the one closest to $\tfrac23$ of the average wins. If each player proposes at least 1 less than $\tfrac23$ of the previous average (and not below 0), then $F$ = the highest proposal falls by at least 1 each period until everyone proposes 0.
+- *Local majority:* $F$ = total disagreement (summed over cells, the number of neighbours in the other state). A cell switches only when at least five of eight neighbours disagree, so each switch lowers $F$ by at least 4, and equilibrium comes within $F(x_0)/4$ switches.
+:::
+
+The minimum drop $A$ matters. If players in the race to the bottom could propose any real number and simply chose $\tfrac23$ of the average, support would approach zero forever without reaching it, like Zeno's paradox.
+
+## Interactive model
+
+The orange line is the Lyapunov function in one run; the dashed line is the worst case the theorem allows, falling by exactly $A$ per step. The real path always stays at or below the dashed line, so the run must end before the dashed line reaches the floor.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, torus8, C, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof example = Inputs.radio(["Race to the bottom", "Local majority"], {value: "Race to the bottom", label: "Example"})
+viewof players = Inputs.range([5, 100], {value: 20, step: 1, label: "Players (race to the bottom)"})
+viewof seed = Inputs.range([1, 500], {value: 32, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+lyap = {
+  const r = rng(seed);
+  if (example === "Race to the bottom") {
+    let props = range(players).map(() => Math.floor(r() * 50));
+    const rows = [];
+    for (let t = 0; t <= 60; t++) {
+      rows.push({t, F: Math.max(...props), avg: mean(props)});
+      if (Math.max(...props) === 0) break;
+      const target = Math.floor((2 / 3) * mean(props)) - 1;
+      props = props.map(() => Math.max(0, target - Math.floor(r() * 3)));
+    }
+    return {rows, A: 1, label: "Highest proposal F", x: "Period", end: rows[rows.length - 1].t};
+  }
+  const n = 30, N = n * n, nb = torus8(n), on = new Uint8Array(N);
+  for (let i = 0; i < N; i++) on[i] = r() < 0.5 ? 1 : 0;
+  const differ = i => { let d = 0; for (let k = 0; k < 8; k++) if (on[nb[8 * i + k]] !== on[i]) d++; return d; };
+  let F = 0;
+  for (let i = 0; i < N; i++) F += differ(i);
+  const rows = [{t: 0, F}];
+  let switches = 0, quiet = 0;
+  while (quiet < 3 * N) {
+    const i = Math.floor(r() * N), d = differ(i);
+    if (d >= 5) { on[i] = 1 - on[i]; F -= 2 * (d - (8 - d)); switches++; rows.push({t: switches, F}); quiet = 0; } else quiet++;
+  }
+  return {rows, A: 4, label: "Total disagreement F", x: "Switch", end: switches};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Lyapunov Functions: the Lyapunov function over time",
+  ariaDescription: "Horizontal axis: period or switch number. Vertical axis: the value of the Lyapunov function. The orange line is one run; the dashed line falls by the guaranteed minimum each step, the worst case allowed by the theorem. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: lyap.x},
+  y: {label: lyap.label, grid: true},
+  marks: [
+    Plot.line([{t: 0, F: lyap.rows[0].F}, {t: lyap.rows[0].F / lyap.A, F: 0}], {x: "t", y: "F", stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(lyap.rows, {x: "t", y: "F", stroke: C.orange, strokeWidth: 2.5}),
+    example === "Race to the bottom" ? Plot.line(lyap.rows, {x: "t", y: "avg", stroke: C.teal, strokeWidth: 1.5}) : null,
+    Plot.ruleY([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`${example === "Race to the bottom" ? `The highest proposal starts at **${lyap.rows[0].F}** and falls by at least 1 every period (the teal line is the average proposal). Everyone proposes zero by **period ${lyap.end}**, well within the theorem's bound of ${lyap.rows[0].F} periods: the players have raced to the bottom.` : `Total disagreement starts at **${num(lyap.rows[0].F)}** and every switch lowers it by at least 4. The grid froze after **${num(lyap.end)} switches**, within the bound of ${num(Math.floor(lyap.rows[0].F / 4))}, with total disagreement ${num(lyap.rows[lyap.rows.length - 1].F)}.`}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, torus8, C, num} from "../js/models.js"
+
+viewof example = Inputs.radio(["Race to the bottom", "Local majority"], {value: "Race to the bottom", label: "Example"})
+viewof players = Inputs.range([5, 100], {value: 20, step: 1, label: "Players (race to the bottom)"})
+viewof seed = Inputs.range([1, 500], {value: 32, step: 1, label: "Random seed"})
+
+lyap = {
+  const r = rng(seed);
+  if (example === "Race to the bottom") {
+    let props = range(players).map(() => Math.floor(r() * 50));
+    const rows = [];
+    for (let t = 0; t <= 60; t++) {
+      rows.push({t, F: Math.max(...props), avg: mean(props)});
+      if (Math.max(...props) === 0) break;
+      const target = Math.floor((2 / 3) * mean(props)) - 1;
+      props = props.map(() => Math.max(0, target - Math.floor(r() * 3)));
+    }
+    return {rows, A: 1, label: "Highest proposal F", x: "Period", end: rows[rows.length - 1].t};
+  }
+  const n = 30, N = n * n, nb = torus8(n), on = new Uint8Array(N);
+  for (let i = 0; i < N; i++) on[i] = r() < 0.5 ? 1 : 0;
+  const differ = i => { let d = 0; for (let k = 0; k < 8; k++) if (on[nb[8 * i + k]] !== on[i]) d++; return d; };
+  let F = 0;
+  for (let i = 0; i < N; i++) F += differ(i);
+  const rows = [{t: 0, F}];
+  let switches = 0, quiet = 0;
+  while (quiet < 3 * N) {
+    const i = Math.floor(r() * N), d = differ(i);
+    if (d >= 5) { on[i] = 1 - on[i]; F -= 2 * (d - (8 - d)); switches++; rows.push({t: switches, F}); quiet = 0; } else quiet++;
+  }
+  return {rows, A: 4, label: "Total disagreement F", x: "Switch", end: switches};
+}
+
+Plot.plot({
+  ariaLabel: "Lyapunov Functions: the Lyapunov function over time",
+  ariaDescription: "Horizontal axis: period or switch number. Vertical axis: the value of the Lyapunov function. The orange line is one run; the dashed line falls by the guaranteed minimum each step, the worst case allowed by the theorem. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: lyap.x},
+  y: {label: lyap.label, grid: true},
+  marks: [
+    Plot.line([{t: 0, F: lyap.rows[0].F}, {t: lyap.rows[0].F / lyap.A, F: 0}], {x: "t", y: "F", stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(lyap.rows, {x: "t", y: "F", stroke: C.orange, strokeWidth: 2.5}),
+    example === "Race to the bottom" ? Plot.line(lyap.rows, {x: "t", y: "avg", stroke: C.teal, strokeWidth: 1.5}) : null,
+    Plot.ruleY([0])
+  ]
+})
+
+html`<div class="sim-readout">${md`${example === "Race to the bottom" ? `The highest proposal starts at **${lyap.rows[0].F}** and falls by at least 1 every period (the teal line is the average proposal). Everyone proposes zero by **period ${lyap.end}**, well within the theorem's bound of ${lyap.rows[0].F} periods: the players have raced to the bottom.` : `Total disagreement starts at **${num(lyap.rows[0].F)}** and every switch lowers it by at least 4. The grid froze after **${num(lyap.end)} switches**, within the bound of ${num(Math.floor(lyap.rows[0].F / 4))}, with total disagreement ${num(lyap.rows[lyap.rows.length - 1].F)}.`}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Lyapunov functions: the race to the bottom must reach zero.
+players <- 20
+set.seed(32)
+
+props <- sample(0:49, players, replace = TRUE)
+highest <- max(props)
+while (max(props) > 0) {
+  target <- floor(2 / 3 * mean(props)) - 1 # at least 1 below 2/3 of mean
+  props <- pmax(0, target - sample(0:2, players, replace = TRUE))
+  highest <- c(highest, max(props))
+}
+cat(
+  "Highest proposal by period:", highest, "\n",
+  "Reached zero in", length(highest) - 1, "periods; bound",
+  highest[1], "\n"
+)
+stopifnot(all(diff(highest) <= -1)) # falls by at least 1 each period
+
+plot(seq_along(highest) - 1, highest,
+  type = "b", pch = 19,
+  col = "#d95f02", xlab = "Period", ylab = "Highest proposal F"
+)
+abline(a = highest[1], b = -1, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- A quantity that is bounded below and falls by a fixed amount whenever the system moves proves that the system reaches an equilibrium.
+- The same argument bounds the time to equilibrium: (initial value − floor) ÷ minimum drop.
+- When no Lyapunov function exists, cycles or perpetual change are possible, so equilibrium should not be assumed.
+:::
+
+## Uses
+
+::: uses
+- **Reason.** Prove that a model (local majority, self-organizing routines, best-response dynamics in many games) must settle.
+- **Predict.** Bound how long a process takes to stop, without simulating it.
+- **Design.** Avoid races to the bottom by changing the game, for example with federal funding or a spending floor.
+:::
+
+## Related models
+
+- [Local Majority Model](local-majority.qmd): total disagreement is its Lyapunov function.
+- [Markov Models](markov-models.qmd): a different kind of equilibrium, statistical rather than fixed.
+- [Lotka–Volterra Model](lotka-volterra.qmd): a system that cycles forever, with a conserved quantity instead of a falling one.
+- [Congestion Model](congestion-model.qmd): best responses that ease congestion settle for the same reason.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 16, "Lyapunov Functions and Equilibria," pp. 181–188.
+- Scott E. Page, "Self Organization and Coordination," *Computational Economics* 18 (2001): 25–48.

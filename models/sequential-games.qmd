@@ -1,0 +1,239 @@
+---
+title: "Sequential Games"
+date: 2026-11-13
+description: "When players move in turn, reasoning backward from the end rules out threats that would never be carried out, though reputations can make them worth carrying out."
+order: 41
+chapter: 21
+chapter-title: "Game Theory Models Times Three"
+pages: "246–247"
+family: "Games and cooperation"
+engine: "Equation-based"
+tool: "Observable JS (backward induction)"
+reference: "base R"
+uses: [Reason, Act, Predict]
+categories: ["Games and cooperation", "Equation-based"]
+verified: true
+source-note: "The chain-store reputation calculation is a toy extension of our own."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#41** · *The Model Thinker*, chapter 21, "Game Theory Models Times Three", pp. 246–247.
+
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (backward induction) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book. The chain-store reputation calculation is a toy extension of our own.
+:::
+
+## The idea
+
+Many strategic situations unfold in turns: a firm decides whether to enter a market, then the incumbent decides how to respond; a union makes a demand, then management replies. A sequential game is drawn as a tree, and a strategy says what a player will do at every point where it might have to move. The natural way to solve it is *backward induction*: start at the end, work out what the last mover will do, and use that to work out what earlier movers should do.
+
+Page's example is the Market Entry Game. An incumbent can threaten to fight any entrant with a price war, and if the entrant believes the threat it stays out. But the threat is not credible: once an entrant has come in, fighting costs the incumbent more than accepting. Backward induction discards the threat and predicts entry and accommodation, the *subgame perfect* equilibrium. Play the game across many markets, though, and a chain store may want to fight early entrants to build a reputation that deters later ones. Backward induction says that cannot work; intuition and experience say it often does. This is the *chain-store paradox*.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A game tree: nodes where a player moves, edges for actions, payoffs at the end of each path. In the Market Entry Game, the entrant (E) chooses Exit or Enter; after entry, the incumbent firm (F) chooses Accept or Compete. Payoffs (entrant, firm): Exit $(0, 5)$; Enter–Accept $(2, 2)$; Enter–Compete $(-1, 0)$.
+
+**Nash equilibria.** (Exit; Compete if entry) and (Enter; Accept). In the first, the firm's threat deters entry but is never tested.
+
+**Subgame perfect equilibrium.** Solve backward: at its node the firm prefers Accept ($2 > 0$); anticipating that, the entrant prefers Enter ($2 > 0$). Only (Enter; Accept) survives, because it requires optimal play at every node, including those off the equilibrium path.
+
+**Chain-store paradox.** With a sequence of $K$ markets, backward induction from the last market implies Enter–Accept in every one, even though a reputation for fighting would pay if it deterred later entrants.
+:::
+
+## Interactive model
+
+Change the payoffs and the tree is re-solved by backward induction: the bold edges are the subgame perfect choices. Below it, a toy calculation for a chain store with 20 markets compares accommodating every entrant (the subgame perfect plan) with fighting the first few entrants, assuming that the remaining entrants then stay out.
+
+```{ojs}
+//| echo: false
+import {C, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof pay = Inputs.form({
+  exitF: Inputs.range([0, 10], {value: 5, step: 1, label: "Firm's profit if no entry"}),
+  accE: Inputs.range([-5, 5], {value: 2, step: 1, label: "Entrant's payoff if accepted"}),
+  accF: Inputs.range([-5, 10], {value: 2, step: 1, label: "Firm's payoff if it accepts"}),
+  comE: Inputs.range([-5, 5], {value: -1, step: 1, label: "Entrant's payoff if fought"}),
+  comF: Inputs.range([-5, 10], {value: 0, step: 1, label: "Firm's payoff if it fights"})
+})
+viewof fights = Inputs.range([0, 20], {value: 2, step: 1, label: "Chain store: entrants fought before others stay out"})
+```
+
+```{ojs}
+tree = {
+  const firm = pay.accF >= pay.comF ? "Accept" : "Compete";
+  const entrantIfEnter = firm === "Accept" ? pay.accE : pay.comE;
+  const entrant = entrantIfEnter > 0 ? "Enter" : "Exit";
+  const nodes = [
+    {id: "E", x: 0.5, y: 1, label: "E"}, {id: "F", x: 0.7, y: 0.55, label: "F"},
+    {id: "exit", x: 0.25, y: 0.1, label: `(0, ${pay.exitF})`}, {id: "acc", x: 0.55, y: 0.1, label: `(${pay.accE}, ${pay.accF})`}, {id: "com", x: 0.88, y: 0.1, label: `(${pay.comE}, ${pay.comF})`}
+  ];
+  const at = id => nodes.find(n => n.id === id);
+  const edges = [
+    {from: "E", to: "exit", label: "Exit", chosen: entrant === "Exit"},
+    {from: "E", to: "F", label: "Enter", chosen: entrant === "Enter"},
+    {from: "F", to: "acc", label: "Accept", chosen: firm === "Accept"},
+    {from: "F", to: "com", label: "Compete", chosen: firm === "Compete"}
+  ].map(e => ({...e, x1: at(e.from).x, y1: at(e.from).y, x2: at(e.to).x, y2: at(e.to).y}));
+  const K = 20, spe = entrant === "Enter" ? K * (firm === "Accept" ? pay.accF : pay.comF) : K * pay.exitF;
+  const reputation = Math.min(fights, K) * pay.comF + (K - Math.min(fights, K)) * pay.exitF;
+  return {firm, entrant, nodes, edges, spe, reputation, K};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Sequential Games: the Market Entry game tree",
+  ariaDescription: "A game tree. The entrant E chooses Exit or Enter; after entry the firm F chooses Accept or Compete. Payoffs (entrant, firm) are shown at the leaves. Thick edges are the choices made by backward induction. The summary below the chart states the result in words.",
+  height: 260,
+  x: {axis: null, domain: [0, 1]}, y: {axis: null, domain: [-0.05, 1.12]},
+  marks: [
+    Plot.link(tree.edges, {x1: "x1", y1: "y1", x2: "x2", y2: "y2", stroke: d => (d.chosen ? C.teal : C.gray), strokeWidth: d => (d.chosen ? 4 : 1.5)}),
+    Plot.text(tree.edges, {x: d => (d.x1 + d.x2) / 2, y: d => (d.y1 + d.y2) / 2, text: "label", dx: d => (d.x2 < d.x1 ? -22 : 26), fill: "currentColor", fontSize: 13}),
+    Plot.dot(tree.nodes.filter(n => n.id.length === 1), {x: "x", y: "y", r: 16, fill: "var(--bs-body-bg)", stroke: "currentColor"}),
+    Plot.text(tree.nodes, {x: "x", y: "y", text: "label", fill: "currentColor", fontSize: 14, fontWeight: "bold"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`Backward induction: if the entrant enters, the firm's best reply is to **${tree.firm.toLowerCase()}** (${tree.firm === "Accept" ? pay.accF : pay.comF} versus ${tree.firm === "Accept" ? pay.comF : pay.accF}), so the entrant **${tree.entrant === "Enter" ? "enters" : "stays out"}**. ${tree.firm === "Accept" && tree.entrant === "Enter" ? "The threat to compete is not credible, so it deters no one." : ""} Across ${tree.K} markets, the subgame perfect plan earns the chain store **${num(tree.spe)}**; fighting the first ${fights} entrant${fights === 1 ? "" : "s"}, if that convinced the rest to stay out, would earn **${num(tree.reputation)}**. ${tree.reputation > tree.spe ? "A reputation for toughness would pay, which is why real firms try to build one: the chain-store paradox." : "Here fighting does not pay even if it deters."}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {C, num} from "../js/models.js"
+
+viewof pay = Inputs.form({
+  exitF: Inputs.range([0, 10], {value: 5, step: 1, label: "Firm's profit if no entry"}),
+  accE: Inputs.range([-5, 5], {value: 2, step: 1, label: "Entrant's payoff if accepted"}),
+  accF: Inputs.range([-5, 10], {value: 2, step: 1, label: "Firm's payoff if it accepts"}),
+  comE: Inputs.range([-5, 5], {value: -1, step: 1, label: "Entrant's payoff if fought"}),
+  comF: Inputs.range([-5, 10], {value: 0, step: 1, label: "Firm's payoff if it fights"})
+})
+viewof fights = Inputs.range([0, 20], {value: 2, step: 1, label: "Chain store: entrants fought before others stay out"})
+
+tree = {
+  const firm = pay.accF >= pay.comF ? "Accept" : "Compete";
+  const entrantIfEnter = firm === "Accept" ? pay.accE : pay.comE;
+  const entrant = entrantIfEnter > 0 ? "Enter" : "Exit";
+  const nodes = [
+    {id: "E", x: 0.5, y: 1, label: "E"}, {id: "F", x: 0.7, y: 0.55, label: "F"},
+    {id: "exit", x: 0.25, y: 0.1, label: `(0, ${pay.exitF})`}, {id: "acc", x: 0.55, y: 0.1, label: `(${pay.accE}, ${pay.accF})`}, {id: "com", x: 0.88, y: 0.1, label: `(${pay.comE}, ${pay.comF})`}
+  ];
+  const at = id => nodes.find(n => n.id === id);
+  const edges = [
+    {from: "E", to: "exit", label: "Exit", chosen: entrant === "Exit"},
+    {from: "E", to: "F", label: "Enter", chosen: entrant === "Enter"},
+    {from: "F", to: "acc", label: "Accept", chosen: firm === "Accept"},
+    {from: "F", to: "com", label: "Compete", chosen: firm === "Compete"}
+  ].map(e => ({...e, x1: at(e.from).x, y1: at(e.from).y, x2: at(e.to).x, y2: at(e.to).y}));
+  const K = 20, spe = entrant === "Enter" ? K * (firm === "Accept" ? pay.accF : pay.comF) : K * pay.exitF;
+  const reputation = Math.min(fights, K) * pay.comF + (K - Math.min(fights, K)) * pay.exitF;
+  return {firm, entrant, nodes, edges, spe, reputation, K};
+}
+
+Plot.plot({
+  ariaLabel: "Sequential Games: the Market Entry game tree",
+  ariaDescription: "A game tree. The entrant E chooses Exit or Enter; after entry the firm F chooses Accept or Compete. Payoffs (entrant, firm) are shown at the leaves. Thick edges are the choices made by backward induction. The summary below the chart states the result in words.",
+  height: 260,
+  x: {axis: null, domain: [0, 1]}, y: {axis: null, domain: [-0.05, 1.12]},
+  marks: [
+    Plot.link(tree.edges, {x1: "x1", y1: "y1", x2: "x2", y2: "y2", stroke: d => (d.chosen ? C.teal : C.gray), strokeWidth: d => (d.chosen ? 4 : 1.5)}),
+    Plot.text(tree.edges, {x: d => (d.x1 + d.x2) / 2, y: d => (d.y1 + d.y2) / 2, text: "label", dx: d => (d.x2 < d.x1 ? -22 : 26), fill: "currentColor", fontSize: 13}),
+    Plot.dot(tree.nodes.filter(n => n.id.length === 1), {x: "x", y: "y", r: 16, fill: "var(--bs-body-bg)", stroke: "currentColor"}),
+    Plot.text(tree.nodes, {x: "x", y: "y", text: "label", fill: "currentColor", fontSize: 14, fontWeight: "bold"})
+  ]
+})
+
+html`<div class="sim-readout">${md`Backward induction: if the entrant enters, the firm's best reply is to **${tree.firm.toLowerCase()}** (${tree.firm === "Accept" ? pay.accF : pay.comF} versus ${tree.firm === "Accept" ? pay.comF : pay.accF}), so the entrant **${tree.entrant === "Enter" ? "enters" : "stays out"}**. ${tree.firm === "Accept" && tree.entrant === "Enter" ? "The threat to compete is not credible, so it deters no one." : ""} Across ${tree.K} markets, the subgame perfect plan earns the chain store **${num(tree.spe)}**; fighting the first ${fights} entrant${fights === 1 ? "" : "s"}, if that convinced the rest to stay out, would earn **${num(tree.reputation)}**. ${tree.reputation > tree.spe ? "A reputation for toughness would pay, which is why real firms try to build one: the chain-store paradox." : "Here fighting does not pay even if it deters."}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Sequential games: backward induction in the Market Entry Game.
+# Deterministic: no random numbers.
+payoffs <- list(
+  exit = c(entrant = 0, firm = 5),
+  accept = c(entrant = 2, firm = 2),
+  compete = c(entrant = -1, firm = 0)
+)
+
+# Step 1: the firm's choice after entry.
+firm_choice <- if (payoffs$accept["firm"] >= payoffs$compete["firm"]) {
+  "accept"
+} else {
+  "compete"
+}
+# Step 2: the entrant anticipates it.
+entrant_choice <- if (payoffs[[firm_choice]]["entrant"] >
+  payoffs$exit["entrant"]) {
+  "enter"
+} else {
+  "exit"
+}
+cat("Subgame perfect equilibrium:", entrant_choice, "and", firm_choice, "\n")
+
+# Chain store with 20 markets: accommodate all, or fight k entrants and
+# (if reputation works) keep the rest out.
+markets <- 20
+fights <- 0:markets
+reputation <- fights * payoffs$compete["firm"] +
+  (markets - fights) * payoffs$exit["firm"]
+cat("Accommodate all:", markets * payoffs$accept["firm"], "\n")
+cat("Fight first 2, then deter:", reputation[3], "\n")
+
+plot(fights, reputation,
+  type = "b", pch = 19, col = "#d95f02",
+  xlab = "Entrants fought before deterrence works", ylab = "Firm's profit"
+)
+abline(h = markets * payoffs$accept["firm"], lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Solve sequential games backward from the end, assuming each player acts optimally at every point.
+- Threats that would not be carried out when the time comes are not credible and should not deter.
+- Repetition and reputation can make apparently irrational actions pay, a gap between game theory and practice.
+:::
+
+## Uses
+
+::: uses
+- **Reason.** Judge which threats and promises (price wars, strikes, sanctions) are credible.
+- **Act.** Make commitments credible by changing your own payoffs, for example by investing in capacity before an entrant decides.
+- **Predict.** Forecast entry and accommodation in markets, and when incumbents will fight to build a reputation.
+:::
+
+## Related models
+
+- [Zero-Sum Games](zero-sum-games.qmd): simultaneous moves and mixed strategies.
+- [Repeated Prisoners' Dilemma](prisoners-dilemma.qmd): repetition sustaining behaviour that one-shot reasoning rules out.
+- [Signaling Models](signaling.qmd): actions that reveal hidden types, a source of reputations.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 21, "Game Theory Models Times Three," pp. 246–247.
+- Roger B. Myerson, "Nash Equilibrium and the History of Economic Theory," *Journal of Economic Literature* 37, no. 3 (1999): 1067–1082.

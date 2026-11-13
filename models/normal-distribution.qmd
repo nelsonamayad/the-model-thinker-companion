@@ -1,0 +1,235 @@
+---
+title: "Normal Distribution and the Central Limit Theorem"
+date: 2026-11-13
+description: "Add up enough independent random effects, none dominant, and the total follows a bell curve whose spread grows with the square root of their number."
+order: 7
+chapter: 5
+chapter-title: "Normal Distributions: The Bell Curve"
+pages: "59–66"
+family: "Distributions"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Explain, Predict, Design]
+categories: ["Distributions", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#7** · *The Model Thinker*, chapter 5, "Normal Distributions: The Bell Curve", pp. 59–66.
+
+Filed under [Distributions](../families/distributions.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Heights, test scores, measurement errors and the weights of loaves of bread all pile up in the same symmetric bell shape. The central limit theorem explains why: each of these quantities is the sum of many small, independent influences (genes, nutrition, the luck of a particular day), and sums of independent effects become normal whatever the shape of the individual effects.
+
+The theorem comes with two *square-root rules* that make it useful. The spread of a sum of $N$ effects grows like $\sqrt N$, not like $N$, and the spread of their average shrinks like $1/\sqrt N$. These rules explain why large samples give precise estimates, why big firms have steadier sales than small ones, and how quality-control methods such as Six Sigma set tolerances. They also say when *not* to expect a bell curve: when effects multiply, when they are correlated, or when a few of them dominate.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** Independent random variables $X_1, \dots, X_N$, each with mean $\mu$ and finite standard deviation $\sigma$, and no small set of them contributing most of the variation. Their sum is $S_N = \sum_{i=1}^N X_i$ and their mean is $\bar X_N = S_N / N$.
+
+**Result (central limit theorem).** For large $N$ (Page's rule of thumb: $N \ge 20$), $S_N$ is approximately normal:
+
+$$
+S_N \;\approx\; \mathcal N\!\left(N\mu,\; N\sigma^2\right),
+\qquad
+f(x) = \frac{1}{\sigma_\Sigma\sqrt{2\pi}}\, e^{-\frac{(x - N\mu)^2}{2\sigma_\Sigma^2}} .
+$$
+
+**Square-root rules.**
+
+$$
+\sigma_\Sigma = \sigma\sqrt N, \qquad \sigma_\mu = \frac{\sigma}{\sqrt N}.
+$$
+
+About 68% of outcomes fall within one standard deviation of the mean, 95% within two and 99.7% within three.
+:::
+
+The square-root rules follow from the independence assumption alone: variances of independent variables add, so $\operatorname{Var}(S_N) = N\sigma^2$. The normal *shape* is the deeper part of the theorem.
+
+## Interactive model
+
+Each simulation adds up $N$ draws from the chosen distribution, 4,000 times, and plots the totals against the normal curve the theorem predicts. Even with very skewed or lumpy ingredients, the totals look normal by $N = 20$ or so. The last option breaks the finite-variance condition: a long-tailed distribution where one draw can outweigh all the others, and the bell curve never arrives.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, sd, dnorm, seq, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof shape = Inputs.radio(["Uniform", "Exponential (skewed)", "Coin with p = 0.1 (lumpy)", "Power law, a = 2.5 (infinite variance)"], {value: "Exponential (skewed)", label: "Each draw comes from"})
+viewof N = Inputs.range([1, 100], {value: 20, step: 1, label: "Draws added up N"})
+viewof seed = Inputs.range([1, 500], {value: 5, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+clt = {
+  const r = rng(seed), reps = 4000;
+  const spec = {
+    "Uniform": {draw: () => r(), mu: 0.5, sigma: Math.sqrt(1 / 12)},
+    "Exponential (skewed)": {draw: () => r.exponential(1), mu: 1, sigma: 1},
+    "Coin with p = 0.1 (lumpy)": {draw: () => r.bernoulli(0.1), mu: 0.1, sigma: Math.sqrt(0.09)},
+    "Power law, a = 2.5 (infinite variance)": {draw: () => r.pareto(2.5), mu: 3, sigma: Infinity}
+  }[shape];
+  let maxShare = 0;
+  const sums = range(reps).map(() => {
+    let s = 0, m = 0;
+    for (let i = 0; i < N; i++) { const x = spec.draw(); s += x; if (x > m) m = x; }
+    maxShare += m / s;
+    return s;
+  });
+  const center = N * spec.mu, spread = spec.sigma * Math.sqrt(N);
+  const finite = Number.isFinite(spread);
+  const within = k => sums.filter(s => Math.abs(s - center) <= k * spread).length / reps;
+  const lo = finite ? center - 4 * spread : 0, hi = finite ? center + 4 * spread : d3.quantile(sums, 0.99);
+  const hist = d3.bin().domain([lo, hi]).thresholds(60)(sums.filter(s => s >= lo && s <= hi))
+    .map(b => ({x0: b.x0, x1: b.x1, density: b.length / reps / (b.x1 - b.x0)}));
+  return {sums, hist, lo, hi, center, spread, finite, sdSim: sd(sums), within1: finite ? within(1) : NaN, within2: finite ? within(2) : NaN, maxShare: maxShare / reps};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Normal Distribution and the Central Limit Theorem: distribution of the sums",
+  ariaDescription: "Horizontal axis: value of the sum. Vertical axis: density. Gray bars are a histogram of 4,000 simulated sums; the teal curve is the normal distribution the central limit theorem predicts, when it exists. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: `Sum of ${N} draws`, domain: [clt.lo, clt.hi]},
+  y: {label: "Density", grid: true},
+  marks: [
+    Plot.rectY(clt.hist, {x1: "x0", x2: "x1", y: "density", fill: C.gray, fillOpacity: 0.75}),
+    clt.finite ? Plot.line(seq(clt.center - 4 * clt.spread, clt.center + 4 * clt.spread, 200), {x: d => d, y: d => dnorm(d, clt.center, clt.spread), stroke: C.teal, strokeWidth: 2.5}) : null,
+    Plot.ruleY([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`${clt.finite ? `The theorem predicts sums centred on **${fmt(clt.center, 2)}** with standard deviation σ√N = **${fmt(clt.spread, 2)}**; the 4,000 simulated sums have a standard deviation of ${fmt(clt.sdSim, 2)}. **${pct(clt.within1)}** of them fall within one standard deviation of the centre and **${pct(clt.within2)}** within two (a normal distribution gives 68% and 95%).${N < 10 ? " With so few draws the shape still shows the ingredients; add more." : ""}` : `This distribution has infinite variance, so the square-root rules and the bell curve do not apply. On average the single largest of the ${N} draws makes up **${pct(clt.maxShare)}** of the sum: a few draws dominate, which is exactly what the theorem rules out.`}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, sd, dnorm, seq, C, fmt, pct} from "../js/models.js"
+
+viewof shape = Inputs.radio(["Uniform", "Exponential (skewed)", "Coin with p = 0.1 (lumpy)", "Power law, a = 2.5 (infinite variance)"], {value: "Exponential (skewed)", label: "Each draw comes from"})
+viewof N = Inputs.range([1, 100], {value: 20, step: 1, label: "Draws added up N"})
+viewof seed = Inputs.range([1, 500], {value: 5, step: 1, label: "Random seed"})
+
+clt = {
+  const r = rng(seed), reps = 4000;
+  const spec = {
+    "Uniform": {draw: () => r(), mu: 0.5, sigma: Math.sqrt(1 / 12)},
+    "Exponential (skewed)": {draw: () => r.exponential(1), mu: 1, sigma: 1},
+    "Coin with p = 0.1 (lumpy)": {draw: () => r.bernoulli(0.1), mu: 0.1, sigma: Math.sqrt(0.09)},
+    "Power law, a = 2.5 (infinite variance)": {draw: () => r.pareto(2.5), mu: 3, sigma: Infinity}
+  }[shape];
+  let maxShare = 0;
+  const sums = range(reps).map(() => {
+    let s = 0, m = 0;
+    for (let i = 0; i < N; i++) { const x = spec.draw(); s += x; if (x > m) m = x; }
+    maxShare += m / s;
+    return s;
+  });
+  const center = N * spec.mu, spread = spec.sigma * Math.sqrt(N);
+  const finite = Number.isFinite(spread);
+  const within = k => sums.filter(s => Math.abs(s - center) <= k * spread).length / reps;
+  const lo = finite ? center - 4 * spread : 0, hi = finite ? center + 4 * spread : d3.quantile(sums, 0.99);
+  const hist = d3.bin().domain([lo, hi]).thresholds(60)(sums.filter(s => s >= lo && s <= hi))
+    .map(b => ({x0: b.x0, x1: b.x1, density: b.length / reps / (b.x1 - b.x0)}));
+  return {sums, hist, lo, hi, center, spread, finite, sdSim: sd(sums), within1: finite ? within(1) : NaN, within2: finite ? within(2) : NaN, maxShare: maxShare / reps};
+}
+
+Plot.plot({
+  ariaLabel: "Normal Distribution and the Central Limit Theorem: distribution of the sums",
+  ariaDescription: "Horizontal axis: value of the sum. Vertical axis: density. Gray bars are a histogram of 4,000 simulated sums; the teal curve is the normal distribution the central limit theorem predicts, when it exists. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: `Sum of ${N} draws`, domain: [clt.lo, clt.hi]},
+  y: {label: "Density", grid: true},
+  marks: [
+    Plot.rectY(clt.hist, {x1: "x0", x2: "x1", y: "density", fill: C.gray, fillOpacity: 0.75}),
+    clt.finite ? Plot.line(seq(clt.center - 4 * clt.spread, clt.center + 4 * clt.spread, 200), {x: d => d, y: d => dnorm(d, clt.center, clt.spread), stroke: C.teal, strokeWidth: 2.5}) : null,
+    Plot.ruleY([0])
+  ]
+})
+
+html`<div class="sim-readout">${md`${clt.finite ? `The theorem predicts sums centred on **${fmt(clt.center, 2)}** with standard deviation σ√N = **${fmt(clt.spread, 2)}**; the 4,000 simulated sums have a standard deviation of ${fmt(clt.sdSim, 2)}. **${pct(clt.within1)}** of them fall within one standard deviation of the centre and **${pct(clt.within2)}** within two (a normal distribution gives 68% and 95%).${N < 10 ? " With so few draws the shape still shows the ingredients; add more." : ""}` : `This distribution has infinite variance, so the square-root rules and the bell curve do not apply. On average the single largest of the ${N} draws makes up **${pct(clt.maxShare)}** of the sum: a few draws dominate, which is exactly what the theorem rules out.`}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Central limit theorem: sums of N skewed draws look normal.
+n_draws <- 20 # draws added up
+reps <- 4000
+set.seed(5)
+
+sums <- replicate(reps, sum(rexp(n_draws, rate = 1))) # mean 1, sd 1
+center <- n_draws * 1
+spread <- 1 * sqrt(n_draws) # square-root rule
+
+cat(sprintf(
+  "Predicted sd %.2f, simulated sd %.2f\n",
+  spread, sd(sums)
+))
+cat(sprintf(
+  "Within 1 sd: %.0f%%; within 2 sd: %.0f%%\n",
+  100 * mean(abs(sums - center) <= spread),
+  100 * mean(abs(sums - center) <= 2 * spread)
+))
+
+hist(sums,
+  breaks = 50, freq = FALSE, col = "grey80", border = "white",
+  main = "", xlab = paste("Sum of", n_draws, "exponential draws")
+)
+curve(dnorm(x, center, spread), add = TRUE, lwd = 2, col = "#148a91")
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Sums of many independent effects are approximately normal, whatever the effects' own shape.
+- Spread grows like √N for sums and shrinks like 1/√N for averages: the square-root rules.
+- The theorem fails when effects are correlated, multiply, or come from a distribution so long-tailed that a few draws dominate.
+:::
+
+## Uses
+
+::: uses
+- **Predict.** Put error bars on polls and sample means, and on totals such as a store's monthly sales.
+- **Design.** Six Sigma sets tolerances so that defects require a deviation of six standard deviations.
+- **Explain.** Why large organizations have proportionally steadier outcomes than small ones, and why small schools top and bottom the rankings.
+:::
+
+## Related models
+
+- [Lognormal Distribution](lognormal-distribution.qmd): what happens when effects multiply instead of adding.
+- [Power Laws and Preferential Attachment](power-laws.qmd): long-tailed outcomes where the theorem's conditions fail.
+- [Bernoulli Urn Model](bernoulli-urn.qmd): the coin-flip case of the square-root rule.
+- [Random Walk](random-walk.qmd): a running sum, whose spread grows like √t.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 5, "Normal Distributions: The Bell Curve," pp. 59–66.

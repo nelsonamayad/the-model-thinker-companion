@@ -1,0 +1,51 @@
+---
+title: "About The Model Thinker Companion"
+date: 2026-11-13
+author:
+  - name: Nelson Amaya D
+    url: https://github.com/nelsonamayad
+  - name: Claude Opus 5.5
+sidebar: false
+toc: true
+---
+
+## What is this?
+
+**The Model Thinker Companion** is a study aid built around Scott E. Page's *The Model Thinker: What You Need to Know to Make Data Work for You* (Basic Books, 2018; expanded edition, 2021), created by [Nelson Amaya D](https://github.com/nelsonamayad) and Claude Opus 5.5.
+
+::: {.callout-warning title="Not affiliated with Scott E. Page or Basic Books"}
+This is an independent project. It is not affiliated with, endorsed by or reviewed by Scott E. Page or Basic Books. The models are Page's selection; the explanations, the formulations as typeset here and the simulations are ours, and so are any mistakes in them. Apart from the cover shown on the home page to identify the book, nothing on this site reproduces the book's text or figures. Please read the book: it has the context, the examples and the many-model arguments that a page per model cannot carry.
+:::
+
+## What's on each page
+
+The book collects the models Page considers essential for thinking with data, and argues for using many of them at once. This site takes the 55 models the book defines, one per page. Every page states the model's formulation in its own box (the setup, the equations or rules, and the result), cites the chapter and pages where the book presents it, and gives an interactive application, followed by takeaways, uses, related models and the original sources. The explanations are written in our own words.
+
+## How the models are built
+
+- **Equation-based models** run live in the browser with [Observable JS](https://quarto.org/docs/interactive/ojs/) and [Observable Plot](https://observablehq.com/plot/), using shared helpers (a seeded random number generator, a Runge–Kutta integrator, network generators, Markov-chain tools). Each also has a reference implementation in R, with the package suited to the model: deSolve for differential equations, igraph for networks, `lm` for regression and base R otherwise.
+- **Agent-based models** are written in [NetLogo 6.4](https://ccl.northwestern.edu/netlogo/) and run as experiments with the R package [nlrx](https://docs.ropensci.org/nlrx/) (Salecker, Sciaini, Meyer and Wiegand, 2019), which builds the parameter sweeps, runs NetLogo headless and collects the results. Those results are saved with the site and charted on each page, so nothing has to run on a server. A JavaScript replay of the same rules lets you watch one run.
+- Simulations with random draws have a **Random seed** control, so a given seed always reproduces the same picture. Default settings are chosen so that each page shows its model's point with a typical run, not a lucky one.
+
+The site is built with [Quarto](https://quarto.org). It is modelled on a sibling project, the Andrew Gelman Statistical Lexicon Explorer, which does the same for Gelman's statistical lexicon.
+
+## Corrections
+
+If a page gets something wrong, or claims more than the book supports, please say so. Every page has **Report an issue** and **Edit this page** links that open the page's source in the project's [GitHub repository](https://github.com/nelsonamayad/model-thinker), where you can describe the problem or propose a fix. [GitHub Issues](https://github.com/nelsonamayad/model-thinker/issues) is the place for corrections and questions.
+
+## How this site was built
+
+The site was built in November 2026 by [Nelson Amaya D](https://github.com/nelsonamayad) working with Claude Opus 5.5, an AI model made by Anthropic, through Anthropic's coding agent, Claude Code. Nelson chose what to build and set its direction: an homage modelled on his Gelman Lexicon Explorer, one page per model with its formulation and an interactive application, and the rule that each model be built with the tool that suits it, NetLogo with nlrx for the agent-based ones. Claude drafted the text and the code. The work went in five stages.
+
+1. **Inventory.** Claude read the models defined in the book's boxed sidebars and listed one entry per model, in book order. Boxes that define variants of the same model share an entry (the rule of 72 goes with exponential growth, for example), and boxes that are applications or essays get none. That gave 55 entries in nine families.
+2. **Infrastructure.** The Quarto site, the shared JavaScript helpers and the build and check scripts, adapted from the Gelman project.
+3. **Tooling for agent-based models.** NetLogo 6.4 was installed, and nlrx was connected to NetLogo's headless launcher. Each agent-based model was written as a NetLogo model and run as an nlrx experiment across parameter values and random seeds.
+4. **Entries, in batches, in book order.** Each formulation was checked against the book's box and text. Each page was rendered and loaded in a headless browser, and the text under each chart was read against the numbers; each R version was run. Where the book's box and its worked example disagree, or a printed number is off, the page follows the version that is internally consistent and says so in its source check: the riot model's joining rule, the ping-pong model's state equation, the six-degrees counts from four steps on, the two-park congestion total, and the book's SIR box, which returns recovered people to the susceptible pool.
+5. **Site-wide checks.** Static checks on every entry, every R script run, a full render, every page loaded in headless Chrome, and screenshots of representative pages.
+
+## Credits
+
+- Book: Scott E. Page, *The Model Thinker* (Basic Books, 2018; expanded edition, 2021). All rights reserved by the author and publisher.
+- Cover image on the home page: the expanded edition's cover, shown at small size to identify the book. Cover design by Chin-Yee Lai; cover © 2021 Hachette Book Group.
+- NetLogo: Uri Wilensky (1999), Center for Connected Learning and Computer-Based Modeling, Northwestern University. The NetLogo models on this site are our own code, not NetLogo's sample models.
+- nlrx: Jan Salecker, Marco Sciaini, Katrin M. Meyer and Kerstin Wiegand, "The nlrx R package: A next-generation framework for reproducible NetLogo model analyses," *Methods in Ecology and Evolution* 10, no. 11 (2019): 1854–1863, [doi:10.1111/2041-210X.13286](https://doi.org/10.1111/2041-210X.13286).

@@ -1,0 +1,385 @@
+/* Site styles layered on top of the theme generated from _brand.yml.
+   Colors come from Bootstrap CSS variables so light and dark mode both work. */
+
+:root {
+  --bs-body-font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --bs-font-monospace: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --mt-serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+}
+
+h1, h2, h3, h4, .title, .topic-name {
+  font-family: var(--mt-serif);
+}
+
+/* ---------- Navbar ---------- */
+
+#quarto-header .navbar {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.navbar .nav-link {
+  border-radius: 0.4rem;
+  white-space: nowrap;
+}
+
+.navbar .nav-link .bi,
+.navbar .dropdown-item .bi {
+  margin-right: 0.3rem;
+}
+
+.navbar .dropdown-item .bi {
+  color: var(--bs-primary);
+}
+
+@media (min-width: 992px) {
+  .navbar .nav-link:hover,
+  .navbar .nav-link:focus-visible {
+    background-color: color-mix(in srgb, currentColor 13%, transparent);
+  }
+  .navbar .nav-link.active {
+    background-color: color-mix(in srgb, currentColor 20%, transparent);
+  }
+}
+
+/* ---------- Headings ---------- */
+
+#title-block-header .description {
+  font-size: 1.1rem;
+  color: var(--bs-secondary-color);
+}
+
+main h2:not(.unlisted) {
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.callout {
+  border-radius: 0.5rem;
+}
+
+.book-source {
+  font-size: 0.9rem;
+}
+
+/* ---------- The formulation box ---------- */
+
+.model-box {
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.35);
+  border-top: 4px solid var(--bs-primary);
+  border-radius: 0.5rem;
+  padding: 0.9rem 1.2rem 0.3rem;
+  margin: 1rem 0 1.25rem;
+  background: rgba(var(--bs-primary-rgb), 0.04);
+}
+
+.model-box > p:first-child,
+.model-box > dl:first-child {
+  margin-top: 0;
+}
+
+.model-box dt {
+  font-family: var(--mt-serif);
+  color: var(--bs-primary);
+  margin-top: 0.4rem;
+}
+
+.model-box dd {
+  margin-left: 0;
+  margin-bottom: 0.6rem;
+}
+
+.model-box mjx-container[display="true"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ---------- Simulations ---------- */
+
+.observablehq form {
+  margin-bottom: 0.35rem;
+}
+
+.cell-output-display form[class^="oi-"],
+.observablehq form[class^="oi-"] {
+  --label-width: 14rem;
+}
+
+@media (max-width: 576px) {
+  .cell-output-display form[class^="oi-"],
+  .observablehq form[class^="oi-"] {
+    --label-width: 8.5rem;
+  }
+}
+
+.observablehq figure,
+.cell-output-display svg {
+  max-width: 100%;
+}
+
+.sim-readout {
+  border-left: 4px solid var(--bs-primary);
+  padding: 0.5rem 0.9rem;
+  margin: 0.75rem 0 1.25rem;
+  background: rgba(var(--bs-primary-rgb), 0.07);
+  border-radius: 0 0.35rem 0.35rem 0;
+}
+
+.sim-readout p:last-child {
+  margin-bottom: 0;
+}
+
+/* Grid canvases drawn by drawGrid() in js/models.js. */
+canvas.mt-grid {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.25rem;
+  margin: 0.5rem 0;
+}
+
+/* The play/pause + step control from player() in js/models.js. */
+form.mt-player {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+form.mt-player label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 16rem;
+}
+
+form.mt-player input[type="range"] {
+  flex: 1;
+}
+
+form.mt-player output {
+  min-width: 3ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.mt-play {
+  padding: 0.2rem 0.8rem;
+  border: 1px solid var(--bs-primary);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--bs-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mt-play:hover,
+.mt-play:focus-visible {
+  background: rgba(var(--bs-primary-rgb), 0.1);
+}
+
+/* A short note under an agent-based experiment chart. */
+.nl-note {
+  font-size: 0.88rem;
+  color: var(--bs-secondary-color);
+}
+
+/* "Show model code" and its tabs. */
+details.code-fold > summary {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+}
+
+details.code-fold > summary:hover {
+  color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+
+details.code-fold[open] > summary {
+  margin-bottom: 0.75rem;
+}
+
+.model-code .panel-tabset .nav-tabs .nav-link {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.85rem;
+}
+
+.takeaways li,
+.uses li {
+  margin-bottom: 0.35rem;
+}
+
+/* ---------- Home page ---------- */
+
+.hero {
+  font-size: 1.1rem;
+  max-width: 50rem;
+  margin-bottom: 2rem;
+}
+
+.hero .btn {
+  margin-top: 0.5rem;
+}
+
+/* Home page: the welcome text beside the book's cover. On narrow screens
+   the cover moves above the text and shrinks. */
+.hero-wrap {
+  display: flex;
+  gap: 2.5rem;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+}
+
+.hero-wrap .hero {
+  flex: 1 1 30rem;
+  margin-bottom: 0;
+}
+
+.hero-cover {
+  flex: 0 0 13rem;
+  text-align: center;
+}
+
+.hero-cover p {
+  margin-bottom: 0;
+}
+
+img.book-cover {
+  width: 100%;
+  max-width: 13rem;
+  height: auto;
+  border-radius: 0.25rem;
+  box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.25);
+}
+
+.cover-credit {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--bs-secondary-color);
+}
+
+@media (max-width: 768px) {
+  .hero-wrap {
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .hero-cover {
+    order: -1;
+    flex-basis: auto;
+    align-self: center;
+    max-width: 9rem;
+  }
+}
+
+.site-version {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+}
+
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 2.5rem;
+}
+
+.topic-grid > p {
+  display: contents;
+}
+
+.topic-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--bs-border-color);
+  border-left: 4px solid var(--bs-primary);
+  border-radius: 0.5rem;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  text-decoration: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.topic-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.12);
+  color: var(--bs-body-color);
+}
+
+.topic-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--bs-primary);
+}
+
+.topic-icon {
+  margin-right: 0.45rem;
+}
+
+.topic-count {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bs-secondary-color);
+}
+
+.topic-desc {
+  font-size: 0.93rem;
+}
+
+.quarto-listing-table td.listing-description {
+  max-width: 36rem;
+}
+
+.quarto-listing-table td.listing-order {
+  font-variant-numeric: tabular-nums;
+  color: var(--bs-secondary-color);
+}
+
+@media (max-width: 576px) {
+  .quarto-listing-table thead {
+    display: none;
+  }
+  .quarto-listing-table,
+  .quarto-listing-table tbody,
+  .quarto-listing-table tr,
+  .quarto-listing-table td {
+    display: block;
+    width: 100%;
+  }
+  .quarto-listing-table tr {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  .quarto-listing-table td {
+    border: 0;
+    padding: 0.1rem 0;
+    max-width: none;
+  }
+  .quarto-listing-table td.listing-order::before {
+    content: "#";
+  }
+}
+
+#quarto-sidebar .sidebar-item-text {
+  font-size: 0.88rem;
+}
+
+/* REDCAPE table on the many-models page. */
+.redcape td:first-child {
+  font-weight: 600;
+  white-space: nowrap;
+}

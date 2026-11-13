@@ -1,0 +1,368 @@
+---
+title: "Local Majority Model"
+date: 2026-11-13
+description: "When each person conforms to the majority of their neighbours, everyone ends up locally coordinated but the population as a whole stays a patchwork."
+order: 30
+chapter: 15
+chapter-title: "Local Interaction Models"
+pages: "171–176"
+family: "Processes and dynamics"
+engine: "Agent-based"
+tool: "NetLogo 6.4 + nlrx; JavaScript replay"
+reference: "NetLogo 6.4 model, nlrx experiment"
+uses: [Explain, Reason, Explore]
+categories: ["Processes and dynamics", "Agent-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#30** · *The Model Thinker*, chapter 15, "Local Interaction Models", pp. 171–176.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Many choices pay off only if the people around us make the same one: which side of the road to drive on, which messaging app to use, which greeting to offer, which word to use for a fizzy drink. The local majority model places people on a grid and lets each one switch to whatever most of their eight neighbours do. It is the behaviour of a player in a *pure coordination game* against each neighbour, choosing the action that matches the majority (a myopic best response).
+
+Locally, the rule works: everyone ends up agreeing with most of their neighbours, and the grid freezes. Globally, it need not produce agreement at all. Unless one action starts with a clear majority, the grid freezes into a patchwork of regions, each internally coordinated and different from its neighbours. Page calls this the *paradox of coordination*: local coordination produces global diversity, which is one explanation for regional dialects, customs and standards.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** Each cell of a two-dimensional grid (here $60 \times 60$, wrapped at the edges) is in one of two states, on or off. Each cell has eight neighbours.
+
+**Rule.** In each period a cell is chosen at random. It changes state if and only if five or more of its eight neighbours are in the other state.
+
+**Results.** The process always stops: eventually no cell wants to change (an equilibrium). In that equilibrium every cell agrees with at least four of its neighbours, but unless one state starts with a clear majority, both states survive in patches. *Paradox of coordination:* if people coordinate locally, global configurations will be patchy and diverse.
+:::
+
+Each cell is a player in a pure coordination game with each neighbour (payoff 1 for matching, 0 otherwise); switching to the majority of the neighbourhood maximizes its payoff given the neighbours' current actions. That the process must stop is shown on the [Lyapunov functions](lyapunov-functions.qmd) page: every switch strictly increases the number of matching neighbour pairs.
+
+## Interactive model
+
+One run, replayed in your browser: teal cells are on, orange cells off. Step through the sweeps (each sweep is as many single-cell updates as there are cells) or press **Play**. The grid freezes within a few dozen sweeps into a patchwork. Move the initial share away from 50% and the majority takes over.
+
+```{ojs}
+//| echo: false
+import {rng, torus8, drawGrid, player, C, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof shareOn = Inputs.range([10, 90], {value: 50, step: 5, label: "Initial share on (%)"})
+viewof seed = Inputs.range([1, 500], {value: 30, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+majority = {
+  const r = rng(seed), n = 60, N = n * n, nb = torus8(n);
+  const on = new Uint8Array(N);
+  for (let i = 0; i < N; i++) on[i] = r() * 100 < shareOn ? 1 : 0;
+  const differ = i => { let d = 0; for (let k = 0; k < 8; k++) if (on[nb[8 * i + k]] !== on[i]) d++; return d; };
+  const anyUnstable = () => { for (let i = 0; i < N; i++) if (differ(i) >= 5) return true; return false; };
+  const stats = () => {
+    let s = 0, b = 0;
+    for (let i = 0; i < N; i++) { s += on[i]; if (differ(i) > 0) b++; }
+    return {on: s / N, boundary: b / N};
+  };
+  const frames = [on.slice()], series = [{sweep: 0, ...stats()}];
+  for (let sweep = 1; sweep <= 100 && anyUnstable(); sweep++) {
+    for (let k = 0; k < N; k++) { const i = Math.floor(r() * N); if (differ(i) >= 5) on[i] = 1 - on[i]; }
+    frames.push(on.slice());
+    series.push({sweep, ...stats()});
+  }
+  return {n, frames, series, frozen: !anyUnstable()};
+}
+```
+
+```{ojs}
+viewof sweep = player(majority.frames.length - 1, {label: "Sweep", delay: 200})
+```
+
+```{ojs}
+drawGrid(majority.frames[sweep], majority.n, [C.orange, C.teal], {
+  size: 420,
+  ariaLabel: "Local Majority Model: the grid",
+  ariaDescription: "A 60 by 60 grid; teal cells are on and orange cells are off. The summary below the charts states the result in words."
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Local Majority Model: share on and boundary cells over time",
+  ariaDescription: "Horizontal axis: sweep. Vertical axis: share of cells. The teal line is the share of cells that are on; the purple line is the share of cells with at least one neighbour in the other state. The summary below the charts states the result in words.",
+  height: 200,
+  x: {label: "Sweep"},
+  y: {label: "Share of cells", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Cells on", "Cells on a boundary"], range: [C.teal, C.purple]},
+  marks: [
+    Plot.line(majority.series, {x: "sweep", y: "on", stroke: () => "Cells on", strokeWidth: 2}),
+    Plot.line(majority.series, {x: "sweep", y: "boundary", stroke: () => "Cells on a boundary", strokeWidth: 2}),
+    Plot.ruleX([sweep], {stroke: "currentColor", strokeOpacity: 0.4})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const first = majority.series[0], last = majority.series[majority.series.length - 1];
+  return html`<div class="sim-readout">${md`The grid started with ${pct(first.on)} of cells on and ${pct(first.boundary)} of cells next to a disagreeing neighbour. ${majority.frozen ? `It **froze after ${last.sweep} sweeps**` : `After ${last.sweep} sweeps it was still changing`}, with **${pct(last.on)}** of cells on and **${pct(last.boundary)}** still on a boundary between regions. ${last.on > 0.02 && last.on < 0.98 ? "Everyone agrees with most of their neighbours, yet both states survive: local coordination, global diversity." : "One state took over the whole grid."}`}</div>`;
+}
+```
+
+### NetLogo experiment
+
+The same model in NetLogo (a 60 × 60 wrapped grid), run by nlrx at nine initial shares with six seeds each, until the grid froze. Dots are individual runs; the dashed diagonal marks a final share equal to the initial one.
+
+```{ojs}
+//| echo: false
+nlRuns = FileAttachment("../data/local-majority.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => ({final: d3.mean(v, d => d.final_on), boundary: d3.mean(v, d => d.boundary_share), sweeps: d3.mean(v, d => d.step)}), d => d.share_on).map(([s, m]) => ({share: s / 100, ...m})).sort((a, b) => a.share - b.share)
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Local Majority Model: NetLogo experiment",
+  ariaDescription: "Horizontal axis: initial share of cells on. Vertical axis: share on when the grid froze (teal dots and line) and share of cells on a boundary (purple line). The dashed diagonal marks no change. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Initial share on", domain: [0, 1], tickFormat: "%"},
+  y: {label: "Share of cells when frozen", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Cells on", "Cells on a boundary"], range: [C.teal, C.purple]},
+  marks: [
+    Plot.line([[0, 0], [1, 1]], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6}),
+    Plot.dot(nlRuns, {x: d => d.share_on / 100, y: "final_on", fill: C.teal, r: 3, fillOpacity: 0.6}),
+    Plot.line(nlMeans, {x: "share", y: "final", stroke: () => "Cells on", strokeWidth: 2.5}),
+    Plot.line(nlMeans, {x: "share", y: "boundary", stroke: () => "Cells on a boundary", strokeWidth: 2.5, marker: "circle"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const at = s => nlMeans.find(d => Math.abs(d.share - s) < 1e-9);
+  const a40 = at(0.4), a50 = at(0.5), a60 = at(0.6);
+  return html`<div class="sim-readout">${md`In NetLogo, local conformity **amplifies the initial majority**: grids starting 40% on froze at ${pct(a40.final)} on, and grids starting 60% on froze at ${pct(a60.final)}. From an even start, grids froze at ${pct(a50.final)} on average with **${pct(a50.boundary)} of cells on a boundary**: a patchwork, the paradox of coordination. The slowest setting took ${Math.round(d3.max(nlMeans, d => d.sweeps))} sweeps on average to freeze.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **NetLogo** model is the reference implementation, and the **nlrx** script runs the experiment whose results are charted above (NetLogo 6.4, nlrx 0.4). The **Observable JS** replays the same rules in your browser, with its own random numbers.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, torus8, drawGrid, player, C, pct} from "../js/models.js"
+
+viewof shareOn = Inputs.range([10, 90], {value: 50, step: 5, label: "Initial share on (%)"})
+viewof seed = Inputs.range([1, 500], {value: 30, step: 1, label: "Random seed"})
+
+majority = {
+  const r = rng(seed), n = 60, N = n * n, nb = torus8(n);
+  const on = new Uint8Array(N);
+  for (let i = 0; i < N; i++) on[i] = r() * 100 < shareOn ? 1 : 0;
+  const differ = i => { let d = 0; for (let k = 0; k < 8; k++) if (on[nb[8 * i + k]] !== on[i]) d++; return d; };
+  const anyUnstable = () => { for (let i = 0; i < N; i++) if (differ(i) >= 5) return true; return false; };
+  const stats = () => {
+    let s = 0, b = 0;
+    for (let i = 0; i < N; i++) { s += on[i]; if (differ(i) > 0) b++; }
+    return {on: s / N, boundary: b / N};
+  };
+  const frames = [on.slice()], series = [{sweep: 0, ...stats()}];
+  for (let sweep = 1; sweep <= 100 && anyUnstable(); sweep++) {
+    for (let k = 0; k < N; k++) { const i = Math.floor(r() * N); if (differ(i) >= 5) on[i] = 1 - on[i]; }
+    frames.push(on.slice());
+    series.push({sweep, ...stats()});
+  }
+  return {n, frames, series, frozen: !anyUnstable()};
+}
+
+viewof sweep = player(majority.frames.length - 1, {label: "Sweep", delay: 200})
+
+drawGrid(majority.frames[sweep], majority.n, [C.orange, C.teal], {
+  size: 420,
+  ariaLabel: "Local Majority Model: the grid",
+  ariaDescription: "A 60 by 60 grid; teal cells are on and orange cells are off. The summary below the charts states the result in words."
+})
+
+Plot.plot({
+  ariaLabel: "Local Majority Model: share on and boundary cells over time",
+  ariaDescription: "Horizontal axis: sweep. Vertical axis: share of cells. The teal line is the share of cells that are on; the purple line is the share of cells with at least one neighbour in the other state. The summary below the charts states the result in words.",
+  height: 200,
+  x: {label: "Sweep"},
+  y: {label: "Share of cells", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Cells on", "Cells on a boundary"], range: [C.teal, C.purple]},
+  marks: [
+    Plot.line(majority.series, {x: "sweep", y: "on", stroke: () => "Cells on", strokeWidth: 2}),
+    Plot.line(majority.series, {x: "sweep", y: "boundary", stroke: () => "Cells on a boundary", strokeWidth: 2}),
+    Plot.ruleX([sweep], {stroke: "currentColor", strokeOpacity: 0.4})
+  ]
+})
+
+{
+  const first = majority.series[0], last = majority.series[majority.series.length - 1];
+  return html`<div class="sim-readout">${md`The grid started with ${pct(first.on)} of cells on and ${pct(first.boundary)} of cells next to a disagreeing neighbour. ${majority.frozen ? `It **froze after ${last.sweep} sweeps**` : `After ${last.sweep} sweeps it was still changing`}, with **${pct(last.on)}** of cells on and **${pct(last.boundary)}** still on a boundary between regions. ${last.on > 0.02 && last.on < 0.98 ? "Everyone agrees with most of their neighbours, yet both states survive: local coordination, global diversity." : "One state took over the whole grid."}`}</div>`;
+}
+
+nlRuns = FileAttachment("../data/local-majority.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => ({final: d3.mean(v, d => d.final_on), boundary: d3.mean(v, d => d.boundary_share), sweeps: d3.mean(v, d => d.step)}), d => d.share_on).map(([s, m]) => ({share: s / 100, ...m})).sort((a, b) => a.share - b.share)
+
+Plot.plot({
+  ariaLabel: "Local Majority Model: NetLogo experiment",
+  ariaDescription: "Horizontal axis: initial share of cells on. Vertical axis: share on when the grid froze (teal dots and line) and share of cells on a boundary (purple line). The dashed diagonal marks no change. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Initial share on", domain: [0, 1], tickFormat: "%"},
+  y: {label: "Share of cells when frozen", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Cells on", "Cells on a boundary"], range: [C.teal, C.purple]},
+  marks: [
+    Plot.line([[0, 0], [1, 1]], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6}),
+    Plot.dot(nlRuns, {x: d => d.share_on / 100, y: "final_on", fill: C.teal, r: 3, fillOpacity: 0.6}),
+    Plot.line(nlMeans, {x: "share", y: "final", stroke: () => "Cells on", strokeWidth: 2.5}),
+    Plot.line(nlMeans, {x: "share", y: "boundary", stroke: () => "Cells on a boundary", strokeWidth: 2.5, marker: "circle"})
+  ]
+})
+
+{
+  const at = s => nlMeans.find(d => Math.abs(d.share - s) < 1e-9);
+  const a40 = at(0.4), a50 = at(0.5), a60 = at(0.6);
+  return html`<div class="sim-readout">${md`In NetLogo, local conformity **amplifies the initial majority**: grids starting 40% on froze at ${pct(a40.final)} on, and grids starting 60% on froze at ${pct(a60.final)}. From an even start, grids froze at ${pct(a50.final)} on average with **${pct(a50.boundary)} of cells on a boundary**: a patchwork, the paradox of coordination. The slowest setting took ${Math.round(d3.max(nlMeans, d => d.sweeps))} sweeps on average to freeze.`}</div>`;
+}
+```
+
+## NetLogo {.unlisted}
+
+```{.netlogo}
+; The local majority model (The Model Thinker, chapter 15).
+; The Model Thinker Companion: reference implementation, run with nlrx by
+; abm/local-majority.R. The page replays the same rules in JavaScript.
+;
+; Each cell of a wrapped grid is on or off. One tick is one sweep: as many
+; single-cell updates as there are cells. In each update a random cell is
+; chosen and it switches state if and only if five or more of its eight
+; neighbours are in the other state. The run stops when no cell would switch.
+
+globals [
+  initial-on      ; share of cells on at the start
+]
+
+patches-own [ on? ]
+
+to setup
+  clear-all
+  ask patches [
+    set on? random-float 100 < share-on
+    recolor
+  ]
+  set initial-on final-on
+  reset-ticks
+end
+
+to go
+  if not any? patches with [ unstable? ] [ stop ]
+  repeat count patches [
+    ask one-of patches [
+      if unstable? [ set on? not on? recolor ]
+    ]
+  ]
+  tick
+end
+
+to-report unstable?
+  report count neighbors with [ on? != [ on? ] of myself ] >= 5
+end
+
+to recolor
+  set pcolor ifelse-value on? [ 85 ] [ 26 ]
+end
+
+; Share of cells on.
+to-report final-on
+  report count patches with [ on? ] / count patches
+end
+
+; Share of cells with at least one neighbour in the other state: a measure
+; of how patchy the configuration is (0 means one uniform block).
+to-report boundary-share
+  report count patches with [ any? neighbors with [ on? != [ on? ] of myself ] ]
+    / count patches
+end
+```
+
+## nlrx (R) {.unlisted}
+
+```{.r}
+# The local majority model: how does the initial mix shape the frozen
+# configuration? Does the majority take over, and how patchy is the result?
+# NetLogo model: abm/local-majority.nlogo. Output: data/local-majority.csv
+# (one row per initial share and seed).
+source("abm/_nlrx.R")
+
+nl <- nl_model("local-majority")
+nl@experiment <- experiment(
+  expname = "share_sweep",
+  outpath = tempdir(),
+  repetition = 1,
+  tickmetrics = "false", # measure once, when the grid has frozen
+  idsetup = "setup",
+  idgo = "go",
+  runtime = 100, # cap; runs stop when no cell would switch
+  metrics = c("initial-on", "final-on", "boundary-share"),
+  variables = list(
+    "share-on" = list(values = c(20, 30, 40, 45, 50, 55, 60, 70, 80))
+  ),
+  constants = list()
+)
+set.seed(15) # makes nlrx draw the same NetLogo seeds every time
+nl@simdesign <- simdesign_ff(nl, nseeds = 6)
+
+results <- run_experiment(nl)
+save_results(results, "local-majority",
+  keep = c(
+    "share_on", "random_seed", "step", "initial_on", "final_on",
+    "boundary_share"
+  )
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Conforming to the local majority always settles into an equilibrium.
+- Local coordination does not imply global coordination: the equilibrium is usually a patchwork of regions.
+- A clear initial majority is amplified and takes over; a close split freezes into lasting diversity.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Regional dialects (*pop* versus *soda*), customs, technology standards and political cultures that persist side by side.
+- **Reason.** Why convergence on a single standard often needs a global push (a law, a dominant firm) rather than local imitation.
+- **Explore.** Vary the neighbourhood, the threshold or the update order and see when patches survive.
+:::
+
+## Related models
+
+- [Schelling's Segregation Model](schelling-segregation.qmd): agents move rather than switch, with a similar patchwork result.
+- [Game of Life](game-of-life.qmd): another local rule on the same grid, with very different dynamics.
+- [Lyapunov Functions](lyapunov-functions.qmd): the argument that the process must stop.
+- [Polya Process](polya-process.qmd): another route by which early randomness becomes lasting structure.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 15, "Local Interaction Models," pp. 171–176.
+- Scott E. Page, "Self Organization and Coordination," *Computational Economics* 18 (2001): 25–48.

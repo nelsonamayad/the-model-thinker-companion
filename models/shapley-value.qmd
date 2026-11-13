@@ -1,0 +1,238 @@
+---
+title: "Shapley Value"
+date: 2026-11-13
+description: "The fair share of a joint value: each player's added value, averaged over every order in which the group could have formed."
+order: 14
+chapter: 9
+chapter-title: "Models of Value and Power"
+pages: "107–112"
+family: "Value and power"
+engine: "Equation-based"
+tool: "Observable JS (exact, all orderings)"
+reference: "base R"
+uses: [Design, Reason, Explain]
+categories: ["Value and power", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#14** · *The Model Thinker*, chapter 9, "Models of Value and Power", pp. 107–112.
+
+Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (exact, all orderings) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+When people produce something together (a startup, a research paper, a winning season), how much of the result is each person's? Their value alone is too little, because together they do more than apart. Their added value when they join depends on who is already there: the second engineer adds less than the first. Lloyd Shapley's answer is to imagine the group forming one person at a time, in every possible order, and to give each person their added value averaged over all those orders.
+
+The Shapley value is the only way of dividing a joint value that satisfies four reasonable conditions: someone who never adds anything gets nothing; two people who always add the same get the same; the whole value is shared out; and values add up across separate games. Page shows it at work in a creativity test, where it amounts to splitting the credit for each idea equally among everyone who thought of it.
+
+## Formulation
+
+::: {.model-box}
+**Cooperative game.** A set $N$ of players and a value function $V$ that gives every coalition $S \subseteq N$ a value $V(S)$, with $V(\varnothing) = 0$; $V(N)$ is the total value of the game.
+
+**Shapley value.** Consider all $|N|!$ orders in which the players could join. Player $i$'s added value in an ordering is $V(\text{those before } i \cup \{i\}) - V(\text{those before } i)$. Then
+
+$$
+\phi_i = \frac{1}{|N|!} \sum_{\text{orderings}} \Big[ V\big(P_i \cup \{i\}\big) - V(P_i) \Big]
+= \sum_{S \subseteq N \setminus \{i\}} \frac{|S|!\,(|N| - |S| - 1)!}{|N|!} \Big[ V(S \cup \{i\}) - V(S) \Big],
+$$
+
+where $P_i$ is the set of players who come before $i$.
+
+**Result.** The Shapley value is the unique allocation satisfying the zero property, symmetry (fairness), full allocation ($\sum_i \phi_i = V(N)$) and additivity.
+:::
+
+## Interactive model
+
+Three founders, an engineer (A), a designer (B) and a marketer (C), can each build something alone or together. Set what each coalition would be worth. The table lists all six orders in which the team could have formed and each founder's added value; the Shapley value is the average of each column. Compare it with an equal split.
+
+```{ojs}
+//| echo: false
+import {C, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof game = Inputs.form({
+  A: Inputs.range([0, 100], {value: 10, step: 5, label: "V(A)"}),
+  B: Inputs.range([0, 100], {value: 0, step: 5, label: "V(B)"}),
+  C: Inputs.range([0, 100], {value: 0, step: 5, label: "V(C)"}),
+  AB: Inputs.range([0, 150], {value: 60, step: 5, label: "V(A, B)"}),
+  AC: Inputs.range([0, 150], {value: 40, step: 5, label: "V(A, C)"}),
+  BC: Inputs.range([0, 150], {value: 10, step: 5, label: "V(B, C)"}),
+  ABC: Inputs.range([0, 200], {value: 100, step: 5, label: "V(A, B, C)"})
+})
+```
+
+```{ojs}
+shapley = {
+  const V = s => (s.length === 0 ? 0 : game[[...s].sort().join("")]);
+  const perms = [["A","B","C"], ["A","C","B"], ["B","A","C"], ["B","C","A"], ["C","A","B"], ["C","B","A"]];
+  const rows = perms.map(order => {
+    const row = {Order: order.join(" → ")}, before = [];
+    for (const p of order) { row[p] = V([...before, p]) - V(before); before.push(p); }
+    return row;
+  });
+  const phi = {A: 0, B: 0, C: 0};
+  for (const r of rows) for (const p of "ABC") phi[p] += r[p] / 6;
+  return {rows, phi};
+}
+```
+
+```{ojs}
+Inputs.table(shapley.rows, {columns: ["Order", "A", "B", "C"], header: {A: "A adds", B: "B adds", C: "C adds"}, rows: 7, layout: "auto"})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Shapley Value: shares of the joint value",
+  ariaDescription: "Grouped bars for each founder: their Shapley value (teal) and an equal split of the total (gray). The summary below the chart states the result in words.",
+  height: 220,
+  fx: {label: null, domain: ["A (engineer)", "B (designer)", "C (marketer)"]},
+  x: {axis: null, domain: ["Shapley value", "Equal split"]},
+  y: {label: "Share of V(A, B, C)", grid: true},
+  color: {legend: true, domain: ["Shapley value", "Equal split"], range: [C.teal, C.gray]},
+  marks: [
+    Plot.barY(["A", "B", "C"].flatMap(p => [
+      {who: {A: "A (engineer)", B: "B (designer)", C: "C (marketer)"}[p], kind: "Shapley value", v: shapley.phi[p]},
+      {who: {A: "A (engineer)", B: "B (designer)", C: "C (marketer)"}[p], kind: "Equal split", v: game.ABC / 3}
+    ]), {fx: "who", x: "kind", y: "v", fill: "kind"}),
+    Plot.ruleY([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`The Shapley values are **A ${fmt(shapley.phi.A, 1)}**, **B ${fmt(shapley.phi.B, 1)}** and **C ${fmt(shapley.phi.C, 1)}**, which add up to the team's value of ${game.ABC}. An equal split would give each ${fmt(game.ABC / 3, 1)}. ${shapley.phi.A > shapley.phi.B && shapley.phi.A > shapley.phi.C ? "The engineer gets the most, not because of what she earns alone but because she adds the most to every coalition she joins." : "Each founder's share reflects what they add to the coalitions they join, averaged over all orders."}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {C, fmt} from "../js/models.js"
+
+viewof game = Inputs.form({
+  A: Inputs.range([0, 100], {value: 10, step: 5, label: "V(A)"}),
+  B: Inputs.range([0, 100], {value: 0, step: 5, label: "V(B)"}),
+  C: Inputs.range([0, 100], {value: 0, step: 5, label: "V(C)"}),
+  AB: Inputs.range([0, 150], {value: 60, step: 5, label: "V(A, B)"}),
+  AC: Inputs.range([0, 150], {value: 40, step: 5, label: "V(A, C)"}),
+  BC: Inputs.range([0, 150], {value: 10, step: 5, label: "V(B, C)"}),
+  ABC: Inputs.range([0, 200], {value: 100, step: 5, label: "V(A, B, C)"})
+})
+
+shapley = {
+  const V = s => (s.length === 0 ? 0 : game[[...s].sort().join("")]);
+  const perms = [["A","B","C"], ["A","C","B"], ["B","A","C"], ["B","C","A"], ["C","A","B"], ["C","B","A"]];
+  const rows = perms.map(order => {
+    const row = {Order: order.join(" → ")}, before = [];
+    for (const p of order) { row[p] = V([...before, p]) - V(before); before.push(p); }
+    return row;
+  });
+  const phi = {A: 0, B: 0, C: 0};
+  for (const r of rows) for (const p of "ABC") phi[p] += r[p] / 6;
+  return {rows, phi};
+}
+
+Inputs.table(shapley.rows, {columns: ["Order", "A", "B", "C"], header: {A: "A adds", B: "B adds", C: "C adds"}, rows: 7, layout: "auto"})
+
+Plot.plot({
+  ariaLabel: "Shapley Value: shares of the joint value",
+  ariaDescription: "Grouped bars for each founder: their Shapley value (teal) and an equal split of the total (gray). The summary below the chart states the result in words.",
+  height: 220,
+  fx: {label: null, domain: ["A (engineer)", "B (designer)", "C (marketer)"]},
+  x: {axis: null, domain: ["Shapley value", "Equal split"]},
+  y: {label: "Share of V(A, B, C)", grid: true},
+  color: {legend: true, domain: ["Shapley value", "Equal split"], range: [C.teal, C.gray]},
+  marks: [
+    Plot.barY(["A", "B", "C"].flatMap(p => [
+      {who: {A: "A (engineer)", B: "B (designer)", C: "C (marketer)"}[p], kind: "Shapley value", v: shapley.phi[p]},
+      {who: {A: "A (engineer)", B: "B (designer)", C: "C (marketer)"}[p], kind: "Equal split", v: game.ABC / 3}
+    ]), {fx: "who", x: "kind", y: "v", fill: "kind"}),
+    Plot.ruleY([0])
+  ]
+})
+
+html`<div class="sim-readout">${md`The Shapley values are **A ${fmt(shapley.phi.A, 1)}**, **B ${fmt(shapley.phi.B, 1)}** and **C ${fmt(shapley.phi.C, 1)}**, which add up to the team's value of ${game.ABC}. An equal split would give each ${fmt(game.ABC / 3, 1)}. ${shapley.phi.A > shapley.phi.B && shapley.phi.A > shapley.phi.C ? "The engineer gets the most, not because of what she earns alone but because she adds the most to every coalition she joins." : "Each founder's share reflects what they add to the coalitions they join, averaged over all orders."}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Shapley value of a three-player cooperative game, over all orderings.
+# Deterministic: no random numbers.
+v <- c(
+  A = 10, B = 0, C = 0, AB = 60, AC = 40, BC = 10, ABC = 100
+)
+value <- function(players) {
+  if (length(players) == 0) {
+    return(0)
+  }
+  v[[paste(sort(players), collapse = "")]]
+}
+
+orders <- list(
+  c("A", "B", "C"), c("A", "C", "B"), c("B", "A", "C"),
+  c("B", "C", "A"), c("C", "A", "B"), c("C", "B", "A")
+)
+added <- t(sapply(orders, function(o) {
+  out <- c(A = 0, B = 0, C = 0)
+  for (k in seq_along(o)) {
+    out[o[k]] <- value(o[1:k]) - value(o[seq_len(k - 1)])
+  }
+  out
+}))
+rownames(added) <- sapply(orders, paste, collapse = "")
+print(added)
+phi <- colMeans(added)
+cat("Shapley values:", round(phi, 2), " total:", sum(phi), "\n")
+
+barplot(phi, col = "#148a91", ylab = "Shapley value")
+abline(h = v[["ABC"]] / 3, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- A player's contribution depends on who else is there; the Shapley value averages it over every order of arrival.
+- It is the unique division of a joint value satisfying zero property, symmetry, full allocation and additivity.
+- Credit for a shared idea is split equally among the people who had it; unique contributions earn full credit.
+:::
+
+## Uses
+
+::: uses
+- **Design.** Divide profits among partners, costs among users of shared infrastructure, or credit among features of a machine-learning model (SHAP values).
+- **Reason.** Distinguish a person's standalone value from the value they add to a team.
+- **Explain.** Why someone with fewer but more unusual ideas can contribute more to a group than someone with many common ones.
+:::
+
+## Related models
+
+- [Shapley–Shubik Index](shapley-shubik-index.qmd): the Shapley value applied to voting, as a measure of power.
+- [Diversity Prediction Theorem](diversity-prediction-theorem.qmd): another way diverse contributions add value.
+- [Public Projects and the Pivot Mechanism](pivot-mechanism.qmd): another rule that charges people for the difference they make.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 9, "Models of Value and Power," pp. 107–112.
+- Lloyd S. Shapley, "A Value for n-Person Games," in *Contributions to the Theory of Games*, vol. 2, ed. H. W. Kuhn and A. W. Tucker (Princeton University Press, 1953), 307–317.

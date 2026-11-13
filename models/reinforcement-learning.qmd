@@ -1,0 +1,240 @@
+---
+title: "Reinforcement Learning"
+date: 2026-11-13
+description: "Choosing alternatives with probability proportional to weights that grow when rewards beat an aspiration level eventually settles on the best alternative."
+order: 51
+chapter: 26
+chapter-title: "Learning Models"
+pages: "305–309"
+family: "Learning and search"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Explain, Predict, Design]
+categories: ["Learning and search", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#51** · *The Model Thinker*, chapter 26, "Learning Models", pp. 305–309.
+
+Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+People and animals learn by doing: what worked gets done more, what disappointed gets done less. Reinforcement learning turns this into a model. Each alternative carries a weight, the chance of choosing it is proportional to its weight, and after each choice the weight goes up if the reward beat what the learner hoped for (its *aspiration level*) and down if it fell short.
+
+Page's example is a parent learning whether a child prefers apple or banana pancakes. The model's guarantee is reassuring: if the aspiration level is set to the average reward received so far, reinforcement learning eventually chooses the best alternative almost always. It is also slow, especially with many alternatives or small differences between them, and a fixed aspiration level set too low turns learning into habit: whatever you happen to do gets reinforced.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** Alternatives $\{A, B, \dots, N\}$ with rewards $\pi(A), \pi(B), \dots$ and strictly positive weights $w(A), w(B), \dots$.
+
+**Choice rule.**
+
+$$
+P(K) = \frac{w(K)}{w(A) + w(B) + \dots + w(N)} .
+$$
+
+**Learning rule.** After choosing $K$, its weight changes by
+
+$$
+w(K) \leftarrow w(K) + \gamma \cdot \big(\pi(K) - \Theta\big),
+$$
+
+where $\gamma > 0$ is the rate of adjustment and $\Theta < \max_K \pi(K)$ is the aspiration level.
+
+**Result.** With the aspiration level set equal to the average reward received so far, reinforcement learning (eventually) almost always selects the best alternative.
+:::
+
+Weights are kept strictly positive (here, at least 1). With a fixed aspiration below every reward, every choice is reinforced, but the best alternative is reinforced most, so it still wins in the long run, only more slowly.
+
+## Interactive model
+
+Two hundred learners each face the same alternatives. The default is Page's pancake example: apple pancakes reward 20, banana 10, both weights start at 50, and γ = 1. The chart shows the average probability of choosing the best alternative over time. Add alternatives with close rewards, or switch to a fixed low aspiration, to see learning slow down.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, C, pct, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof nAlt = Inputs.range([2, 8], {value: 2, step: 1, label: "Alternatives"})
+viewof gap = Inputs.range([1, 20], {value: 10, step: 1, label: "Reward gap between best and next"})
+viewof aspiration = Inputs.radio(["Average reward so far", "Fixed at 5"], {value: "Average reward so far", label: "Aspiration"})
+viewof gamma = Inputs.range([0.2, 5], {value: 1, step: 0.1, label: "Rate of adjustment γ"})
+viewof seed = Inputs.range([1, 500], {value: 51, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+rl = {
+  const r = rng(seed), T = 300, learners = 200;
+  const rewards = range(nAlt).map(k => (k === 0 ? 10 + gap : 10 - 2 * (k - 1)));   // best is alternative 0
+  const probBest = new Array(T).fill(0);
+  for (let l = 0; l < learners; l++) {
+    const w = rewards.map(() => 50);
+    let total = 0;
+    for (let t = 0; t < T; t++) {
+      const sumW = w.reduce((a, b) => a + b, 0);
+      probBest[t] += w[0] / sumW / learners;
+      const k = r.weighted(w), pay = rewards[k];
+      const theta = aspiration === "Fixed at 5" ? 5 : t === 0 ? 5 : total / t;
+      w[k] = Math.max(1, w[k] + gamma * (pay - theta));
+      total += pay;
+    }
+  }
+  return {rewards, curve: probBest.map((p, t) => ({t: t + 1, p}))};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Reinforcement Learning: probability of choosing the best alternative",
+  ariaDescription: "Horizontal axis: period. Vertical axis: average probability, across 200 learners, of choosing the best alternative. The dashed line is the starting probability, one over the number of alternatives. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Period"},
+  y: {label: "Probability of choosing the best", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [
+    Plot.ruleY([1 / nAlt], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(rl.curve, {x: "t", y: "p", stroke: C.teal, strokeWidth: 2.5})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const at = t => rl.curve[t - 1].p, half = rl.curve.find(d => d.p >= 0.9);
+  return html`<div class="sim-readout">${md`Rewards: ${rl.rewards.map((v, i) => `${i ? "" : "**"}${v}${i ? "" : "** (best)"}`).join(", ")}. On average the learners choose the best alternative ${pct(at(10))} of the time after 10 periods, ${pct(at(50))} after 50 and **${pct(at(300))}** after 300. ${half ? `They pass 90% in period ${half.t}.` : "They have not reached 90% after 300 periods: learning is slow when alternatives are many or similar."}${aspiration === "Fixed at 5" ? " With a fixed low aspiration every choice is reinforced, so early habits persist longer." : ""}`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, C, pct, fmt} from "../js/models.js"
+
+viewof nAlt = Inputs.range([2, 8], {value: 2, step: 1, label: "Alternatives"})
+viewof gap = Inputs.range([1, 20], {value: 10, step: 1, label: "Reward gap between best and next"})
+viewof aspiration = Inputs.radio(["Average reward so far", "Fixed at 5"], {value: "Average reward so far", label: "Aspiration"})
+viewof gamma = Inputs.range([0.2, 5], {value: 1, step: 0.1, label: "Rate of adjustment γ"})
+viewof seed = Inputs.range([1, 500], {value: 51, step: 1, label: "Random seed"})
+
+rl = {
+  const r = rng(seed), T = 300, learners = 200;
+  const rewards = range(nAlt).map(k => (k === 0 ? 10 + gap : 10 - 2 * (k - 1)));   // best is alternative 0
+  const probBest = new Array(T).fill(0);
+  for (let l = 0; l < learners; l++) {
+    const w = rewards.map(() => 50);
+    let total = 0;
+    for (let t = 0; t < T; t++) {
+      const sumW = w.reduce((a, b) => a + b, 0);
+      probBest[t] += w[0] / sumW / learners;
+      const k = r.weighted(w), pay = rewards[k];
+      const theta = aspiration === "Fixed at 5" ? 5 : t === 0 ? 5 : total / t;
+      w[k] = Math.max(1, w[k] + gamma * (pay - theta));
+      total += pay;
+    }
+  }
+  return {rewards, curve: probBest.map((p, t) => ({t: t + 1, p}))};
+}
+
+Plot.plot({
+  ariaLabel: "Reinforcement Learning: probability of choosing the best alternative",
+  ariaDescription: "Horizontal axis: period. Vertical axis: average probability, across 200 learners, of choosing the best alternative. The dashed line is the starting probability, one over the number of alternatives. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Period"},
+  y: {label: "Probability of choosing the best", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [
+    Plot.ruleY([1 / nAlt], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(rl.curve, {x: "t", y: "p", stroke: C.teal, strokeWidth: 2.5})
+  ]
+})
+
+{
+  const at = t => rl.curve[t - 1].p, half = rl.curve.find(d => d.p >= 0.9);
+  return html`<div class="sim-readout">${md`Rewards: ${rl.rewards.map((v, i) => `${i ? "" : "**"}${v}${i ? "" : "** (best)"}`).join(", ")}. On average the learners choose the best alternative ${pct(at(10))} of the time after 10 periods, ${pct(at(50))} after 50 and **${pct(at(300))}** after 300. ${half ? `They pass 90% in period ${half.t}.` : "They have not reached 90% after 300 periods: learning is slow when alternatives are many or similar."}${aspiration === "Fixed at 5" ? " With a fixed low aspiration every choice is reinforced, so early habits persist longer." : ""}`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Reinforcement learning with an aspiration equal to the average reward.
+rewards <- c(apple = 20, banana = 10) # Page's pancake example
+gamma <- 1
+periods <- 300
+learners <- 200
+set.seed(51)
+
+prob_best <- numeric(periods)
+for (l in 1:learners) {
+  w <- c(50, 50)
+  total <- 0
+  for (t in 1:periods) {
+    prob_best[t] <- prob_best[t] + w[1] / sum(w) / learners
+    k <- sample(seq_along(w), 1, prob = w)
+    aspiration <- if (t == 1) 5 else total / (t - 1)
+    w[k] <- max(1, w[k] + gamma * (rewards[k] - aspiration))
+    total <- total + rewards[k]
+  }
+}
+cat(sprintf(
+  "P(best) after 10, 50, 300 periods: %.2f %.2f %.2f\n",
+  prob_best[10], prob_best[50], prob_best[300]
+))
+
+plot(prob_best,
+  type = "l", lwd = 2, col = "#148a91", ylim = c(0, 1),
+  xlab = "Period", ylab = "Probability of choosing the best"
+)
+abline(h = 0.5, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Reinforcement learning chooses in proportion to weights and strengthens choices whose rewards beat aspirations.
+- With aspirations equal to the average reward, it converges on the best alternative.
+- Convergence can be slow with many or similar alternatives, and low fixed aspirations create habits.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** How people and animals settle into routines, and why habits persist after they stop being best.
+- **Predict.** Choices in repeated experiments and games, which reinforcement models fit well.
+- **Design.** Feedback and reward schedules for training people, animals and algorithms.
+:::
+
+## Related models
+
+- [Replicator Dynamics](replicator-dynamics.qmd): social learning, by copying successful others.
+- [Multi-Armed Bandits](multi-armed-bandits.qmd): learning when rewards are uncertain, and the cost of exploring.
+- [The Generous/Spiteful Game](generous-spiteful-game.qmd): where individual and social learning disagree.
+- [The El Farol Model](el-farol.qmd): adaptive rules scored by past payoffs.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 26, "Learning Models," pp. 305–309.
+- Robert Bush and Frederick Mosteller, *Stochastic Models for Learning* (John Wiley and Sons, 1954).
+- Alvin Roth and Ido Erev, "Learning in Extensive Form Games: Experimental Data and Simple Dynamic Models in the Intermediate Term," *Games and Economic Behavior* 8 (1995): 164–212.

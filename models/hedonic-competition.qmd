@@ -1,0 +1,217 @@
+---
+title: "Hedonic Competition Model"
+date: 2026-11-13
+description: "When everyone prefers more of each attribute but weighs them differently, a product's value is a weighted sum of its attributes, and regression on prices reveals the weights."
+order: 39
+chapter: 20
+chapter-title: "Spatial and Hedonic Choice Models"
+pages: "236–240"
+family: "Games and cooperation"
+engine: "Equation-based"
+tool: "Observable JS (least squares)"
+reference: "R with stats::lm"
+uses: [Explain, Predict, Design]
+categories: ["Games and cooperation", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#39** · *The Model Thinker*, chapter 20, "Spatial and Hedonic Choice Models", pp. 236–240.
+
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (least squares) · Reference implementation: R with stats::lm.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Some attributes are not matters of taste in the spatial sense. Everyone prefers a house with more space, more bedrooms and a shorter commute; everyone prefers a faster, cheaper, more reliable car. These are *valence* (or hedonic) attributes: more is always better, and people differ only in how much weight they give each one. The hedonic model, associated with Kelvin Lancaster, values a product as a weighted sum of its attributes.
+
+The model has a practical payoff. Because prices reflect what buyers are willing to pay, a regression of prices on attributes recovers the average weight of each attribute in dollars: a *hedonic regression*. It puts prices on things no market sells directly, such as a minute of commute or a quiet street. And because weights differ across people, different buyers rank the same products differently, which leaves room for several products to coexist, so long as none is worse on every attribute.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** An alternative is a vector of valence attributes $\vec v = (v_1, \dots, v_N)$; an individual has weights $\vec w = (w_1, \dots, w_N)$.
+
+**Payoff.**
+
+$$
+\pi(\vec w, \vec v) = w_1 v_1 + w_2 v_2 + \dots + w_N v_N .
+$$
+
+For example, $\vec v = (3, 1, 2)$ and $\vec w = (4, 2, 5)$ give $4 \cdot 3 + 2 \cdot 1 + 5 \cdot 2 = 24$.
+
+**Hedonic regression.** Regressing prices on attributes, $\text{Price} = \beta_1 v_1 + \dots + \beta_N v_N + \varepsilon$, estimates the average weight (implicit price) of each attribute among buyers.
+
+**Results.** People with different weights rank products differently, so several products can sell; a product worse than another on every attribute sells to nobody.
+:::
+
+The *hybrid model* combines spatial attributes (crispiness, ideology) with hedonic ones (price, quality), which is how most real products differ.
+
+## Interactive model
+
+Two hundred house sales are simulated from buyers' implicit prices for floor area, bedrooms and commute time, plus noise. The regression recovers those prices from the sales alone. The defaults are Page's illustrative figures: $100 per square foot, $20,000 per bedroom and −$2,000 per minute of daily commute. The readout converts the commute coefficient into an hourly value of time.
+
+```{ojs}
+//| echo: false
+import {rng, range, ols, C, fmt, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof perSqft = Inputs.range([0, 300], {value: 100, step: 10, label: "True $ per square foot"})
+viewof perBed = Inputs.range([0, 60000], {value: 20000, step: 1000, label: "True $ per bedroom"})
+viewof perMin = Inputs.range([-6000, 0], {value: -2000, step: 100, label: "True $ per minute of commute"})
+viewof noise = Inputs.range([0, 80000], {value: 25000, step: 5000, label: "Unexplained variation (sd, $)"})
+viewof seed = Inputs.range([1, 500], {value: 39, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+hedonic = {
+  const r = rng(seed);
+  const houses = range(200).map(() => {
+    const beds = 1 + Math.floor(r() * 5), sqft = 600 + 350 * beds + r.normal(0, 250), commute = 5 + r() * 55;
+    return {sqft, beds, commute, price: perSqft * sqft + perBed * beds + perMin * commute + 50000 + r.normal(0, noise)};
+  });
+  const fit = ols(houses.map(h => [h.sqft, h.beds, h.commute]), houses.map(h => h.price));
+  return {houses, fit};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Hedonic Competition Model: true and estimated implicit prices",
+  ariaDescription: "For each attribute (square foot, bedroom, minute of commute), a gray dot marks the true implicit price used in the simulation and a teal dot with a bar marks the regression estimate with a 95% interval, each as a share of the true value. The summary below the chart states the result in words.",
+  height: 200,
+  marginLeft: 140,
+  x: {label: "Estimate as % of true implicit price", domain: [0, 200], grid: true},
+  y: {label: null, domain: ["Square foot", "Bedroom", "Minute of commute"]},
+  marks: [
+    Plot.ruleX([100], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleY([["Square foot", 1, perSqft], ["Bedroom", 2, perBed], ["Minute of commute", 3, perMin]].filter(d => d[2] !== 0), {y: d => d[0], x1: d => 100 * (hedonic.fit.coef[d[1]] - 1.96 * hedonic.fit.se[d[1]]) / d[2], x2: d => 100 * (hedonic.fit.coef[d[1]] + 1.96 * hedonic.fit.se[d[1]]) / d[2], stroke: C.teal, strokeWidth: 3, strokeOpacity: 0.5}),
+    Plot.dot([["Square foot", 1, perSqft], ["Bedroom", 2, perBed], ["Minute of commute", 3, perMin]].filter(d => d[2] !== 0), {y: d => d[0], x: d => 100 * hedonic.fit.coef[d[1]] / d[2], fill: C.teal, r: 6})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const [, b1, b2, b3] = hedonic.fit.coef, perHour = -b3 / (4000 / 60);
+  return html`<div class="sim-readout">${md`From the 200 sales, the regression estimates **$${num(b1)} per square foot**, **$${num(b2)} per bedroom** and **${b3 < 0 ? "−" : ""}$${num(Math.abs(b3))} per minute** of daily commute (true values: $${num(perSqft)}, $${num(perBed)} and −$${num(Math.abs(perMin))}), with R² = ${fmt(hedonic.fit.r2, 2)}. Over twenty years of ownership, one extra minute each way adds up to about 4,000 minutes, or 67 hours, of commuting, so buyers act ${perHour > 0 ? `as if they value an hour of commuting at about **$${num(perHour)}**` : "as if commuting costs them nothing"}.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (R with stats::lm): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, ols, C, fmt, num} from "../js/models.js"
+
+viewof perSqft = Inputs.range([0, 300], {value: 100, step: 10, label: "True $ per square foot"})
+viewof perBed = Inputs.range([0, 60000], {value: 20000, step: 1000, label: "True $ per bedroom"})
+viewof perMin = Inputs.range([-6000, 0], {value: -2000, step: 100, label: "True $ per minute of commute"})
+viewof noise = Inputs.range([0, 80000], {value: 25000, step: 5000, label: "Unexplained variation (sd, $)"})
+viewof seed = Inputs.range([1, 500], {value: 39, step: 1, label: "Random seed"})
+
+hedonic = {
+  const r = rng(seed);
+  const houses = range(200).map(() => {
+    const beds = 1 + Math.floor(r() * 5), sqft = 600 + 350 * beds + r.normal(0, 250), commute = 5 + r() * 55;
+    return {sqft, beds, commute, price: perSqft * sqft + perBed * beds + perMin * commute + 50000 + r.normal(0, noise)};
+  });
+  const fit = ols(houses.map(h => [h.sqft, h.beds, h.commute]), houses.map(h => h.price));
+  return {houses, fit};
+}
+
+Plot.plot({
+  ariaLabel: "Hedonic Competition Model: true and estimated implicit prices",
+  ariaDescription: "For each attribute (square foot, bedroom, minute of commute), a gray dot marks the true implicit price used in the simulation and a teal dot with a bar marks the regression estimate with a 95% interval, each as a share of the true value. The summary below the chart states the result in words.",
+  height: 200,
+  marginLeft: 140,
+  x: {label: "Estimate as % of true implicit price", domain: [0, 200], grid: true},
+  y: {label: null, domain: ["Square foot", "Bedroom", "Minute of commute"]},
+  marks: [
+    Plot.ruleX([100], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleY([["Square foot", 1, perSqft], ["Bedroom", 2, perBed], ["Minute of commute", 3, perMin]].filter(d => d[2] !== 0), {y: d => d[0], x1: d => 100 * (hedonic.fit.coef[d[1]] - 1.96 * hedonic.fit.se[d[1]]) / d[2], x2: d => 100 * (hedonic.fit.coef[d[1]] + 1.96 * hedonic.fit.se[d[1]]) / d[2], stroke: C.teal, strokeWidth: 3, strokeOpacity: 0.5}),
+    Plot.dot([["Square foot", 1, perSqft], ["Bedroom", 2, perBed], ["Minute of commute", 3, perMin]].filter(d => d[2] !== 0), {y: d => d[0], x: d => 100 * hedonic.fit.coef[d[1]] / d[2], fill: C.teal, r: 6})
+  ]
+})
+
+{
+  const [, b1, b2, b3] = hedonic.fit.coef, perHour = -b3 / (4000 / 60);
+  return html`<div class="sim-readout">${md`From the 200 sales, the regression estimates **$${num(b1)} per square foot**, **$${num(b2)} per bedroom** and **${b3 < 0 ? "−" : ""}$${num(Math.abs(b3))} per minute** of daily commute (true values: $${num(perSqft)}, $${num(perBed)} and −$${num(Math.abs(perMin))}), with R² = ${fmt(hedonic.fit.r2, 2)}. Over twenty years of ownership, one extra minute each way adds up to about 4,000 minutes, or 67 hours, of commuting, so buyers act ${perHour > 0 ? `as if they value an hour of commuting at about **$${num(perHour)}**` : "as if commuting costs them nothing"}.`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Hedonic regression: recover implicit prices of house attributes.
+per_sqft <- 100
+per_bed <- 20000
+per_min <- -2000 # per minute of daily commute
+noise <- 25000
+set.seed(39)
+
+n <- 200
+beds <- sample(1:5, n, replace = TRUE)
+sqft <- 600 + 350 * beds + rnorm(n, 0, 250)
+commute <- runif(n, 5, 60)
+price <- 50000 + per_sqft * sqft + per_bed * beds + per_min * commute +
+  rnorm(n, 0, noise)
+
+fit <- lm(price ~ sqft + beds + commute)
+print(round(coef(summary(fit)), 1))
+cat(sprintf(
+  "Implied value of an hour of commuting: $%.0f\n",
+  -coef(fit)["commute"] / (4000 / 60)
+))
+
+plot(fitted(fit), price,
+  pch = 19, col = "grey60", xlab = "Predicted price",
+  ylab = "Sale price"
+)
+abline(0, 1, col = "#148a91", lwd = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- With valence attributes, everyone wants more of each; people differ only in the weights they assign.
+- A regression of prices on attributes recovers implicit prices, including for things no market sells directly.
+- Products survive by being best for some set of weights; a product dominated on every attribute has no buyers.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** House prices, wages and car prices as sums of attribute values.
+- **Predict.** Price a new product or house from its attributes.
+- **Design.** Choose which attributes to improve by comparing their implicit prices with their costs: if a pool adds less to a house's price than it costs to build, owners do not recover it.
+:::
+
+## Related models
+
+- [Spatial Competition Model](spatial-competition.qmd): attributes with ideal points rather than "more is better".
+- [Linear Models](linear-models.qmd): hedonic regression is a multiple regression.
+- [Rational-Actor Model](rational-actor.qmd): utility over bundles of goods.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 20, "Spatial and Hedonic Choice Models," pp. 236–240.
+- Kelvin J. Lancaster, "A New Approach to Consumer Theory," *Journal of Political Economy* 74 (1966): 132–157.

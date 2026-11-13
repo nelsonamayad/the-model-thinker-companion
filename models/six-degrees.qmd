@@ -1,0 +1,211 @@
+---
+title: "Six Degrees of Separation"
+date: 2026-11-13
+description: "A few random friendships on top of tight-knit cliques are enough to put almost everyone on Earth within six steps of everyone else."
+order: 19
+chapter: 10
+chapter-title: "Network Models"
+pages: "125–127"
+family: "Networks and contagion"
+engine: "Equation-based"
+tool: "Observable JS (counting recursion)"
+reference: "base R"
+uses: [Reason, Explain, Communicate]
+categories: ["Networks and contagion", "Equation-based"]
+verified: true
+source-note: "Our counts from four steps on are lower than the book's (15.36 million rather than 17.36 million at four steps); we show the exact values of the recursion."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#19** · *The Model Thinker*, chapter 10, "Network Models", pp. 125–127.
+
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (counting recursion) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book. Our counts from four steps on are lower than the book's (15.36 million rather than 17.36 million at four steps); we show the exact values of the recursion.
+:::
+
+## The idea
+
+In the 1960s Stanley Milgram asked people in Nebraska and Kansas to get a letter to a stranger in Boston by passing it only to acquaintances. The letters that arrived took about six steps. Later experiments by email found similar numbers. How can a world of billions, where most of our friends know each other, be so small?
+
+Page answers with a back-of-the-envelope model. Suppose each person has a clique of close friends who all know one another, plus a handful of random friends who know nobody else in the clique. Clique friends add few new people at the next step, because they share friends. Random friends open doors to entirely new cliques. Counting the distinct paths that alternate between the two, the number of people within reach grows explosively, and a few steps are enough to cover the planet.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** Each person has $C$ clique friends, who are all friends with one another, and $R$ random friends, who share no friends with the person.
+
+**Counting.** A path of length $n$ is a sequence of steps through clique (C) or random (R) friendships; two clique steps in a row add nobody new. Writing $a_n$ and $b_n$ for the number of people reached by paths of length $n$ ending in a clique step and in a random step,
+
+$$
+a_1 = C,\; b_1 = R, \qquad a_{n+1} = C\, b_n, \qquad b_{n+1} = R\,(a_n + b_n),
+$$
+
+and the number of people at distance $n$ is about $a_n + b_n$ (an upper bound, since paths may overlap).
+
+**Result.** With $C = 100$ and $R = 20$: 120 people at one step, 4,400 at two, 328,000 at three, about 15 million at four, almost a billion at five and about 50 billion at six. Random friendships make the world small.
+:::
+
+The book's box gives the same values up to three steps and larger ones from four steps on; the recursion above follows its rule (no two clique steps in a row) exactly, by enumerating every allowed sequence.
+
+## Interactive model
+
+The chart shows how many people are reachable in each number of steps, on a logarithmic scale, against the world's population. Set random friends to zero: however large your clique, you never get beyond it. Then add just one or two random friends.
+
+```{ojs}
+//| echo: false
+import {range, C as palette, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof Cq = Inputs.range([0, 300], {value: 100, step: 5, label: "Clique friends C"})
+viewof Rr = Inputs.range([0, 50], {value: 20, step: 1, label: "Random friends R"})
+```
+
+```{ojs}
+reach = {
+  let a = Cq, b = Rr, total = 0;
+  const rows = [];
+  for (let n = 1; n <= 8; n++) {
+    const people = a + b;
+    total += people;
+    rows.push({n, people, total});
+    [a, b] = [Cq * b, Rr * (a + b)];
+  }
+  const world = 8e9, enough = rows.find(d => d.total >= world);
+  return {rows, world, enough};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Six Degrees of Separation: people reachable by number of steps",
+  ariaDescription: "Horizontal axis: number of steps, 1 to 8. Vertical axis, log scale: people reachable at that many steps (bars) and in total (line). The dashed line is the world's population of 8 billion. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Steps (degrees of separation)", type: "band", domain: range(8).map(i => i + 1)},
+  y: {type: "log", label: "People", grid: true, domain: [1, 1e12], tickFormat: "~s"},
+  marks: [
+    Plot.barY(reach.rows.filter(d => d.people >= 1), {x: "n", y1: 1, y2: "people", fill: palette.teal}),
+    Plot.line(reach.rows.filter(d => d.total >= 1), {x: "n", y: "total", stroke: palette.orange, strokeWidth: 2.5, marker: "circle"}),
+    Plot.ruleY([reach.world], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.text([reach.world], {x: 1, y: d => d, text: () => "world population", dy: -8, textAnchor: "start", fill: "currentColor", frameAnchor: "left"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`${Rr === 0 ? `With no random friends, you reach your ${num(Cq)} clique friends in one step and **nobody new after that**: a world of cliques is not small.` : `With ${num(Cq)} clique friends and ${num(Rr)} random friends, ${num(reach.rows[0].people)} people are one step away, ${num(reach.rows[1].people)} two steps away and ${num(reach.rows[2].people)} three steps away. ${reach.enough ? `By **${reach.enough.n} steps** the count passes the world's 8 billion people.` : "Even after 8 steps the count stays below the world's population."}`}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {range, C as palette, num} from "../js/models.js"
+
+viewof Cq = Inputs.range([0, 300], {value: 100, step: 5, label: "Clique friends C"})
+viewof Rr = Inputs.range([0, 50], {value: 20, step: 1, label: "Random friends R"})
+
+reach = {
+  let a = Cq, b = Rr, total = 0;
+  const rows = [];
+  for (let n = 1; n <= 8; n++) {
+    const people = a + b;
+    total += people;
+    rows.push({n, people, total});
+    [a, b] = [Cq * b, Rr * (a + b)];
+  }
+  const world = 8e9, enough = rows.find(d => d.total >= world);
+  return {rows, world, enough};
+}
+
+Plot.plot({
+  ariaLabel: "Six Degrees of Separation: people reachable by number of steps",
+  ariaDescription: "Horizontal axis: number of steps, 1 to 8. Vertical axis, log scale: people reachable at that many steps (bars) and in total (line). The dashed line is the world's population of 8 billion. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Steps (degrees of separation)", type: "band", domain: range(8).map(i => i + 1)},
+  y: {type: "log", label: "People", grid: true, domain: [1, 1e12], tickFormat: "~s"},
+  marks: [
+    Plot.barY(reach.rows.filter(d => d.people >= 1), {x: "n", y1: 1, y2: "people", fill: palette.teal}),
+    Plot.line(reach.rows.filter(d => d.total >= 1), {x: "n", y: "total", stroke: palette.orange, strokeWidth: 2.5, marker: "circle"}),
+    Plot.ruleY([reach.world], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.text([reach.world], {x: 1, y: d => d, text: () => "world population", dy: -8, textAnchor: "start", fill: "currentColor", frameAnchor: "left"})
+  ]
+})
+
+html`<div class="sim-readout">${md`${Rr === 0 ? `With no random friends, you reach your ${num(Cq)} clique friends in one step and **nobody new after that**: a world of cliques is not small.` : `With ${num(Cq)} clique friends and ${num(Rr)} random friends, ${num(reach.rows[0].people)} people are one step away, ${num(reach.rows[1].people)} two steps away and ${num(reach.rows[2].people)} three steps away. ${reach.enough ? `By **${reach.enough.n} steps** the count passes the world's 8 billion people.` : "Even after 8 steps the count stays below the world's population."}`}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Six degrees of separation: people reachable with clique and random friends.
+# Deterministic: no random numbers.
+clique <- 100 # clique friends, all friends with each other
+random <- 20 # random friends, who share no friends with you
+
+a <- clique # paths ending in a clique step
+b <- random # paths ending in a random step
+reach <- numeric(8)
+for (n in 1:8) {
+  reach[n] <- a + b
+  new_a <- clique * b # no two clique steps in a row
+  b <- random * (a + b)
+  a <- new_a
+}
+print(data.frame(steps = 1:8, people = reach, total = cumsum(reach)))
+cat(
+  "Steps needed to pass 8 billion:", which(cumsum(reach) >= 8e9)[1],
+  "\n"
+)
+
+barplot(reach,
+  names.arg = 1:8, log = "y", col = "#148a91",
+  xlab = "Steps", ylab = "People reachable"
+)
+abline(h = 8e9, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Clustered friendships alone keep the world large; a few random friendships make it small.
+- The number of people within reach grows geometrically with each step, roughly multiplying by the number of random friends times the clique size every two steps.
+- The calculation is an upper bound: real networks overlap, which is why it takes about six steps rather than four or five.
+:::
+
+## Uses
+
+::: uses
+- **Reason.** Why news, rumours and diseases can cross the world in a few links.
+- **Explain.** Milgram's letters and modern email experiments that found chains of about six people.
+- **Communicate.** A simple calculation that makes the power of weak ties concrete.
+:::
+
+## Related models
+
+- [Network Structures and Statistics](network-structure.qmd): small-world networks combine high clustering with short paths.
+- [Diffusion Model](diffusion-model.qmd): short paths are what lets word of mouth reach everyone.
+- [Network Robustness](network-robustness.qmd): the same random links keep networks connected when nodes fail.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 10, "Network Models," pp. 125–127.
+- Jeffrey Travers and Stanley Milgram, "An Experimental Study of the Small World Problem," *Sociometry* 32, no. 4 (1969): 425–443, [doi:10.2307/2786545](https://doi.org/10.2307/2786545).
+- Peter Dodds, Robby Muhamad and Duncan Watts, "An Experimental Study of Search in Global Social Networks," *Science* 301 (2003): 827–829.
+- Mark Granovetter, "The Strength of Weak Ties," *American Journal of Sociology* 78, no. 6 (1973): 1360–1380.

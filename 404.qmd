@@ -1,0 +1,13 @@
+---
+title: "Page not found"
+date: 2026-11-13
+sidebar: false
+toc: false
+---
+
+That page doesn't exist.
+
+- [Browse all models](/index.html#all-models)
+- [Browse by family](/index.html#families)
+- [Agent-based models](/agent-based.html)
+- [Try a random model](/random.html)

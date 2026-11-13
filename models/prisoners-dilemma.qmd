@@ -1,0 +1,350 @@
+---
+title: "Repeated Prisoners' Dilemma"
+date: 2026-11-13
+description: "Two players each do better by defecting, yet both do better if both cooperate; repetition sustains cooperation when the future matters enough, and simple reciprocal rules can win."
+order: 43
+chapter: 22
+chapter-title: "Models of Cooperation"
+pages: "253–262"
+family: "Games and cooperation"
+engine: "Equation-based"
+tool: "Observable JS (tournament and replicator dynamics)"
+reference: "base R"
+uses: [Explain, Design, Act]
+categories: ["Games and cooperation", "Equation-based"]
+verified: true
+source-note: "The tournament with noise and the ecological dynamics are our illustration of strategies the chapter discusses."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#43** · *The Model Thinker*, chapter 22, "Models of Cooperation", pp. 253–262.
+
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (tournament and replicator dynamics) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book. The tournament with noise and the ecological dynamics are our illustration of strategies the chapter discusses.
+:::
+
+## The idea
+
+Two firms can each keep prices high or undercut; two countries can each disarm or arm; two neighbours can each maintain a shared fence or shirk. In each case, whatever the other does, you do better by defecting, so both defect, and both end up worse off than if both had cooperated. This is the Prisoners' Dilemma, the central model of the tension between individual and collective interest.
+
+Repetition changes the logic. If the game is played again and again, a player can reward cooperation and punish defection, and the threat of losing future cooperation can outweigh the gain from cheating today. Page shows that *Grim Trigger* (cooperate until the other defects, then defect forever) sustains cooperation when the chance of playing again is high enough. Among simple rule-following players, Robert Axelrod's tournaments found that *Tit for Tat* (start nice, then copy the other's last move) did remarkably well; with mistakes, more forgiving rules such as *Win-Stay, Lose-Shift* do better.
+
+## Formulation
+
+::: {.model-box}
+**One-shot game.** Each of two players cooperates (C) or defects (D). Payoffs to the row player: $R$ for mutual cooperation, $P$ for mutual defection, $T$ (temptation) for defecting against a cooperator and $S$ (sucker) for cooperating against a defector, with
+
+$$
+T > R > P > S \quad \text{and} \quad 2R > T + S .
+$$
+
+Defection is dominant, so mutual defection is the unique equilibrium, although mutual cooperation is better for both.
+
+**Repetition.** After each round the game continues with probability $\delta$. Grim Trigger sustains cooperation if cooperating forever beats defecting once and being punished forever:
+
+$$
+\frac{R}{1-\delta} \ge T + \frac{\delta P}{1-\delta} \iff \delta \ge \frac{T - R}{T - P} .
+$$
+
+**Result.** With the punishment payoff normalized to zero, as in the book, cooperation is sustainable whenever the continuation probability exceeds $(T - R)/T$.
+:::
+
+The book writes the continuation probability as $P$; we use $\delta$ to keep $P$ for the punishment payoff. *Reputation* works the same way when defections against one partner become known to others, which is more likely in clustered networks.
+
+## Interactive model
+
+Six rule-following strategies play each other in a round-robin tournament: each pairing plays matches whose length is random (continuing with probability δ), and with probability ε each intended move is mistaken. The first chart shows each strategy's average payoff per round. The second lets the population evolve: strategies that score well against the current mix grow (replicator dynamics). Without mistakes reciprocal strategies thrive; add noise and Tit for Tat stumbles into feuds.
+
+```{ojs}
+//| echo: false
+import {rng, range, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof pay = Inputs.form({
+  T: Inputs.range([3, 10], {value: 5, step: 0.5, label: "Temptation T"}),
+  R: Inputs.range([1, 9], {value: 3, step: 0.5, label: "Reward R"}),
+  P: Inputs.range([0, 4], {value: 1, step: 0.5, label: "Punishment P"}),
+  S: Inputs.range([-3, 2], {value: 0, step: 0.5, label: "Sucker S"})
+})
+viewof delta = Inputs.range([0.5, 0.99], {value: 0.95, step: 0.01, label: "Continuation probability δ"})
+viewof noise = Inputs.range([0, 0.2], {value: 0, step: 0.01, label: "Mistake rate ε"})
+viewof seed = Inputs.range([1, 500], {value: 43, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+tournament = {
+  const r = rng(seed), {T, R, P, S} = pay;
+  const payoff = (a, b) => (a === "C" ? (b === "C" ? R : S) : (b === "C" ? T : P));
+  const strategies = {
+    "Always cooperate": () => "C",
+    "Always defect": () => "D",
+    "Tit for Tat": (me, them) => (them.length ? them[them.length - 1] : "C"),
+    "Grim Trigger": (me, them) => (them.includes("D") ? "D" : "C"),
+    "Win-Stay, Lose-Shift": (me, them) => {
+      if (!me.length) return "C";
+      const last = payoff(me[me.length - 1], them[them.length - 1]);
+      return last >= R ? me[me.length - 1] : (me[me.length - 1] === "C" ? "D" : "C");
+    },
+    "Random": () => (r() < 0.5 ? "C" : "D")
+  };
+  const names = Object.keys(strategies);
+  const flip = m => (r() < noise ? (m === "C" ? "D" : "C") : m);
+  const match = (f, g) => {
+    const a = [], b = [];
+    let sa = 0, sb = 0, rounds = 0;
+    do {
+      const x = flip(f(a, b)), y = flip(g(b, a));
+      a.push(x); b.push(y); sa += payoff(x, y); sb += payoff(y, x); rounds++;
+    } while (r() < delta && rounds < 2000);
+    return [sa / rounds, sb / rounds];
+  };
+  const M = names.map(() => names.map(() => 0)), reps = 30;
+  names.forEach((n1, i) => names.forEach((n2, j) => {
+    if (j < i) return;
+    let s1 = 0, s2 = 0;
+    for (let k = 0; k < reps; k++) { const [x, y] = match(strategies[n1], strategies[n2]); s1 += x; s2 += y; }
+    M[i][j] = s1 / reps; M[j][i] = s2 / reps;
+    if (i === j) M[i][i] = (s1 + s2) / (2 * reps);
+  }));
+  const scores = names.map((n, i) => ({name: n, score: M[i].reduce((s, v) => s + v, 0) / names.length}));
+  // Replicator dynamics on the tournament payoffs.
+  let x = names.map(() => 1 / names.length);
+  const shift = Math.min(...M.flat()) - 0.01, history = [];
+  for (let g = 0; g <= 60; g++) {
+    x.forEach((v, i) => history.push({gen: g, name: names[i], share: v}));
+    const fit = x.map((_, i) => M[i].reduce((s, v, j) => s + (v - shift) * x[j], 0));
+    const avg = fit.reduce((s, f, i) => s + f * x[i], 0);
+    x = x.map((v, i) => (v * fit[i]) / avg);
+  }
+  return {scores, history, final: names.map((n, i) => ({name: n, share: x[i]})), threshold: (T - R) / (T - P)};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Repeated Prisoners' Dilemma: tournament scores",
+  ariaDescription: "Horizontal bars: each strategy's average payoff per round across all its tournament matches. The dashed line marks the mutual-cooperation payoff R. The summary below the charts states the result in words.",
+  height: 220,
+  marginLeft: 150,
+  x: {label: "Average payoff per round", grid: true},
+  y: {label: null, domain: tournament.scores.slice().sort((a, b) => b.score - a.score).map(d => d.name)},
+  marks: [
+    Plot.barX(tournament.scores, {y: "name", x: "score", fill: C.teal}),
+    Plot.ruleX([pay.R], {stroke: "currentColor", strokeDasharray: "4 3"})
+  ]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Repeated Prisoners' Dilemma: evolution of strategy shares",
+  ariaDescription: "Horizontal axis: generation. Vertical axis: share of the population playing each strategy, which grows in proportion to its payoff against the current population. The summary below the charts states the result in words.",
+  height: 240,
+  x: {label: "Generation"},
+  y: {label: "Share of population", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, scheme: "tableau10"},
+  marks: [Plot.line(tournament.history, {x: "gen", y: "share", stroke: "name", strokeWidth: 2})]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const best = tournament.scores.slice().sort((a, b) => b.score - a.score)[0];
+  const top = tournament.final.slice().sort((a, b) => b.share - a.share);
+  return html`<div class="sim-readout">${md`Grim Trigger sustains cooperation when δ ≥ (T − R)/(T − P) = **${fmt(tournament.threshold, 2)}**; here δ = ${delta}, so cooperation ${delta >= tournament.threshold ? "**can** be sustained" : "**cannot** be sustained"}. In the tournament, **${best.name}** scores best (${fmt(best.score, 2)} per round). After 60 generations of evolution, the population is ${top.slice(0, 2).map(d => `${pct(d.share)} ${d.name}`).join(" and ")}. ${noise > 0 ? "With mistakes, Tit for Tat pairs fall into echoing retaliations, while Win-Stay, Lose-Shift recovers quickly." : "Without mistakes, the reciprocal strategies cooperate with each other and are not exploited."}`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, C, fmt, pct} from "../js/models.js"
+
+viewof pay = Inputs.form({
+  T: Inputs.range([3, 10], {value: 5, step: 0.5, label: "Temptation T"}),
+  R: Inputs.range([1, 9], {value: 3, step: 0.5, label: "Reward R"}),
+  P: Inputs.range([0, 4], {value: 1, step: 0.5, label: "Punishment P"}),
+  S: Inputs.range([-3, 2], {value: 0, step: 0.5, label: "Sucker S"})
+})
+viewof delta = Inputs.range([0.5, 0.99], {value: 0.95, step: 0.01, label: "Continuation probability δ"})
+viewof noise = Inputs.range([0, 0.2], {value: 0, step: 0.01, label: "Mistake rate ε"})
+viewof seed = Inputs.range([1, 500], {value: 43, step: 1, label: "Random seed"})
+
+tournament = {
+  const r = rng(seed), {T, R, P, S} = pay;
+  const payoff = (a, b) => (a === "C" ? (b === "C" ? R : S) : (b === "C" ? T : P));
+  const strategies = {
+    "Always cooperate": () => "C",
+    "Always defect": () => "D",
+    "Tit for Tat": (me, them) => (them.length ? them[them.length - 1] : "C"),
+    "Grim Trigger": (me, them) => (them.includes("D") ? "D" : "C"),
+    "Win-Stay, Lose-Shift": (me, them) => {
+      if (!me.length) return "C";
+      const last = payoff(me[me.length - 1], them[them.length - 1]);
+      return last >= R ? me[me.length - 1] : (me[me.length - 1] === "C" ? "D" : "C");
+    },
+    "Random": () => (r() < 0.5 ? "C" : "D")
+  };
+  const names = Object.keys(strategies);
+  const flip = m => (r() < noise ? (m === "C" ? "D" : "C") : m);
+  const match = (f, g) => {
+    const a = [], b = [];
+    let sa = 0, sb = 0, rounds = 0;
+    do {
+      const x = flip(f(a, b)), y = flip(g(b, a));
+      a.push(x); b.push(y); sa += payoff(x, y); sb += payoff(y, x); rounds++;
+    } while (r() < delta && rounds < 2000);
+    return [sa / rounds, sb / rounds];
+  };
+  const M = names.map(() => names.map(() => 0)), reps = 30;
+  names.forEach((n1, i) => names.forEach((n2, j) => {
+    if (j < i) return;
+    let s1 = 0, s2 = 0;
+    for (let k = 0; k < reps; k++) { const [x, y] = match(strategies[n1], strategies[n2]); s1 += x; s2 += y; }
+    M[i][j] = s1 / reps; M[j][i] = s2 / reps;
+    if (i === j) M[i][i] = (s1 + s2) / (2 * reps);
+  }));
+  const scores = names.map((n, i) => ({name: n, score: M[i].reduce((s, v) => s + v, 0) / names.length}));
+  // Replicator dynamics on the tournament payoffs.
+  let x = names.map(() => 1 / names.length);
+  const shift = Math.min(...M.flat()) - 0.01, history = [];
+  for (let g = 0; g <= 60; g++) {
+    x.forEach((v, i) => history.push({gen: g, name: names[i], share: v}));
+    const fit = x.map((_, i) => M[i].reduce((s, v, j) => s + (v - shift) * x[j], 0));
+    const avg = fit.reduce((s, f, i) => s + f * x[i], 0);
+    x = x.map((v, i) => (v * fit[i]) / avg);
+  }
+  return {scores, history, final: names.map((n, i) => ({name: n, share: x[i]})), threshold: (T - R) / (T - P)};
+}
+
+Plot.plot({
+  ariaLabel: "Repeated Prisoners' Dilemma: tournament scores",
+  ariaDescription: "Horizontal bars: each strategy's average payoff per round across all its tournament matches. The dashed line marks the mutual-cooperation payoff R. The summary below the charts states the result in words.",
+  height: 220,
+  marginLeft: 150,
+  x: {label: "Average payoff per round", grid: true},
+  y: {label: null, domain: tournament.scores.slice().sort((a, b) => b.score - a.score).map(d => d.name)},
+  marks: [
+    Plot.barX(tournament.scores, {y: "name", x: "score", fill: C.teal}),
+    Plot.ruleX([pay.R], {stroke: "currentColor", strokeDasharray: "4 3"})
+  ]
+})
+
+Plot.plot({
+  ariaLabel: "Repeated Prisoners' Dilemma: evolution of strategy shares",
+  ariaDescription: "Horizontal axis: generation. Vertical axis: share of the population playing each strategy, which grows in proportion to its payoff against the current population. The summary below the charts states the result in words.",
+  height: 240,
+  x: {label: "Generation"},
+  y: {label: "Share of population", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, scheme: "tableau10"},
+  marks: [Plot.line(tournament.history, {x: "gen", y: "share", stroke: "name", strokeWidth: 2})]
+})
+
+{
+  const best = tournament.scores.slice().sort((a, b) => b.score - a.score)[0];
+  const top = tournament.final.slice().sort((a, b) => b.share - a.share);
+  return html`<div class="sim-readout">${md`Grim Trigger sustains cooperation when δ ≥ (T − R)/(T − P) = **${fmt(tournament.threshold, 2)}**; here δ = ${delta}, so cooperation ${delta >= tournament.threshold ? "**can** be sustained" : "**cannot** be sustained"}. In the tournament, **${best.name}** scores best (${fmt(best.score, 2)} per round). After 60 generations of evolution, the population is ${top.slice(0, 2).map(d => `${pct(d.share)} ${d.name}`).join(" and ")}. ${noise > 0 ? "With mistakes, Tit for Tat pairs fall into echoing retaliations, while Win-Stay, Lose-Shift recovers quickly." : "Without mistakes, the reciprocal strategies cooperate with each other and are not exploited."}`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Repeated Prisoners' Dilemma: a round-robin tournament with mistakes.
+pay <- c(T = 5, R = 3, P = 1, S = 0)
+delta <- 0.95 # continuation probability
+noise <- 0.05 # chance an intended move is flipped
+set.seed(43)
+
+payoff <- function(a, b) {
+  if (a == "C") {
+    if (b == "C") pay[["R"]] else pay[["S"]]
+  } else {
+    if (b == "C") pay[["T"]] else pay[["P"]]
+  }
+}
+strategies <- list(
+  all_c = function(me, them) "C",
+  all_d = function(me, them) "D",
+  tit_for_tat = function(me, them) if (length(them)) tail(them, 1) else "C",
+  grim = function(me, them) if ("D" %in% them) "D" else "C",
+  wsls = function(me, them) {
+    if (!length(me)) {
+      return("C")
+    }
+    won <- payoff(tail(me, 1), tail(them, 1)) >= pay[["R"]]
+    if (won) tail(me, 1) else setdiff(c("C", "D"), tail(me, 1))
+  }
+)
+flip <- function(m) if (runif(1) < noise) setdiff(c("C", "D"), m) else m
+play <- function(f, g) {
+  a <- c()
+  b <- c()
+  repeat {
+    x <- flip(f(a, b))
+    y <- flip(g(b, a))
+    a <- c(a, x)
+    b <- c(b, y)
+    if (runif(1) > delta) break
+  }
+  mean(mapply(payoff, a, b))
+}
+scores <- sapply(strategies, function(f) {
+  mean(sapply(strategies, function(g) mean(replicate(20, play(f, g)))))
+})
+print(round(sort(scores, decreasing = TRUE), 2))
+cat(sprintf(
+  "Grim Trigger needs delta >= %.2f\n",
+  (pay[["T"]] - pay[["R"]]) / (pay[["T"]] - pay[["P"]])
+))
+
+barplot(sort(scores), horiz = TRUE, las = 1, col = "#148a91")
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- In a one-shot Prisoners' Dilemma defection is dominant, though mutual cooperation is better for both.
+- Repetition sustains cooperation if the future matters enough: δ ≥ (T − R)/(T − P).
+- Simple reciprocal rules cooperate with each other and resist exploitation; with mistakes, forgiving rules do better.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Cartels, arms control, cooperation between firms and neighbours, and why it breaks down when the end is near.
+- **Design.** Lengthen the shadow of the future (long-term contracts, repeated interactions, reputational records) to support cooperation.
+- **Act.** Be nice, retaliate, forgive and be clear, Axelrod's advice for reciprocal strategies, and forgive more when mistakes are common.
+:::
+
+## Related models
+
+- [Cooperative Action Model](cooperative-action.qmd): cooperation among unsophisticated agents on a network.
+- [Collective Action and Public Goods](public-goods.qmd): the many-player version of the dilemma.
+- [Replicator Dynamics](replicator-dynamics.qmd): the evolutionary dynamics used in the second chart.
+- [Sequential Games](sequential-games.qmd): reputation in a sequence of games.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 22, "Models of Cooperation," pp. 253–262.
+- Robert Axelrod, *The Evolution of Cooperation* (Basic Books, 1984).
+- Jianzhong Wu and Robert Axelrod, "How to Cope with Noise in the Iterated Prisoner's Dilemma," *Journal of Conflict Resolution* 39, no. 1 (1995): 183–189.
+- Martin Nowak, "Five Rules for the Evolution of Cooperation," *Science* 314, no. 5805 (2006): 1560–1563.

@@ -1,0 +1,270 @@
+---
+title: "NK Model (Rugged Landscapes)"
+date: 2026-11-13
+description: "When the value of each part of a solution depends on other parts, the landscape of possible solutions becomes rugged, full of local peaks where incremental improvement gets stuck."
+order: 55
+chapter: 28
+chapter-title: "Rugged-Landscape Models"
+pages: "327–337"
+family: "Learning and search"
+engine: "Equation-based"
+tool: "Observable JS (exhaustive landscape and hill climbing)"
+reference: "base R"
+uses: [Explore, Explain, Design]
+categories: ["Learning and search", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#55** · *The Model Thinker*, chapter 28, "Rugged-Landscape Models", pp. 327–337.
+
+Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (exhaustive landscape and hill climbing) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Designing a product, a policy or an organization means choosing many features together. If each feature's contribution is independent of the others, search is easy: improve one feature at a time and you will reach the best design. But features interact. A bigger engine needs stronger brakes; a flatter hierarchy needs different incentives. Then improving one feature can make another worse, and step-by-step improvement can climb to a *local peak*, a design that no single change improves, which is far from the best.
+
+Stuart Kauffman's NK model makes the degree of interaction a dial. A solution is a string of N bits; each bit's contribution depends on itself and on K other bits. With K = 0 the landscape has a single peak (Mount Fuji); as K rises the landscape becomes rugged, with many peaks of different heights; with K = N − 1 it is essentially random. Page uses it to explain why hard problems need diverse searchers and bigger leaps, and why landscapes that shift as others adapt (*dancing landscapes*) keep innovation going.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** An object consists of $N$ bits, $s \in \{0, 1\}^N$. For each bit $i$, a randomly chosen set of $K$ other bits $\{s_{ik}\}$ affects its contribution.
+
+**Value.**
+
+$$
+V(s) = \sum_{i=1}^{N} V_i\big(s_i, \{s_{ik}\}\big),
+$$
+
+where each $V_i$ assigns an independent random number in $[0, 1]$ to every combination of bit $i$ and its $K$ partners.
+
+**Results.** $K = 0$: value is a linear function of the bits, with a single peak that one-bit-at-a-time hill climbing always finds. $K = N - 1$: any change of one bit produces a new random contribution from each bit, so the landscape is random. As $K$ increases, the number of local peaks rises and their average height falls.
+:::
+
+A *local peak* is a string that no single bit flip improves. Hill climbing (flip one bit at a time, keep any improvement, stop when none helps) always ends at a local peak, and which one depends on where it starts.
+
+## Interactive model
+
+The page builds a whole landscape (all $2^N$ strings), counts its local peaks, and runs 300 hill climbs from random starting strings. With K = 0 every climb reaches the same, global, peak. Raise K and the climbs end on many different peaks, mostly well below the best.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, C, pct, fmt, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof N = Inputs.range([6, 14], {value: 12, step: 1, label: "Bits N"})
+viewof K = Inputs.range([0, 13], {value: 3, step: 1, label: "Interactions K (at most N − 1)"})
+viewof seed = Inputs.range([1, 500], {value: 55, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+nk = {
+  const r = rng(seed), k = Math.min(K, N - 1), S = 2 ** N;
+  const partners = range(N).map(i => r.shuffle(range(N).filter(j => j !== i)).slice(0, k));
+  const tables = range(N).map(() => Float64Array.from({length: 2 ** (k + 1)}, () => r()));
+  const V = new Float64Array(S);
+  for (let s = 0; s < S; s++) {
+    let v = 0;
+    for (let i = 0; i < N; i++) {
+      let idx = (s >> i) & 1;
+      partners[i].forEach((j, m) => { idx |= ((s >> j) & 1) << (m + 1); });
+      v += tables[i][idx];
+    }
+    V[s] = v / N;   // averaged over bits, so values lie in [0, 1]
+  }
+  let peaks = 0, globalMax = 0;
+  for (let s = 0; s < S; s++) {
+    if (V[s] > globalMax) globalMax = V[s];
+    let isPeak = true;
+    for (let i = 0; i < N && isPeak; i++) if (V[s ^ (1 << i)] > V[s]) isPeak = false;
+    if (isPeak) peaks++;
+  }
+  const climbs = range(300).map(() => {
+    let s = Math.floor(r() * S), steps = 0;
+    for (;;) {
+      const order = r.shuffle(range(N));
+      const better = order.find(i => V[s ^ (1 << i)] > V[s]);
+      if (better === undefined) break;
+      s ^= 1 << better; steps++;
+    }
+    return {value: V[s], steps};
+  });
+  return {k, peaks, globalMax, climbs, hitGlobal: climbs.filter(c => c.value >= globalMax - 1e-12).length / climbs.length, S};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "NK Model: values of the peaks reached by hill climbing",
+  ariaDescription: "Histogram of the values of the local peaks reached by 300 hill climbs from random starting strings. The dashed line marks the global maximum. The summary below the chart states the result in words.",
+  height: 260,
+  x: {label: "Value of the peak reached", domain: [Math.min(0.4, d3.min(nk.climbs, d => d.value)), nk.globalMax + 0.02]},
+  y: {label: "Hill climbs (of 300)", grid: true},
+  marks: [
+    Plot.rectY(nk.climbs, Plot.binX({y: "count"}, {x: "value", thresholds: 40, fill: C.teal})),
+    Plot.ruleX([nk.globalMax], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleY([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`With N = ${N} and K = ${nk.k}, the landscape of ${num(nk.S)} strings has **${num(nk.peaks)} local peak${nk.peaks === 1 ? "" : "s"}**. Of 300 hill climbs, **${pct(nk.hitGlobal)}** reached the global peak (value ${fmt(nk.globalMax, 3)}); the average climb ended at ${fmt(mean(nk.climbs.map(c => c.value)), 3)} after ${fmt(mean(nk.climbs.map(c => c.steps)), 1)} improving steps. ${nk.k === 0 ? "With no interactions there is one peak, and every climb finds it." : nk.k >= N - 2 ? "With nearly every bit interacting, the landscape is close to random, and hill climbing finds only nearby, low peaks." : "Interactions create many peaks, and where a climb ends depends on where it starts."}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, C, pct, fmt, num} from "../js/models.js"
+
+viewof N = Inputs.range([6, 14], {value: 12, step: 1, label: "Bits N"})
+viewof K = Inputs.range([0, 13], {value: 3, step: 1, label: "Interactions K (at most N − 1)"})
+viewof seed = Inputs.range([1, 500], {value: 55, step: 1, label: "Random seed"})
+
+nk = {
+  const r = rng(seed), k = Math.min(K, N - 1), S = 2 ** N;
+  const partners = range(N).map(i => r.shuffle(range(N).filter(j => j !== i)).slice(0, k));
+  const tables = range(N).map(() => Float64Array.from({length: 2 ** (k + 1)}, () => r()));
+  const V = new Float64Array(S);
+  for (let s = 0; s < S; s++) {
+    let v = 0;
+    for (let i = 0; i < N; i++) {
+      let idx = (s >> i) & 1;
+      partners[i].forEach((j, m) => { idx |= ((s >> j) & 1) << (m + 1); });
+      v += tables[i][idx];
+    }
+    V[s] = v / N;   // averaged over bits, so values lie in [0, 1]
+  }
+  let peaks = 0, globalMax = 0;
+  for (let s = 0; s < S; s++) {
+    if (V[s] > globalMax) globalMax = V[s];
+    let isPeak = true;
+    for (let i = 0; i < N && isPeak; i++) if (V[s ^ (1 << i)] > V[s]) isPeak = false;
+    if (isPeak) peaks++;
+  }
+  const climbs = range(300).map(() => {
+    let s = Math.floor(r() * S), steps = 0;
+    for (;;) {
+      const order = r.shuffle(range(N));
+      const better = order.find(i => V[s ^ (1 << i)] > V[s]);
+      if (better === undefined) break;
+      s ^= 1 << better; steps++;
+    }
+    return {value: V[s], steps};
+  });
+  return {k, peaks, globalMax, climbs, hitGlobal: climbs.filter(c => c.value >= globalMax - 1e-12).length / climbs.length, S};
+}
+
+Plot.plot({
+  ariaLabel: "NK Model: values of the peaks reached by hill climbing",
+  ariaDescription: "Histogram of the values of the local peaks reached by 300 hill climbs from random starting strings. The dashed line marks the global maximum. The summary below the chart states the result in words.",
+  height: 260,
+  x: {label: "Value of the peak reached", domain: [Math.min(0.4, d3.min(nk.climbs, d => d.value)), nk.globalMax + 0.02]},
+  y: {label: "Hill climbs (of 300)", grid: true},
+  marks: [
+    Plot.rectY(nk.climbs, Plot.binX({y: "count"}, {x: "value", thresholds: 40, fill: C.teal})),
+    Plot.ruleX([nk.globalMax], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleY([0])
+  ]
+})
+
+html`<div class="sim-readout">${md`With N = ${N} and K = ${nk.k}, the landscape of ${num(nk.S)} strings has **${num(nk.peaks)} local peak${nk.peaks === 1 ? "" : "s"}**. Of 300 hill climbs, **${pct(nk.hitGlobal)}** reached the global peak (value ${fmt(nk.globalMax, 3)}); the average climb ended at ${fmt(mean(nk.climbs.map(c => c.value)), 3)} after ${fmt(mean(nk.climbs.map(c => c.steps)), 1)} improving steps. ${nk.k === 0 ? "With no interactions there is one peak, and every climb finds it." : nk.k >= N - 2 ? "With nearly every bit interacting, the landscape is close to random, and hill climbing finds only nearby, low peaks." : "Interactions create many peaks, and where a climb ends depends on where it starts."}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# NK model: count local peaks and run hill climbs on a rugged landscape.
+n <- 12 # bits
+k <- 3 # interactions per bit
+set.seed(55)
+
+partners <- lapply(1:n, function(i) sample(setdiff(1:n, i), k))
+tables <- lapply(1:n, function(i) runif(2^(k + 1)))
+bits <- function(s) as.integer(intToBits(s))[1:n]
+value <- function(s) {
+  b <- bits(s)
+  mean(sapply(1:n, function(i) {
+    idx <- sum(c(b[i], b[partners[[i]]]) * 2^(0:k)) + 1
+    tables[[i]][idx]
+  }))
+}
+v <- sapply(0:(2^n - 1), value)
+flip <- function(s, i) bitwXor(s, 2^(i - 1))
+is_peak <- sapply(0:(2^n - 1), function(s) {
+  all(v[s + 1] >= v[sapply(1:n, function(i) flip(s, i)) + 1])
+})
+cat("Local peaks:", sum(is_peak), "of", 2^n, "strings\n")
+
+climb <- function() {
+  s <- sample(0:(2^n - 1), 1)
+  repeat {
+    nbrs <- sapply(sample(1:n), function(i) flip(s, i))
+    better <- nbrs[v[nbrs + 1] > v[s + 1]]
+    if (!length(better)) {
+      return(v[s + 1])
+    }
+    s <- better[1]
+  }
+}
+reached <- replicate(300, climb())
+cat(sprintf("Hill climbs reaching the global peak: %.0f%%\n", 100 *
+  mean(reached >= max(v) - 1e-12)))
+
+hist(reached,
+  breaks = 30, col = "#148a91", border = "white", main = "",
+  xlab = "Value of the peak reached"
+)
+abline(v = max(v), lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Interactions among parts make solution landscapes rugged, with many local peaks.
+- Incremental improvement finds the best solution only when interactions are few; otherwise it stops at the nearest peak.
+- Rugged problems reward diverse starting points, larger jumps and many searchers, and changing landscapes keep the search going.
+:::
+
+## Uses
+
+::: uses
+- **Explore.** How the difficulty of a design or strategy problem depends on how strongly its parts interact.
+- **Explain.** Why organizations get stuck in local optima, and why recombining existing ideas produces breakthroughs.
+- **Design.** Search processes (teams with diverse heuristics, experimentation with bold variants) for rugged problems; and, as Page discusses for patents, policies that keep recombination open.
+:::
+
+## Related models
+
+- [Multi-Armed Bandits](multi-armed-bandits.qmd): exploration and exploitation among a few known options.
+- [Diversity Prediction Theorem](diversity-prediction-theorem.qmd): why diverse searchers help.
+- [Lyapunov Functions](lyapunov-functions.qmd): hill climbing always stops, because value rises with every step.
+- [Replicator Dynamics](replicator-dynamics.qmd): selection among alternatives on a fixed landscape.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 28, "Rugged-Landscape Models," pp. 327–337.
+- Stuart Kauffman, *The Origins of Order: Self-Organization and Selection in Evolution* (Oxford University Press, 1993).
+- Stuart Kauffman and Simon Levin, "Towards a General Theory of Adaptive Walks on Rugged Landscapes," *Journal of Theoretical Biology* 128, no. 1 (1987): 11–45, [doi:10.1016/S0022-5193(87)80029-2](https://doi.org/10.1016/S0022-5193(87)80029-2).
+- Daniel A. Levinthal, "Adaptation on Rugged Landscapes," *Management Science* 43 (1997): 934–950.

@@ -1,0 +1,258 @@
+---
+title: "Shapley–Shubik Index"
+date: 2026-11-13
+description: "Voting power is the share of orderings in which a party's votes turn a losing coalition into a winning one, and it can differ wildly from its share of votes."
+order: 15
+chapter: 9
+chapter-title: "Models of Value and Power"
+pages: "112–114"
+family: "Value and power"
+engine: "Equation-based"
+tool: "Observable JS (exact, all orderings)"
+reference: "base R"
+uses: [Design, Reason, Explain]
+categories: ["Value and power", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#15** · *The Model Thinker*, chapter 9, "Models of Value and Power", pp. 112–114.
+
+Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (exact, all orderings) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+In a parliament, a council or a shareholder meeting, decisions need a majority, and members control different numbers of votes. How much power does a member have? Not, it turns out, its share of the votes. What matters is how often its votes are *pivotal*: how often they turn a losing coalition into a winning one.
+
+Lloyd Shapley and Martin Shubik applied the Shapley value to such voting games. Imagine the members lining up in a random order to join a coalition; the one whose votes first push it past the quota is pivotal. A member's power is the share of orderings in which it is pivotal. In Page's example, a party with 40 of 101 seats has three times the power of one with 39, and the 39-seat party is no more powerful than either 11-seat party. On the Nassau County board in the 1960s, three of six supervisors, one of them holding 18% of the votes, could never change any outcome.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A weighted voting game: players $i = 1, \dots, n$ with weights (votes or seats) $w_i$ and a quota $q$. A coalition $S$ wins if $\sum_{i \in S} w_i \ge q$, so $V(S) = 1$ if $S$ wins and $0$ otherwise.
+
+**Index.** Player $i$ is pivotal in an ordering if the players before it lose and adding $i$ makes them win. The Shapley–Shubik index is the Shapley value of this game:
+
+$$
+\phi_i = \frac{\#\{\text{orderings in which } i \text{ is pivotal}\}}{n!} .
+$$
+
+**Result.** The indices sum to 1, but they are not proportional to the weights: small players can hold substantial power and large ones none.
+:::
+
+## Interactive model
+
+Choose an example, or choose *Custom* and type the members' votes and the quota. For each member the chart compares its share of the votes with its Shapley–Shubik index of power, computed exactly over every possible ordering of the members.
+
+```{ojs}
+//| echo: false
+import {C, pct, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof preset = Inputs.radio(["Four parties, 101 seats", "Nassau County Board, 1960s", "Custom"], {value: "Four parties, 101 seats", label: "Example"})
+```
+
+```{ojs}
+viewof custom = Inputs.form({
+  w: Inputs.text({label: "Custom votes, comma-separated", value: "40, 39, 11, 11"}),
+  q: Inputs.range([1, 300], {value: 51, step: 1, label: "Custom quota q"})
+})
+```
+
+```{ojs}
+voting = {
+  const presets = {
+    "Four parties, 101 seats": {names: ["A", "B", "C", "D"], w: [40, 39, 11, 11], q: 51},
+    "Nassau County Board, 1960s": {names: ["Hempstead 1", "Hempstead 2", "Oyster Bay", "North Hempstead", "Long Beach", "Glen Cove"], w: [31, 31, 28, 21, 2, 2], q: 58}
+  };
+  let spec = presets[preset];
+  if (!spec) {
+    const w = custom.w.split(",").map(x => Math.max(0, Math.round(+x))).filter(x => Number.isFinite(x)).slice(0, 8);
+    spec = {names: w.map((_, i) => String.fromCharCode(65 + i)), w, q: custom.q};
+  }
+  const n = spec.w.length, piv = new Array(n).fill(0);
+  let count = 0;
+  const order = [], used = new Array(n).fill(false);
+  const walk = () => {
+    if (order.length === n) {
+      count++;
+      let s = 0;
+      for (const i of order) { if (s < spec.q && s + spec.w[i] >= spec.q) { piv[i]++; break; } s += spec.w[i]; }
+      return;
+    }
+    for (let i = 0; i < n; i++) if (!used[i]) { used[i] = true; order.push(i); walk(); order.pop(); used[i] = false; }
+  };
+  walk();
+  const total = spec.w.reduce((a, b) => a + b, 0);
+  return {...spec, total, rows: spec.names.map((name, i) => ({name, votes: spec.w[i] / total, power: piv[i] / count}))};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Shapley–Shubik Index: vote share versus power",
+  ariaDescription: "For each member, two bars: share of votes (gray) and Shapley–Shubik power index (teal). The summary below the chart states the result in words.",
+  height: 260,
+  marginBottom: 50,
+  fx: {label: null, domain: voting.names},
+  x: {axis: null, domain: ["Share of votes", "Power index"]},
+  y: {label: "Share", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Share of votes", "Power index"], range: [C.gray, C.teal]},
+  marks: [
+    Plot.barY(voting.rows.flatMap(d => [{name: d.name, k: "Share of votes", v: d.votes}, {name: d.name, k: "Power index", v: d.power}]), {fx: "name", x: "k", y: "v", fill: "k"}),
+    Plot.ruleY([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const zero = voting.rows.filter(d => d.power === 0 && d.votes > 0);
+  const lines = voting.rows.map(d => `${d.name}: ${pct(d.votes, 1)} of votes, **${pct(d.power, 1)}** of power`).join("; ");
+  return html`<div class="sim-readout">${md`With a quota of ${voting.q} out of ${voting.total} votes: ${lines}. ${zero.length ? `**${zero.map(d => d.name).join(", ")}** ${zero.length > 1 ? "have" : "has"} votes but no power: ${zero.length > 1 ? "their" : "its"} votes are never pivotal.` : "Power and vote shares diverge whenever some coalitions can win without particular members."}`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {C, pct, fmt} from "../js/models.js"
+
+viewof preset = Inputs.radio(["Four parties, 101 seats", "Nassau County Board, 1960s", "Custom"], {value: "Four parties, 101 seats", label: "Example"})
+
+viewof custom = Inputs.form({
+  w: Inputs.text({label: "Custom votes, comma-separated", value: "40, 39, 11, 11"}),
+  q: Inputs.range([1, 300], {value: 51, step: 1, label: "Custom quota q"})
+})
+
+voting = {
+  const presets = {
+    "Four parties, 101 seats": {names: ["A", "B", "C", "D"], w: [40, 39, 11, 11], q: 51},
+    "Nassau County Board, 1960s": {names: ["Hempstead 1", "Hempstead 2", "Oyster Bay", "North Hempstead", "Long Beach", "Glen Cove"], w: [31, 31, 28, 21, 2, 2], q: 58}
+  };
+  let spec = presets[preset];
+  if (!spec) {
+    const w = custom.w.split(",").map(x => Math.max(0, Math.round(+x))).filter(x => Number.isFinite(x)).slice(0, 8);
+    spec = {names: w.map((_, i) => String.fromCharCode(65 + i)), w, q: custom.q};
+  }
+  const n = spec.w.length, piv = new Array(n).fill(0);
+  let count = 0;
+  const order = [], used = new Array(n).fill(false);
+  const walk = () => {
+    if (order.length === n) {
+      count++;
+      let s = 0;
+      for (const i of order) { if (s < spec.q && s + spec.w[i] >= spec.q) { piv[i]++; break; } s += spec.w[i]; }
+      return;
+    }
+    for (let i = 0; i < n; i++) if (!used[i]) { used[i] = true; order.push(i); walk(); order.pop(); used[i] = false; }
+  };
+  walk();
+  const total = spec.w.reduce((a, b) => a + b, 0);
+  return {...spec, total, rows: spec.names.map((name, i) => ({name, votes: spec.w[i] / total, power: piv[i] / count}))};
+}
+
+Plot.plot({
+  ariaLabel: "Shapley–Shubik Index: vote share versus power",
+  ariaDescription: "For each member, two bars: share of votes (gray) and Shapley–Shubik power index (teal). The summary below the chart states the result in words.",
+  height: 260,
+  marginBottom: 50,
+  fx: {label: null, domain: voting.names},
+  x: {axis: null, domain: ["Share of votes", "Power index"]},
+  y: {label: "Share", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Share of votes", "Power index"], range: [C.gray, C.teal]},
+  marks: [
+    Plot.barY(voting.rows.flatMap(d => [{name: d.name, k: "Share of votes", v: d.votes}, {name: d.name, k: "Power index", v: d.power}]), {fx: "name", x: "k", y: "v", fill: "k"}),
+    Plot.ruleY([0])
+  ]
+})
+
+{
+  const zero = voting.rows.filter(d => d.power === 0 && d.votes > 0);
+  const lines = voting.rows.map(d => `${d.name}: ${pct(d.votes, 1)} of votes, **${pct(d.power, 1)}** of power`).join("; ");
+  return html`<div class="sim-readout">${md`With a quota of ${voting.q} out of ${voting.total} votes: ${lines}. ${zero.length ? `**${zero.map(d => d.name).join(", ")}** ${zero.length > 1 ? "have" : "has"} votes but no power: ${zero.length > 1 ? "their" : "its"} votes are never pivotal.` : "Power and vote shares diverge whenever some coalitions can win without particular members."}`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Shapley-Shubik index: share of orderings in which a member is pivotal.
+# Deterministic: enumerates every ordering.
+votes <- c(A = 40, B = 39, C = 11, D = 11) # Page's example
+quota <- 51
+
+perms <- function(v) {
+  if (length(v) <= 1) {
+    return(list(v))
+  }
+  out <- list()
+  for (i in seq_along(v)) {
+    for (p in perms(v[-i])) out[[length(out) + 1]] <- c(v[i], p)
+  }
+  out
+}
+pivots <- setNames(numeric(length(votes)), names(votes))
+orders <- perms(names(votes))
+for (o in orders) {
+  running <- cumsum(votes[o])
+  pivots[o[which(running >= quota)[1]]] <- pivots[o[which(running >=
+    quota)[1]]] + 1
+}
+power <- pivots / length(orders)
+print(round(rbind(vote_share = votes / sum(votes), power = power), 3))
+
+barplot(rbind(votes / sum(votes), power),
+  beside = TRUE,
+  col = c("grey60", "#148a91"), ylim = c(0, 1),
+  legend.text = c("Share of votes", "Power index")
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Voting power is about being pivotal, not about vote share.
+- Near-equal vote shares can carry very unequal power, and some members can have votes but no power at all.
+- Power indices assume all orderings are equally likely; real coalitions are constrained by ideology and history.
+:::
+
+## Uses
+
+::: uses
+- **Design.** Choose weights and quotas for councils, boards, the EU Council or shareholder votes so that power matches intent.
+- **Explain.** Why small parties in fragmented parliaments wield outsized influence in coalition bargaining.
+- **Reason.** Courts have used power indices to test whether weighted voting schemes give citizens equal representation.
+:::
+
+## Related models
+
+- [Shapley Value](shapley-value.qmd): the general concept this index applies to voting.
+- [Spatial Competition Model](spatial-competition.qmd): which coalitions are plausible depends on where the parties stand.
+- [Public Projects and the Pivot Mechanism](pivot-mechanism.qmd): being pivotal is also what the pivot mechanism charges for.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 9, "Models of Value and Power," pp. 112–114.
+- L. S. Shapley and Martin Shubik, "A Method for Evaluating the Distribution of Power in a Committee System," *American Political Science Review* 48, no. 3 (1954): 787–792, [doi:10.2307/1951053](https://doi.org/10.2307/1951053).
+- John F. Banzhaf, "Weighted Voting Doesn't Work: A Mathematical Analysis," *Rutgers Law Review* 19, no. 2 (1965): 317–343.

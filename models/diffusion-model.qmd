@@ -1,0 +1,198 @@
+---
+title: "Diffusion Model"
+date: 2026-11-13
+description: "When adoption spreads person to person, it follows an S-curve, and early sales cannot tell a small, enthusiastic market from a large, slow one."
+order: 22
+chapter: 11
+chapter-title: "Broadcast, Diffusion, and Contagion"
+pages: "134–136"
+family: "Networks and contagion"
+engine: "Equation-based"
+tool: "Observable JS (difference equation)"
+reference: "base R"
+uses: [Predict, Explain, Act]
+categories: ["Networks and contagion", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#22** · *The Model Thinker*, chapter 11, "Broadcast, Diffusion, and Contagion", pp. 134–136.
+
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (difference equation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Most diseases, and much information about products and ideas, spread by contact: someone who has it passes it on to someone who doesn't. The diffusion model captures this. The chance that an uninformed person becomes informed depends on how many informed people there are to meet, so spreading starts slowly, accelerates as adopters multiply, and slows again as the uninformed become scarce. The result is the S-shaped adoption curve seen for hybrid corn, televisions and smartphones.
+
+The model assumes *random mixing*, that anyone is as likely to meet anyone else. Page flags this as a red flag for large populations, where people meet mostly within neighbourhoods and groups, but useful nonetheless. It also delivers a cautionary lesson about prediction: early growth depends on the product of the spreading probability and the population size, so a product that grows faster in its first week may have the much smaller market.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A relevant population $N_{\text{POP}}$ with $I_t$ informed and $S_t = N_{\text{POP}} - I_t$ uninformed; spreading needs $I_0 > 0$.
+
+**Equation.**
+
+$$
+I_{t+1} = I_t + P_{\text{diffuse}} \cdot \frac{I_t}{N_{\text{POP}}} \cdot S_t ,
+\qquad P_{\text{diffuse}} = P_{\text{spread}} \cdot P_{\text{contact}} .
+$$
+
+Each uninformed person meets an informed one with probability proportional to the informed share $I_t / N_{\text{POP}}$, and the meeting passes the information on with probability $P_{\text{spread}}$.
+
+**Result.** Everyone is eventually informed, along an S-shaped curve. Early on, while $S_t \approx N_{\text{POP}}$, the informed grow by a factor of about $1 + P_{\text{diffuse}}$ per period whatever the population size, so the early data cannot reveal $N_{\text{POP}}$.
+:::
+
+## Interactive model
+
+Two apps each sell 100 copies on day one. App A spreads faster (40% versus 30%) but in a market of 1,000 people; app B's market is 1,000,000. Page's point: on the first few days A looks like the bigger hit. Use the log scale to see how long B takes to pull ahead, and the linear scale to see the S-curves.
+
+```{ojs}
+//| echo: false
+import {iterate, C, num, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof pA = Inputs.range([0.05, 1], {value: 0.4, step: 0.05, label: "App A: P_diffuse"})
+viewof nA = Inputs.select([1e3, 1e4, 1e5, 1e6, 1e7], {value: 1e3, format: num, label: "App A: N_POP"})
+viewof pB = Inputs.range([0.05, 1], {value: 0.3, step: 0.05, label: "App B: P_diffuse"})
+viewof nB = Inputs.select([1e3, 1e4, 1e5, 1e6, 1e7], {value: 1e6, format: num, label: "App B: N_POP"})
+viewof logScale = Inputs.toggle({label: "Logarithmic vertical axis", value: true})
+```
+
+```{ojs}
+diffusion = {
+  const run = (P, N, label) => iterate(I => I + P * (I / N) * (N - I), 100, 60).map((I, t) => ({t: t + 1, I, label}));
+  const a = run(pA, nA, "App A"), b = run(pB, nB, "App B");
+  const lead5 = a[4].I > b[4].I ? "App A" : "App B";
+  const pass = b.findIndex((d, i) => d.I > a[i].I && i > 0);
+  return {rows: [...a, ...b], a, b, lead5, pass};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Diffusion Model: cumulative adopters of two apps",
+  ariaDescription: "Horizontal axis: day. Vertical axis: cumulative adopters, for app A (teal) and app B (orange). The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Day"},
+  y: {label: "Adopters", type: logScale ? "log" : "linear", grid: true, tickFormat: "~s"},
+  color: {legend: true, domain: ["App A", "App B"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.line(diffusion.rows, {x: "t", y: "I", stroke: "label", strokeWidth: 2.5}),
+    Plot.ruleX([5], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`After five days, **${diffusion.lead5}** has more adopters (${num(diffusion.a[4].I)} for A, ${num(diffusion.b[4].I)} for B). ${diffusion.pass > 0 ? `App B overtakes A on **day ${diffusion.pass + 1}**, and` : "App B never overtakes A, and"} after 60 days A has ${num(diffusion.a[59].I)} adopters (${pct(diffusion.a[59].I / nA)} of its market) while B has ${num(diffusion.b[59].I)} (${pct(diffusion.b[59].I / nB)} of its market). Early sales reflect the spreading probability, not the size of the market.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {iterate, C, num, pct} from "../js/models.js"
+
+viewof pA = Inputs.range([0.05, 1], {value: 0.4, step: 0.05, label: "App A: P_diffuse"})
+viewof nA = Inputs.select([1e3, 1e4, 1e5, 1e6, 1e7], {value: 1e3, format: num, label: "App A: N_POP"})
+viewof pB = Inputs.range([0.05, 1], {value: 0.3, step: 0.05, label: "App B: P_diffuse"})
+viewof nB = Inputs.select([1e3, 1e4, 1e5, 1e6, 1e7], {value: 1e6, format: num, label: "App B: N_POP"})
+viewof logScale = Inputs.toggle({label: "Logarithmic vertical axis", value: true})
+
+diffusion = {
+  const run = (P, N, label) => iterate(I => I + P * (I / N) * (N - I), 100, 60).map((I, t) => ({t: t + 1, I, label}));
+  const a = run(pA, nA, "App A"), b = run(pB, nB, "App B");
+  const lead5 = a[4].I > b[4].I ? "App A" : "App B";
+  const pass = b.findIndex((d, i) => d.I > a[i].I && i > 0);
+  return {rows: [...a, ...b], a, b, lead5, pass};
+}
+
+Plot.plot({
+  ariaLabel: "Diffusion Model: cumulative adopters of two apps",
+  ariaDescription: "Horizontal axis: day. Vertical axis: cumulative adopters, for app A (teal) and app B (orange). The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Day"},
+  y: {label: "Adopters", type: logScale ? "log" : "linear", grid: true, tickFormat: "~s"},
+  color: {legend: true, domain: ["App A", "App B"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.line(diffusion.rows, {x: "t", y: "I", stroke: "label", strokeWidth: 2.5}),
+    Plot.ruleX([5], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6})
+  ]
+})
+
+html`<div class="sim-readout">${md`After five days, **${diffusion.lead5}** has more adopters (${num(diffusion.a[4].I)} for A, ${num(diffusion.b[4].I)} for B). ${diffusion.pass > 0 ? `App B overtakes A on **day ${diffusion.pass + 1}**, and` : "App B never overtakes A, and"} after 60 days A has ${num(diffusion.a[59].I)} adopters (${pct(diffusion.a[59].I / nA)} of its market) while B has ${num(diffusion.b[59].I)} (${pct(diffusion.b[59].I / nB)} of its market). Early sales reflect the spreading probability, not the size of the market.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Diffusion model: two apps with different spreading rates and markets.
+# Deterministic: no random numbers.
+diffuse <- function(p, n_pop, days = 60, i0 = 100) {
+  informed <- numeric(days)
+  informed[1] <- i0
+  for (t in 2:days) {
+    i <- informed[t - 1]
+    informed[t] <- i + p * (i / n_pop) * (n_pop - i)
+  }
+  informed
+}
+app_a <- diffuse(0.4, 1e3) # fast, small market
+app_b <- diffuse(0.3, 1e6) # slower, large market
+
+print(round(cbind(day = 1:7, app_a = app_a[1:7], app_b = app_b[1:7])))
+cat("App B overtakes A on day", which(app_b > app_a)[1], "\n")
+
+plot(1:60, app_b,
+  log = "y", type = "l", lwd = 2, col = "#d95f02",
+  xlab = "Day", ylab = "Adopters"
+)
+lines(1:60, app_a, lwd = 2, col = "#148a91")
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Person-to-person spreading produces an S-curve: slow start, rapid middle, saturation.
+- Early growth reveals the spreading probability, not the market's size, so early leaders can be small markets.
+- Incentives to share speed up adoption but do not change how many eventually adopt.
+:::
+
+## Uses
+
+::: uses
+- **Predict.** Forecast adoption of technologies and ideas, while respecting how little early data say about final size.
+- **Explain.** S-shaped adoption curves for hybrid seed, consumer durables and social media.
+- **Act.** Referral rewards raise $P_{\text{spread}}$ and speed adoption; they do not enlarge the relevant population.
+:::
+
+## Related models
+
+- [Broadcast Model](broadcast-model.qmd): spreading from a single source, with an *r*-shaped curve.
+- [The Bass Model](bass-model.qmd): the two combined.
+- [SIR Model](sir-model.qmd): adds recovery, so spreading can stop short of everyone.
+- [Six Degrees of Separation](six-degrees.qmd): why word of mouth can reach a whole population quickly.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 11, "Broadcast, Diffusion, and Contagion," pp. 134–136.

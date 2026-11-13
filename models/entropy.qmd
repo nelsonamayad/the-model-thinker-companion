@@ -1,0 +1,298 @@
+---
+title: "Information Entropy"
+date: 2026-11-13
+description: "Entropy measures uncertainty, the average surprise of an outcome; computed over blocks of a sequence, it distinguishes equilibrium, periodic, complex and random processes."
+order: 25
+chapter: 12
+chapter-title: "Entropy: Modeling Uncertainty"
+pages: "143–151"
+family: "Distributions"
+engine: "Equation-based"
+tool: "Observable JS (block entropies)"
+reference: "base R"
+uses: [Explain, Reason, Predict]
+categories: ["Distributions", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#25** · *The Model Thinker*, chapter 12, "Entropy: Modeling Uncertainty", pp. 143–151.
+
+Filed under [Distributions](../families/distributions.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (block entropies) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+How uncertain is a coin flip? A die roll? Tomorrow's weather, or the party that wins the next election? Claude Shannon's information entropy puts a number on uncertainty: the average surprise of an outcome, measured in bits. A fair coin has one bit; a two-headed coin has zero; a fair eight-sided die has three. Entropy is the only measure of uncertainty that satisfies a few natural requirements, which is why it appears everywhere from data compression to ecology.
+
+Page uses entropy as a lens for classifying processes. Stephen Wolfram sorted the outcomes of systems into four classes: **equilibrium** (nothing changes), **periodic** (a fixed cycle), **random** and **complex** (structured but not repetitive). Computing entropy over longer and longer blocks of a sequence separates them: equilibrium has zero entropy, cycles have low entropy that stops growing, random sequences have the maximum, and complex ones lie in between. Entropy also guides modelling assumptions: if all we know is a range, a mean, or a mean and variance, the distributions that assume nothing more are the uniform, the exponential and the normal.
+
+## Formulation
+
+::: {.model-box}
+**Information entropy.** For a probability distribution $(p_1, \dots, p_N)$,
+
+$$
+H_2(p_1, \dots, p_N) = -\sum_{i=1}^{N} p_i \log_2 p_i ,
+$$
+
+maximized by the uniform distribution ($H_2 = \log_2 N$) and zero when one outcome is certain.
+
+**Block entropy.** For a sequence of symbols, let $p(b)$ be the frequency of each block $b$ of $k$ consecutive symbols. Then $H_k = -\sum_b p(b)\log_2 p(b)$, and $h_k = H_k - H_{k-1}$ is the new uncertainty each additional symbol brings.
+
+**Results.**
+
+- Classification: equilibrium has $H_k = 0$; a cycle of period $m$ has $H_k$ that stops growing at $\log_2 m$; a random binary sequence has $H_k = k$ bits; a complex sequence grows more slowly than $k$ without levelling off.
+- Maximum entropy: given only a range $[a, b]$ the maximum-entropy distribution is uniform; given a mean $\mu$, exponential; given a mean and variance, normal.
+:::
+
+Shannon's measure is the unique one (up to the base of the logarithm) satisfying four axioms: it is continuous in the probabilities, it is largest for equally likely outcomes, adding impossible outcomes leaves it unchanged, and the uncertainty of a two-stage outcome is the uncertainty of the first stage plus the expected uncertainty of the second.
+
+## Interactive model
+
+Choose a source of binary sequences. The strip shows the first 120 symbols; the chart shows block entropy $H_k$ for blocks of 1 to 8 symbols against the random benchmark (the diagonal). The presidential-election sequence, the winning party in each election from 1868 to 2016, is Page's example: its entropy is close to that of a random sequence of the same length.
+
+```{ojs}
+//| echo: false
+import {rng, range, entropy, C, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof source = Inputs.select(["Fair coin (random)", "Biased coin", "Sticky (repeats with probability q)", "Complex (rule 110 automaton)", "Periodic (ABBABB…)", "Equilibrium (AAAA…)", "US presidential elections, 1868–2016"], {value: "Sticky (repeats with probability q)", label: "Source"})
+viewof q = Inputs.range([0.5, 0.99], {value: 0.85, step: 0.01, label: "Bias or stickiness q"})
+viewof seed = Inputs.range([1, 500], {value: 25, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+seqData = {
+  const r = rng(seed), L = 2000;
+  if (source === "US presidential elections, 1868–2016") return [..."RRRRDRDRRRRDDRRRDDDDDRRDDRRDRRRDDRRDDR"].map(c => (c === "R" ? 1 : 0));
+  if (source === "Equilibrium (AAAA…)") return new Array(L).fill(0);
+  if (source === "Periodic (ABBABB…)") return range(L).map(i => (i % 3 === 0 ? 0 : 1));
+  if (source === "Fair coin (random)") return range(L).map(() => r.bernoulli(0.5));
+  if (source === "Biased coin") return range(L).map(() => r.bernoulli(q));
+  if (source === "Sticky (repeats with probability q)") {
+    const s = [r.bernoulli(0.5)];
+    for (let i = 1; i < L; i++) s.push(r() < q ? s[i - 1] : 1 - s[i - 1]);
+    return s;
+  }
+  // Rule 110: one cell's history in a wrapped row of 400 cells.
+  const W = 400;
+  let row = range(W).map(() => r.bernoulli(0.5));
+  const out = [];
+  for (let t = 0; t < L + 200; t++) {
+    if (t >= 200) out.push(row[W / 2]);
+    row = row.map((c, i) => (110 >> ((row[(i - 1 + W) % W] << 2) | (c << 1) | row[(i + 1) % W])) & 1);
+  }
+  return out;
+}
+```
+
+```{ojs}
+blocks = range(8).map(i => {
+  const k = i + 1, counts = new Map();
+  for (let j = 0; j + k <= seqData.length; j++) {
+    const b = seqData.slice(j, j + k).join("");
+    counts.set(b, (counts.get(b) || 0) + 1);
+  }
+  const total = seqData.length - k + 1;
+  return {k, H: total > 0 ? entropy([...counts.values()].map(c => c / total)) : NaN, distinct: counts.size};
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Information Entropy: the first symbols of the sequence",
+  ariaDescription: "A strip of the first 120 symbols of the chosen sequence; teal cells are A (or D for elections), orange cells are B (or R). The summary below the charts states the result in words.",
+  height: 60,
+  marginLeft: 10,
+  x: {axis: null}, y: {axis: null},
+  marks: [Plot.cell(seqData.slice(0, 120).map((v, i) => ({i, v})), {x: "i", fill: d => (d.v ? C.orange : C.teal), inset: 0.5})]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Information Entropy: block entropy by block length",
+  ariaDescription: "Horizontal axis: block length k from 1 to 8. Vertical axis: block entropy in bits. The teal line is the chosen sequence; the dashed diagonal is a perfectly random binary sequence. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Block length k", ticks: 8},
+  y: {label: "Block entropy H_k (bits)", domain: [0, 8], grid: true},
+  marks: [
+    Plot.line([[1, 1], [8, 8]], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6}),
+    Plot.line(blocks, {x: "k", y: "H", stroke: C.teal, strokeWidth: 2.5, marker: "circle"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const H1 = blocks[0].H, H4 = blocks[3].H, H8 = blocks[7].H, rate = blocks[7].H - blocks[6].H;
+  const cls = H1 < 0.01 ? "**equilibrium**: there is no uncertainty at all"
+    : rate < 0.05 ? "**periodic**: entropy stops growing once blocks span the cycle"
+    : rate > 0.9 ? "**random**: each new symbol adds almost a full bit of surprise"
+    : "neither cyclic nor random: entropy keeps growing, but more slowly than a coin's, the mark of structure (a **complex** or correlated process)";
+  return html`<div class="sim-readout">${md`For ${seqData.length} symbols, the entropy of single symbols is **${fmt(H1, 2)} bits**, of blocks of four **${fmt(H4, 2)} bits** (a fair coin gives 4), and of blocks of eight ${fmt(H8, 2)} bits. ${source.startsWith("US") ? "With only 38 elections, long blocks are rare, so the block entropy is capped by the sequence's length; Page reports that the sequence is statistically indistinguishable from random." : `The last symbol added ${fmt(rate, 2)} bits: this looks ${cls}.`}`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, entropy, C, fmt} from "../js/models.js"
+
+viewof source = Inputs.select(["Fair coin (random)", "Biased coin", "Sticky (repeats with probability q)", "Complex (rule 110 automaton)", "Periodic (ABBABB…)", "Equilibrium (AAAA…)", "US presidential elections, 1868–2016"], {value: "Sticky (repeats with probability q)", label: "Source"})
+viewof q = Inputs.range([0.5, 0.99], {value: 0.85, step: 0.01, label: "Bias or stickiness q"})
+viewof seed = Inputs.range([1, 500], {value: 25, step: 1, label: "Random seed"})
+
+seqData = {
+  const r = rng(seed), L = 2000;
+  if (source === "US presidential elections, 1868–2016") return [..."RRRRDRDRRRRDDRRRDDDDDRRDDRRDRRRDDRRDDR"].map(c => (c === "R" ? 1 : 0));
+  if (source === "Equilibrium (AAAA…)") return new Array(L).fill(0);
+  if (source === "Periodic (ABBABB…)") return range(L).map(i => (i % 3 === 0 ? 0 : 1));
+  if (source === "Fair coin (random)") return range(L).map(() => r.bernoulli(0.5));
+  if (source === "Biased coin") return range(L).map(() => r.bernoulli(q));
+  if (source === "Sticky (repeats with probability q)") {
+    const s = [r.bernoulli(0.5)];
+    for (let i = 1; i < L; i++) s.push(r() < q ? s[i - 1] : 1 - s[i - 1]);
+    return s;
+  }
+  // Rule 110: one cell's history in a wrapped row of 400 cells.
+  const W = 400;
+  let row = range(W).map(() => r.bernoulli(0.5));
+  const out = [];
+  for (let t = 0; t < L + 200; t++) {
+    if (t >= 200) out.push(row[W / 2]);
+    row = row.map((c, i) => (110 >> ((row[(i - 1 + W) % W] << 2) | (c << 1) | row[(i + 1) % W])) & 1);
+  }
+  return out;
+}
+
+blocks = range(8).map(i => {
+  const k = i + 1, counts = new Map();
+  for (let j = 0; j + k <= seqData.length; j++) {
+    const b = seqData.slice(j, j + k).join("");
+    counts.set(b, (counts.get(b) || 0) + 1);
+  }
+  const total = seqData.length - k + 1;
+  return {k, H: total > 0 ? entropy([...counts.values()].map(c => c / total)) : NaN, distinct: counts.size};
+})
+
+Plot.plot({
+  ariaLabel: "Information Entropy: the first symbols of the sequence",
+  ariaDescription: "A strip of the first 120 symbols of the chosen sequence; teal cells are A (or D for elections), orange cells are B (or R). The summary below the charts states the result in words.",
+  height: 60,
+  marginLeft: 10,
+  x: {axis: null}, y: {axis: null},
+  marks: [Plot.cell(seqData.slice(0, 120).map((v, i) => ({i, v})), {x: "i", fill: d => (d.v ? C.orange : C.teal), inset: 0.5})]
+})
+
+Plot.plot({
+  ariaLabel: "Information Entropy: block entropy by block length",
+  ariaDescription: "Horizontal axis: block length k from 1 to 8. Vertical axis: block entropy in bits. The teal line is the chosen sequence; the dashed diagonal is a perfectly random binary sequence. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Block length k", ticks: 8},
+  y: {label: "Block entropy H_k (bits)", domain: [0, 8], grid: true},
+  marks: [
+    Plot.line([[1, 1], [8, 8]], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6}),
+    Plot.line(blocks, {x: "k", y: "H", stroke: C.teal, strokeWidth: 2.5, marker: "circle"})
+  ]
+})
+
+{
+  const H1 = blocks[0].H, H4 = blocks[3].H, H8 = blocks[7].H, rate = blocks[7].H - blocks[6].H;
+  const cls = H1 < 0.01 ? "**equilibrium**: there is no uncertainty at all"
+    : rate < 0.05 ? "**periodic**: entropy stops growing once blocks span the cycle"
+    : rate > 0.9 ? "**random**: each new symbol adds almost a full bit of surprise"
+    : "neither cyclic nor random: entropy keeps growing, but more slowly than a coin's, the mark of structure (a **complex** or correlated process)";
+  return html`<div class="sim-readout">${md`For ${seqData.length} symbols, the entropy of single symbols is **${fmt(H1, 2)} bits**, of blocks of four **${fmt(H4, 2)} bits** (a fair coin gives 4), and of blocks of eight ${fmt(H8, 2)} bits. ${source.startsWith("US") ? "With only 38 elections, long blocks are rare, so the block entropy is capped by the sequence's length; Page reports that the sequence is statistically indistinguishable from random." : `The last symbol added ${fmt(rate, 2)} bits: this looks ${cls}.`}`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Information entropy and block entropies of binary sequences.
+q <- 0.85 # stickiness: chance of repeating the last symbol
+len <- 2000
+set.seed(25)
+
+entropy2 <- function(p) -sum(p[p > 0] * log2(p[p > 0]))
+block_entropy <- function(x, k) {
+  blocks <- sapply(1:(length(x) - k + 1), function(j) {
+    paste(x[j:(j + k - 1)], collapse = "")
+  })
+  entropy2(table(blocks) / length(blocks))
+}
+
+sticky <- numeric(len)
+sticky[1] <- rbinom(1, 1, 0.5)
+for (i in 2:len) {
+  sticky[i] <- if (runif(1) < q) sticky[i - 1] else 1 - sticky[i - 1]
+}
+sources <- list(
+  random = rbinom(len, 1, 0.5),
+  sticky = sticky,
+  periodic = rep(c(0, 1, 1), length.out = len),
+  elections = as.integer(strsplit(chartr(
+    "RD", "10",
+    "RRRRDRDRRRRDDRRRDDDDDRRDDRRDRRRDDRRDDR"
+  ), "")[[1]])
+)
+h <- sapply(sources, function(x) sapply(1:8, function(k) block_entropy(x, k)))
+print(round(h, 2))
+
+matplot(1:8, h,
+  type = "b", pch = 19, lty = 1,
+  col = c("grey50", "#148a91", "#d95f02", "#7570b3"),
+  xlab = "Block length k", ylab = "Block entropy (bits)"
+)
+abline(0, 1, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Entropy is the average surprise of an outcome, in bits; it is maximal when all outcomes are equally likely.
+- Block entropies separate equilibrium, periodic, random and complex processes; the last two need care to tell apart.
+- When we know only a range, a mean or a variance, the maximum-entropy distribution is the honest default.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Classify time series (heartbeats, markets, elections, hat choices) as ordered, cyclic, random or complex.
+- **Reason.** Justify uniform, exponential or normal assumptions as the least informative ones consistent with what we know.
+- **Predict.** Low-entropy processes are predictable; maximal entropy means no model of the past will help.
+:::
+
+## Related models
+
+- [Random Walk](random-walk.qmd): the maximal-entropy benchmark for prices and other sequences.
+- [Markov Models](markov-models.qmd): the sticky source is a two-state Markov chain.
+- [Game of Life](game-of-life.qmd): a cellular automaton that produces complex patterns.
+- [Normal Distribution and the Central Limit Theorem](normal-distribution.qmd): the maximum-entropy distribution given a mean and variance.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 12, "Entropy: Modeling Uncertainty," pp. 143–151, and chapter 27, p. 325, for the election sequence.
+- C. E. Shannon, "A Mathematical Theory of Communication," *Bell System Technical Journal* 27, no. 3 (1948): 379–423, [doi:10.1002/j.1538-7305.1948.tb01338.x](https://doi.org/10.1002/j.1538-7305.1948.tb01338.x).
+- Stephen Wolfram, *A New Kind of Science* (Wolfram Media, 2002).

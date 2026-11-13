@@ -1,0 +1,251 @@
+---
+title: "Multi-Armed Bandits"
+date: 2026-11-13
+description: "Choosing repeatedly among options of unknown value means balancing exploring to learn against exploiting what you know; good rules explore early and in proportion to uncertainty."
+order: 54
+chapter: 27
+chapter-title: "Multi-Armed Bandit Problems"
+pages: "319–326"
+family: "Learning and search"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Act, Design, Predict]
+categories: ["Learning and search", "Equation-based"]
+verified: true
+source-note: "Thompson sampling and epsilon-greedy are standard strategies we add for comparison; the book discusses sample-then-greedy and the Gittins index."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#54** · *The Model Thinker*, chapter 27, "Multi-Armed Bandit Problems", pp. 319–326.
+
+Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book. Thompson sampling and epsilon-greedy are standard strategies we add for comparison; the book discusses sample-then-greedy and the Gittins index.
+:::
+
+## The idea
+
+A company has three sales pitches and doesn't know which works best. A hospital has several treatments for a condition; a website has several page designs. Each time, the decision-maker must choose: use the option that has worked best so far (exploit), or try one that has been tried less in case it is better (explore). This is a *multi-armed bandit* problem, named after a row of slot machines with unknown payouts.
+
+Page contrasts two settings. In a Bernoulli bandit each option succeeds with an unknown probability, and simple heuristics such as *sample then greedy* (try each option a fixed number of times, then stick with the best) work reasonably well; the square-root rule tells you how many trials it takes to tell options apart. In a Bayesian bandit the decision-maker has prior beliefs, and the optimal policy can be computed with the *Gittins index*: a value for each option that accounts for both its expected reward and the value of the information from trying it.
+
+## Formulation
+
+::: {.model-box}
+**Bernoulli bandit.** Alternatives $\{A, B, \dots, N\}$ have unknown success probabilities $\{p_A, p_B, \dots, p_N\}$. In each period the decision-maker chooses an alternative $K$ and succeeds with probability $p_K$.
+
+**Bayesian bandit.** Alternatives have reward distributions $f(A), f(B), \dots$; the decision-maker has prior beliefs over them, chooses one each period, receives a reward and updates beliefs.
+
+**Gittins index.** Each alternative gets an index equal to the best expected reward achievable by committing to it for a while, given current beliefs; choosing the alternative with the highest index each period is optimal (for discounted infinite horizons). In Page's example over ten periods, alternative A pays 0 or 80 with equal chance and B pays 0, 60 or 120 with equal chance; trying A first yields
+
+$$
+\tfrac12 \cdot 540 + \tfrac12\left(\tfrac13 \cdot 1160 + \tfrac13 \cdot 780 + \tfrac13 \cdot 720\right) = \tfrac{2140}{3} \approx 713 .
+$$
+
+**Results.** Exploring has value because it produces information. Good strategies explore more when uncertainty is high and early, when there is more time to use what is learned. Sample-then-greedy needs about $\sigma^2 / \Delta^2$ trials per arm to tell apart rates that differ by $\Delta$.
+:::
+
+## Interactive model
+
+Three sales pitches with unknown success rates (the best at 55%). Three strategies run for 1,000 calls, each 200 times: sample-then-greedy (try each pitch M times, then use the best), ε-greedy (usually use the best so far, explore at random with probability ε), and Thompson sampling (a Bayesian strategy that picks each pitch with the probability that it is the best). The chart shows *regret*, the successes lost relative to always using the best pitch.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof gapP = Inputs.range([0.01, 0.3], {value: 0.05, step: 0.01, label: "Gap between best and second pitch"})
+viewof M = Inputs.range([5, 200], {value: 30, step: 5, label: "Sample-then-greedy: trials per pitch M"})
+viewof eps = Inputs.range([0.01, 0.5], {value: 0.1, step: 0.01, label: "ε-greedy: exploration rate ε"})
+viewof seed = Inputs.range([1, 500], {value: 54, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+bandit = {
+  const r = rng(seed), T = 1000, reps = 200;
+  const p = [0.55, 0.55 - gapP, 0.4];
+  const best = 0.55;
+  const strategies = {
+    "Sample then greedy": (t, s, n) => (t < 3 * M ? t % 3 : [0, 1, 2].reduce((b, k) => (s[k] / n[k] > s[b] / n[b] ? k : b), 0)),
+    "ε-greedy": (t, s, n) => (r() < eps || t < 3 ? (t < 3 ? t : Math.floor(r() * 3)) : [0, 1, 2].reduce((b, k) => (s[k] / n[k] > s[b] / n[b] ? k : b), 0)),
+    "Thompson sampling": (t, s, n) => { const draw = [0, 1, 2].map(k => r.beta(1 + s[k], 1 + n[k] - s[k])); return draw.indexOf(Math.max(...draw)); }
+  };
+  const rows = [], summary = [];
+  for (const [name, choose] of Object.entries(strategies)) {
+    const regret = new Array(T).fill(0);
+    let bestPulls = 0;
+    for (let k = 0; k < reps; k++) {
+      const s = [0, 0, 0], n = [0, 0, 0];
+      let reg = 0;
+      for (let t = 0; t < T; t++) {
+        const a = choose(t, s, n);
+        n[a]++; s[a] += r() < p[a] ? 1 : 0;
+        reg += best - p[a];
+        regret[t] += reg / reps;
+        if (a === 0) bestPulls++;
+      }
+    }
+    for (let t = 9; t < T; t += 10) rows.push({t: t + 1, regret: regret[t], name});
+    summary.push({name, regret: regret[T - 1], bestShare: bestPulls / (reps * T)});
+  }
+  return {rows, summary};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Multi-Armed Bandits: cumulative regret by strategy",
+  ariaDescription: "Horizontal axis: call number. Vertical axis: expected successes lost relative to always using the best pitch, averaged over 200 runs. One line per strategy: sample then greedy, epsilon-greedy and Thompson sampling. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Calls"},
+  y: {label: "Cumulative regret (successes lost)", grid: true},
+  color: {legend: true, domain: ["Sample then greedy", "ε-greedy", "Thompson sampling"], range: [C.orange, C.purple, C.teal]},
+  marks: [Plot.line(bandit.rows, {x: "t", y: "regret", stroke: "name", strokeWidth: 2.5}), Plot.ruleY([0])]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const s = bandit.summary.slice().sort((a, b) => a.regret - b.regret);
+  return html`<div class="sim-readout">${md`After 1,000 calls, expected successes lost: ${bandit.summary.map(d => `${d.name} **${fmt(d.regret, 1)}** (best pitch used ${pct(d.bestShare)} of the time)`).join("; ")}. **${s[0].name}** loses least with these settings. ${M * 3 > 300 ? "Sampling each pitch many times wastes calls on pitches already known to be worse. " : gapP < 0.05 ? "With pitches this close, a short sample often picks the wrong one and never revisits it. " : ""}The fixed rules work only when M or ε suits the gap between pitches; Thompson sampling needs no tuning.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, C, fmt, pct} from "../js/models.js"
+
+viewof gapP = Inputs.range([0.01, 0.3], {value: 0.05, step: 0.01, label: "Gap between best and second pitch"})
+viewof M = Inputs.range([5, 200], {value: 30, step: 5, label: "Sample-then-greedy: trials per pitch M"})
+viewof eps = Inputs.range([0.01, 0.5], {value: 0.1, step: 0.01, label: "ε-greedy: exploration rate ε"})
+viewof seed = Inputs.range([1, 500], {value: 54, step: 1, label: "Random seed"})
+
+bandit = {
+  const r = rng(seed), T = 1000, reps = 200;
+  const p = [0.55, 0.55 - gapP, 0.4];
+  const best = 0.55;
+  const strategies = {
+    "Sample then greedy": (t, s, n) => (t < 3 * M ? t % 3 : [0, 1, 2].reduce((b, k) => (s[k] / n[k] > s[b] / n[b] ? k : b), 0)),
+    "ε-greedy": (t, s, n) => (r() < eps || t < 3 ? (t < 3 ? t : Math.floor(r() * 3)) : [0, 1, 2].reduce((b, k) => (s[k] / n[k] > s[b] / n[b] ? k : b), 0)),
+    "Thompson sampling": (t, s, n) => { const draw = [0, 1, 2].map(k => r.beta(1 + s[k], 1 + n[k] - s[k])); return draw.indexOf(Math.max(...draw)); }
+  };
+  const rows = [], summary = [];
+  for (const [name, choose] of Object.entries(strategies)) {
+    const regret = new Array(T).fill(0);
+    let bestPulls = 0;
+    for (let k = 0; k < reps; k++) {
+      const s = [0, 0, 0], n = [0, 0, 0];
+      let reg = 0;
+      for (let t = 0; t < T; t++) {
+        const a = choose(t, s, n);
+        n[a]++; s[a] += r() < p[a] ? 1 : 0;
+        reg += best - p[a];
+        regret[t] += reg / reps;
+        if (a === 0) bestPulls++;
+      }
+    }
+    for (let t = 9; t < T; t += 10) rows.push({t: t + 1, regret: regret[t], name});
+    summary.push({name, regret: regret[T - 1], bestShare: bestPulls / (reps * T)});
+  }
+  return {rows, summary};
+}
+
+Plot.plot({
+  ariaLabel: "Multi-Armed Bandits: cumulative regret by strategy",
+  ariaDescription: "Horizontal axis: call number. Vertical axis: expected successes lost relative to always using the best pitch, averaged over 200 runs. One line per strategy: sample then greedy, epsilon-greedy and Thompson sampling. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Calls"},
+  y: {label: "Cumulative regret (successes lost)", grid: true},
+  color: {legend: true, domain: ["Sample then greedy", "ε-greedy", "Thompson sampling"], range: [C.orange, C.purple, C.teal]},
+  marks: [Plot.line(bandit.rows, {x: "t", y: "regret", stroke: "name", strokeWidth: 2.5}), Plot.ruleY([0])]
+})
+
+{
+  const s = bandit.summary.slice().sort((a, b) => a.regret - b.regret);
+  return html`<div class="sim-readout">${md`After 1,000 calls, expected successes lost: ${bandit.summary.map(d => `${d.name} **${fmt(d.regret, 1)}** (best pitch used ${pct(d.bestShare)} of the time)`).join("; ")}. **${s[0].name}** loses least with these settings. ${M * 3 > 300 ? "Sampling each pitch many times wastes calls on pitches already known to be worse. " : gapP < 0.05 ? "With pitches this close, a short sample often picks the wrong one and never revisits it. " : ""}The fixed rules work only when M or ε suits the gap between pitches; Thompson sampling needs no tuning.`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Multi-armed bandits: sample-then-greedy versus Thompson sampling.
+p <- c(0.55, 0.50, 0.40) # unknown success rates of three pitches
+calls <- 1000
+m <- 30 # trials per pitch before going greedy
+set.seed(54)
+
+run <- function(strategy) {
+  s <- c(0, 0, 0)
+  n <- c(0, 0, 0)
+  regret <- 0
+  for (t in 1:calls) {
+    a <- if (strategy == "sample_greedy") {
+      if (t <= 3 * m) (t - 1) %% 3 + 1 else which.max(s / n)
+    } else {
+      which.max(rbeta(3, 1 + s, 1 + n - s)) # Thompson sampling
+    }
+    n[a] <- n[a] + 1
+    s[a] <- s[a] + rbinom(1, 1, p[a])
+    regret <- regret + max(p) - p[a]
+  }
+  regret
+}
+regret <- sapply(c("sample_greedy", "thompson"), function(k) {
+  mean(replicate(200, run(k)))
+})
+print(round(regret, 1))
+
+# Page's Gittins example: try A first over ten periods.
+cat("Expected reward when trying A first:", 0.5 * 540 +
+  0.5 * mean(c(1160, 780, 720)), "\n")
+
+barplot(regret, col = c("#d95f02", "#148a91"), ylab = "Successes lost")
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Choosing among uncertain options means trading exploration (information) against exploitation (reward).
+- Fixed exploration rules can explore too little (locking in the wrong choice) or too much (wasting trials).
+- Optimal policies, such as the Gittins index, value information explicitly; Bayesian sampling rules approximate them well.
+:::
+
+## Uses
+
+::: uses
+- **Act.** Choose among treatments, sales pitches, ad designs or suppliers while still learning about them.
+- **Design.** Adaptive clinical trials and A/B tests that shift traffic toward better options as evidence accumulates.
+- **Predict.** Retrospective voting as a bandit: voters reward parties that delivered good outcomes, as Page notes for presidential elections.
+:::
+
+## Related models
+
+- [Bernoulli Urn Model](bernoulli-urn.qmd): each arm is an urn, and the square-root rule sets how many draws it takes to compare them.
+- [Reinforcement Learning](reinforcement-learning.qmd): another way of learning which option is best.
+- [NK Model](nk-model.qmd): search over a vast space of options where exploration is even harder.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 27, "Multi-Armed Bandit Problems," pp. 319–326.
+- J. C. Gittins, "Bandit Processes and Dynamic Allocation Indices," *Journal of the Royal Statistical Society, Series B* 41, no. 2 (1979): 148–164, [doi:10.1111/j.2517-6161.1979.tb01068.x](https://doi.org/10.1111/j.2517-6161.1979.tb01068.x).
+- Peter Whittle, "Discussion of Dr Gittins' Paper," *Journal of the Royal Statistical Society, Series B* 41, no. 2 (1979): 148–177.

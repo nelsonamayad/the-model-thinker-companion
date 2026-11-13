@@ -1,0 +1,214 @@
+---
+title: "Congestion Model"
+date: 2026-11-13
+description: "When each new user of a shared resource lowers its value for everyone, people keep joining until it is worth nothing, twice the socially best number of users."
+order: 46
+chapter: 23
+chapter-title: "Collective Action Problems"
+pages: "275–277"
+family: "Games and cooperation"
+engine: "Equation-based"
+tool: "Observable JS (closed form)"
+reference: "base R"
+uses: [Explain, Design, Act]
+categories: ["Games and cooperation", "Equation-based"]
+verified: true
+source-note: "For the two-park example we compute total utility in equilibrium as 3N²/4; the book gives 9N²/16, which is the larger park's share alone."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#46** · *The Model Thinker*, chapter 23, "Collective Action Problems", pp. 275–277.
+
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book. For the two-park example we compute total utility in equilibrium as 3N²/4; the book gives 9N²/16, which is the larger park's share alone.
+:::
+
+## The idea
+
+A road, a beach, a campsite or a fishing ground is worth less the more people use it. Each new user enjoys the resource but imposes a small cost on everyone already there, a cost they do not pay. So people keep arriving as long as using the resource beats staying home, and they stop only when it no longer does: when congestion has eaten the entire benefit.
+
+Page's congestion model shows that, in equilibrium, a shared resource is used by twice as many people as would be best, and the users get nothing from it on net. Remove half of them and each remaining user would enjoy half the maximal benefit. The same logic splits traffic badly between two parks or two routes, and it explains congestion pricing: charge each user for the congestion they cause and the overuse disappears.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** Of $N$ people, $M$ choose to use a resource. Each user's utility is
+
+$$
+\text{Utility}(M) = B - \theta M ,
+$$
+
+where $B$ is the maximal benefit and $\theta$ the congestion parameter; the other $N - M$ abstain and get zero.
+
+**Social optimum.** Total utility $M(B - \theta M)$ is largest at
+
+$$
+M = \frac{B}{2\theta}, \qquad \text{Utility} = \frac{B}{2} \text{ per user} .
+$$
+
+**Nash equilibrium.** People join while utility is positive, so
+
+$$
+M = \frac{B}{\theta}, \qquad \text{Utility} = 0 .
+$$
+
+**Two congestible goods.** With $M$ people in park 1 (utility $N - M$ each) and $N - M$ in a larger park 2 (utility $3M$ each), total utility is maximized at $M = N/2$ (total $N^2$), but people move until utilities are equal, at $M = N/4$ (total $\tfrac34 N^2$).
+:::
+
+## Interactive model
+
+The chart shows each user's utility (teal) and the users' total utility (orange) as the number of users grows. The total peaks at the social optimum, half way to the equilibrium where individual utility hits zero. A congestion charge equal to the harm each extra user does to the others, θ times the number of users, moves the equilibrium to the optimum.
+
+```{ojs}
+//| echo: false
+import {seq, C, fmt, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof B = Inputs.range([10, 200], {value: 100, step: 5, label: "Maximal benefit B"})
+viewof theta = Inputs.range([0.1, 5], {value: 1, step: 0.1, label: "Congestion θ"})
+viewof toll = Inputs.toggle({label: "Charge each user the congestion they cause", value: false})
+```
+
+```{ojs}
+cong = {
+  const Mmax = B / theta * 1.2;
+  const rows = seq(0, Mmax, 121).map(M => ({M, each: B - theta * M, total: M * (B - theta * M)}));
+  const opt = B / (2 * theta), eq = toll ? opt : B / theta;
+  return {rows, opt, eq, eachEq: B - theta * eq, totalEq: eq * (B - theta * eq), totalOpt: opt * B / 2};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Congestion Model: individual and total utility by number of users",
+  ariaDescription: "Horizontal axis: number of users. Vertical axis: utility. The teal line is each user's utility, falling linearly; the orange curve is total utility, peaking at the social optimum. Vertical lines mark the optimum (dashed) and the equilibrium (solid). The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Users M"},
+  y: {label: "Utility", grid: true},
+  color: {legend: true, domain: ["Each user", "All users (total ÷ 10)"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([0]),
+    Plot.line(cong.rows, {x: "M", y: "each", stroke: () => "Each user", strokeWidth: 2.5}),
+    Plot.line(cong.rows, {x: "M", y: d => d.total / 10, stroke: () => "All users (total ÷ 10)", strokeWidth: 2.5}),
+    Plot.ruleX([cong.opt], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleX([cong.eq], {stroke: "currentColor", strokeWidth: 2})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`The social optimum is **${num(cong.opt)} users**, each getting B/2 = ${fmt(B / 2, 1)}, for a total of ${num(cong.totalOpt)}. ${toll ? `With a congestion charge, people stop joining at the optimum: **${num(cong.eq)} users**, each netting ${fmt(cong.eachEq - theta * cong.eq, 1)} after the charge, and the charges collected (${num(theta * cong.eq * cong.eq)}) can be returned to everyone.` : `Left alone, people keep joining until it is no longer worth it: **${num(cong.eq)} users**, twice the optimum, each getting **${fmt(cong.eachEq, 1)}**. The resource's entire value is dissipated by crowding.`}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {seq, C, fmt, num} from "../js/models.js"
+
+viewof B = Inputs.range([10, 200], {value: 100, step: 5, label: "Maximal benefit B"})
+viewof theta = Inputs.range([0.1, 5], {value: 1, step: 0.1, label: "Congestion θ"})
+viewof toll = Inputs.toggle({label: "Charge each user the congestion they cause", value: false})
+
+cong = {
+  const Mmax = B / theta * 1.2;
+  const rows = seq(0, Mmax, 121).map(M => ({M, each: B - theta * M, total: M * (B - theta * M)}));
+  const opt = B / (2 * theta), eq = toll ? opt : B / theta;
+  return {rows, opt, eq, eachEq: B - theta * eq, totalEq: eq * (B - theta * eq), totalOpt: opt * B / 2};
+}
+
+Plot.plot({
+  ariaLabel: "Congestion Model: individual and total utility by number of users",
+  ariaDescription: "Horizontal axis: number of users. Vertical axis: utility. The teal line is each user's utility, falling linearly; the orange curve is total utility, peaking at the social optimum. Vertical lines mark the optimum (dashed) and the equilibrium (solid). The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Users M"},
+  y: {label: "Utility", grid: true},
+  color: {legend: true, domain: ["Each user", "All users (total ÷ 10)"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([0]),
+    Plot.line(cong.rows, {x: "M", y: "each", stroke: () => "Each user", strokeWidth: 2.5}),
+    Plot.line(cong.rows, {x: "M", y: d => d.total / 10, stroke: () => "All users (total ÷ 10)", strokeWidth: 2.5}),
+    Plot.ruleX([cong.opt], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.ruleX([cong.eq], {stroke: "currentColor", strokeWidth: 2})
+  ]
+})
+
+html`<div class="sim-readout">${md`The social optimum is **${num(cong.opt)} users**, each getting B/2 = ${fmt(B / 2, 1)}, for a total of ${num(cong.totalOpt)}. ${toll ? `With a congestion charge, people stop joining at the optimum: **${num(cong.eq)} users**, each netting ${fmt(cong.eachEq - theta * cong.eq, 1)} after the charge, and the charges collected (${num(theta * cong.eq * cong.eq)}) can be returned to everyone.` : `Left alone, people keep joining until it is no longer worth it: **${num(cong.eq)} users**, twice the optimum, each getting **${fmt(cong.eachEq, 1)}**. The resource's entire value is dissipated by crowding.`}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Congestion model: equilibrium use is twice the social optimum.
+# Deterministic: no random numbers.
+b <- 100 # maximal benefit
+theta <- 1 # congestion parameter
+
+total <- function(m) m * (b - theta * m)
+optimum <- optimize(total, c(0, b / theta), maximum = TRUE)$maximum
+equilibrium <- b / theta # users join until utility reaches zero
+cat(sprintf(
+  "Optimum %.0f users, each %.1f; equilibrium %.0f users, each %.1f\n",
+  optimum, b - theta * optimum, equilibrium, b - theta * equilibrium
+))
+
+# Two parks: M in park 1 (utility N - M), N - M in park 2 (utility 3M).
+n <- 100
+park_total <- function(m) m * (n - m) + (n - m) * 3 * m
+cat(sprintf(
+  "Parks: optimum M = %.0f (total %.0f); equilibrium M = %.0f (total %.0f)\n",
+  optimize(park_total, c(0, n), maximum = TRUE)$maximum, park_total(n / 2),
+  n / 4, park_total(n / 4)
+))
+
+m <- seq(0, 1.2 * b / theta, length.out = 200)
+plot(m, total(m),
+  type = "l", lwd = 2, col = "#d95f02", xlab = "Users",
+  ylab = "Total utility"
+)
+abline(v = c(optimum, equilibrium), lty = c(2, 1))
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Users of a congestible resource ignore the cost they impose on others, so they overuse it.
+- In equilibrium, twice the optimal number of people use the resource, and they get nothing from it on net.
+- Charging users for the congestion they cause aligns individual and collective interests.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Traffic jams, crowded beaches and parks, overused fisheries and overloaded networks.
+- **Design.** Congestion pricing (London, Stockholm and Singapore road charges), entry fees and permits.
+- **Act.** Expect new capacity to fill up (induced demand) unless congestion is priced.
+:::
+
+## Related models
+
+- [The El Farol Model](el-farol.qmd): crowding avoided with adaptive rules rather than equilibrium reasoning.
+- [Collective Action and Public Goods](public-goods.qmd): under-provision rather than over-use.
+- [Renewable Resource Extraction](renewable-resource.qmd): over-use when the resource also regrows.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 23, "Collective Action Problems," pp. 275–277.
+- Garrett Hardin, "The Tragedy of the Commons," *Science* 162, no. 3859 (1968): 1243–1248.

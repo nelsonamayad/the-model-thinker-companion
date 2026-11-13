@@ -1,0 +1,194 @@
+---
+title: "Replicator Dynamics"
+date: 2026-11-13
+description: "When people copy alternatives in proportion to how well they are doing relative to the average, the best alternative takes over the population, even if almost nobody uses it at first."
+order: 52
+chapter: 26
+chapter-title: "Learning Models"
+pages: "309–312"
+family: "Learning and search"
+engine: "Equation-based"
+tool: "Observable JS (difference equation)"
+reference: "base R"
+uses: [Explain, Predict, Reason]
+categories: ["Learning and search", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#52** · *The Model Thinker*, chapter 26, "Learning Models", pp. 309–312.
+
+Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (difference equation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Reinforcement learning is individual: you learn from your own experience. Much learning is social: we copy what works for others. Replicator dynamics model social learning (and biological evolution, where it began): the share of a population using an alternative grows if that alternative pays more than the population's average, and shrinks if it pays less. Popular strategies are copied more, because more people see them; successful ones are copied more, because people imitate success.
+
+The two forces, frequency and performance, combine into a simple equation. When the rewards of the alternatives are fixed, the best alternative always wins in an infinite population, however rare it is at the start, and its rise follows an S-shape: slow while few use it, fast in the middle, slow at the end. Page contrasts this with individual learning: in games, where an alternative's payoff depends on what others do, social and individual learning can lead to different places.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** Alternatives $\{A, B, \dots, N\}$ with rewards $\pi(A), \pi(B), \dots$. At time $t$ the population's actions are a probability distribution $(P_t(A), \dots, P_t(N))$, and the average reward is $\bar\pi_t = \sum_K P_t(K)\,\pi(K)$.
+
+**Replicator equation.**
+
+$$
+P_{t+1}(K) = P_t(K) \cdot \frac{\pi(K)}{\bar\pi_t} .
+$$
+
+**Result.** In learning the best from a finite set of alternatives with fixed rewards, replicator dynamics with an infinite population converge to the entire population choosing the best alternative, provided it is used by someone at the start.
+:::
+
+The ratio of any two alternatives' shares changes by the ratio of their rewards each period, $\frac{P_{t+1}(A)}{P_{t+1}(B)} = \frac{P_t(A)}{P_t(B)} \cdot \frac{\pi(A)}{\pi(B)}$, so the best alternative's share relative to every other grows geometrically.
+
+## Interactive model
+
+Four alternatives with rewards 10, 9, 8 and 7. The best one starts rare, used by the chosen share of the population, and the others split the rest equally. Watch its S-shaped rise. A smaller advantage or a rarer start delays the takeover but does not prevent it.
+
+```{ojs}
+//| echo: false
+import {iterate, C, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof bestReward = Inputs.range([9.1, 15], {value: 11, step: 0.1, label: "Reward of the best alternative"})
+viewof start = Inputs.range([0.001, 0.5], {value: 0.01, step: 0.001, label: "Initial share of the best"})
+viewof periods = Inputs.range([20, 300], {value: 100, step: 10, label: "Periods"})
+```
+
+```{ojs}
+replicator = {
+  const pi = [bestReward, 9, 8, 7], names = ["Best", "Second (9)", "Third (8)", "Fourth (7)"];
+  const p0 = [start, ...[1, 2, 3].map(() => (1 - start) / 3)];
+  const path = iterate(p => { const avg = p.reduce((s, v, k) => s + v * pi[k], 0); return p.map((v, k) => v * pi[k] / avg); }, p0, periods);
+  const rows = path.flatMap((p, t) => p.map((v, k) => ({t, share: v, name: names[k]})));
+  const majority = path.findIndex(p => p[0] > 0.5);
+  return {rows, names, majority, final: path[periods][0]};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Replicator Dynamics: shares of each alternative over time",
+  ariaDescription: "Horizontal axis: period. Vertical axis: share of the population using each of four alternatives. The best alternative (teal) starts rare and rises along an S-curve to take over. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Period"},
+  y: {label: "Share of population", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: replicator.names, range: [C.teal, C.orange, C.purple, C.gray]},
+  marks: [Plot.line(replicator.rows, {x: "t", y: "share", stroke: "name", strokeWidth: 2.2})]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`The best alternative pays ${bestReward} against 9 for the runner-up and starts with ${pct(start, 1)} of the population. ${replicator.majority >= 0 ? `It is used by a majority from **period ${replicator.majority}**` : `It has not reached a majority after ${periods} periods`} and by **${pct(replicator.final, 1)}** after ${periods}. Copying success, in proportion to how common and how successful each alternative is, finds the best.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {iterate, C, pct} from "../js/models.js"
+
+viewof bestReward = Inputs.range([9.1, 15], {value: 11, step: 0.1, label: "Reward of the best alternative"})
+viewof start = Inputs.range([0.001, 0.5], {value: 0.01, step: 0.001, label: "Initial share of the best"})
+viewof periods = Inputs.range([20, 300], {value: 100, step: 10, label: "Periods"})
+
+replicator = {
+  const pi = [bestReward, 9, 8, 7], names = ["Best", "Second (9)", "Third (8)", "Fourth (7)"];
+  const p0 = [start, ...[1, 2, 3].map(() => (1 - start) / 3)];
+  const path = iterate(p => { const avg = p.reduce((s, v, k) => s + v * pi[k], 0); return p.map((v, k) => v * pi[k] / avg); }, p0, periods);
+  const rows = path.flatMap((p, t) => p.map((v, k) => ({t, share: v, name: names[k]})));
+  const majority = path.findIndex(p => p[0] > 0.5);
+  return {rows, names, majority, final: path[periods][0]};
+}
+
+Plot.plot({
+  ariaLabel: "Replicator Dynamics: shares of each alternative over time",
+  ariaDescription: "Horizontal axis: period. Vertical axis: share of the population using each of four alternatives. The best alternative (teal) starts rare and rises along an S-curve to take over. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Period"},
+  y: {label: "Share of population", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: replicator.names, range: [C.teal, C.orange, C.purple, C.gray]},
+  marks: [Plot.line(replicator.rows, {x: "t", y: "share", stroke: "name", strokeWidth: 2.2})]
+})
+
+html`<div class="sim-readout">${md`The best alternative pays ${bestReward} against 9 for the runner-up and starts with ${pct(start, 1)} of the population. ${replicator.majority >= 0 ? `It is used by a majority from **period ${replicator.majority}**` : `It has not reached a majority after ${periods} periods`} and by **${pct(replicator.final, 1)}** after ${periods}. Copying success, in proportion to how common and how successful each alternative is, finds the best.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Replicator dynamics: the best alternative takes over from a rare start.
+# Deterministic: no random numbers.
+rewards <- c(best = 11, second = 9, third = 8, fourth = 7)
+start <- 0.01 # initial share of the best alternative
+periods <- 100
+
+p <- c(start, rep((1 - start) / 3, 3))
+shares <- matrix(NA, periods + 1, 4, dimnames = list(NULL, names(rewards)))
+shares[1, ] <- p
+for (t in 1:periods) {
+  p <- p * rewards / sum(p * rewards) # P(K) * pi(K) / average pi
+  shares[t + 1, ] <- p
+}
+majority <- which(shares[, 1] > 0.5)[1] - 1
+cat("Best alternative is a majority from period", majority, "\n")
+cat(sprintf(
+  "Share after %d periods: %.3f\n", periods,
+  shares[periods + 1, 1]
+))
+
+matplot(0:periods, shares,
+  type = "l", lty = 1, lwd = 2,
+  col = c("#148a91", "#d95f02", "#7570b3", "grey60"),
+  xlab = "Period", ylab = "Share of population"
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Replicator dynamics combine frequency and performance: shares grow in proportion to reward relative to the average.
+- With fixed rewards the best alternative always takes over, along an S-shaped path.
+- In games, where payoffs depend on what others do, replicator dynamics can lead to different outcomes than individual learning.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** The spread of better practices, technologies and genes through populations.
+- **Predict.** The time it takes a superior innovation to dominate, from its advantage and initial share.
+- **Reason.** Evolutionary game theory: which strategies survive when payoffs depend on the population's mix.
+:::
+
+## Related models
+
+- [Reinforcement Learning](reinforcement-learning.qmd): individual learning from one's own rewards.
+- [The Generous/Spiteful Game](generous-spiteful-game.qmd): a game where the two kinds of learning disagree.
+- [Repeated Prisoners' Dilemma](prisoners-dilemma.qmd): replicator dynamics on strategies in a tournament.
+- [Diffusion Model](diffusion-model.qmd): another S-curve, from contact rather than relative success.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 26, "Learning Models," pp. 309–312.
+- Peter D. Taylor and Leo B. Jonker, "Evolutionary Stable Strategies and Game Dynamics," *Mathematical Biosciences* 40, nos. 1–2 (1978): 145–156, [doi:10.1016/0025-5564(78)90077-9](https://doi.org/10.1016/0025-5564(78)90077-9).
+- Drew Fudenberg and David Levine, *Theory of Learning in Games* (MIT Press, 1998).

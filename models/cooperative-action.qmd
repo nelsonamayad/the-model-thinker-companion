@@ -1,0 +1,371 @@
+---
+title: "Cooperative Action Model"
+date: 2026-11-13
+description: "Unsophisticated cooperators can spread through a network when the benefit of cooperation is large relative to its cost and to the number of neighbours, because clusters of cooperators outperform their defecting neighbours."
+order: 44
+chapter: 22
+chapter-title: "Models of Cooperation"
+pages: "262–266"
+family: "Games and cooperation"
+engine: "Agent-based"
+tool: "NetLogo 6.4 + nlrx; JavaScript replay"
+reference: "NetLogo 6.4 model, nlrx experiment"
+uses: [Explain, Reason, Design]
+categories: ["Games and cooperation", "Agent-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#44** · *The Model Thinker*, chapter 22, "Models of Cooperation", pp. 262–266.
+
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Repetition and reputation explain cooperation among people who can remember, anticipate and punish. But trees share nutrients through their roots, bees die defending the hive and cells in a body cooperate, without strategy or foresight. How can cooperation arise among agents who simply are cooperators or defectors? Page's cooperative action model puts such agents on a network. A cooperator pays a cost for each neighbour and gives each neighbour a benefit; a defector pays nothing and gives nothing.
+
+Defectors always do better than the cooperators next to them, so cooperation cannot win head to head. It can win through *clustering*. A cooperator surrounded by cooperators receives many benefits, and when an empty site next to it is filled by copying the most successful neighbour, a cluster of cooperators can outperform the defectors at its edge and grow. Page shows that this works more easily in sparse networks, the opposite of the reputation mechanism, which works better in dense ones: an example of many models yielding conditional knowledge.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** $N$ individuals on a network are cooperators or defectors. A cooperator pays cost $C$ and gives benefit $B$ to each neighbour it interacts with; defectors pay and give nothing. The *ratio of cooperative advantage* is $B/C$. Some nodes start empty.
+
+**Rules.** An individual's payoff is $B$ times its number of cooperating neighbours, minus $C$ times its number of neighbours if it cooperates. An empty node next to occupied nodes takes the type of its highest-payoff neighbour; nodes are filled one at a time.
+
+**Result (clustering bootstraps cooperation).** If an empty node's neighbours include a cooperator of degree $D$ with $K$ cooperating neighbours, and its defecting neighbours have no cooperating neighbours, the node becomes a cooperator if and only if
+
+$$
+\frac{B}{C} \ge \frac{D}{K} .
+$$
+
+So cooperation spreads more easily when the benefit-cost ratio is high and degrees are low.
+:::
+
+The condition follows directly: the cooperator earns $BK - CD$ and the defectors earn 0. Page's companion mechanism, *group selection*, gives the same tension at another level: within any group defectors outperform cooperators, but groups with more cooperators outperform other groups, so competition between groups can favour cooperation if groups are small relative to their number.
+
+## Interactive model
+
+One run on a random network of 300 nodes, replayed in your browser. One node in six starts occupied and one occupied node in six is a cooperator (teal); defectors are orange and empty nodes gray. Step through the filling of the network, or press **Play**. With a benefit-cost ratio of 4 on a sparse network, cooperators spread from a few clusters; raise the degree and they are swamped.
+
+```{ojs}
+//| echo: false
+import {rng, range, graphRandom, edgesOf, layoutForce, player, C, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof ratio = Inputs.range([1, 10], {value: 4, step: 0.5, label: "Benefit-cost ratio B/C"})
+viewof degree = Inputs.range([2, 12], {value: 4, step: 1, label: "Average degree"})
+viewof seed = Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+coop = {
+  const r = rng(seed), n = 300;
+  const adj = graphRandom(n, degree / (n - 1), r);
+  const state = range(n).map(() => (r() < 1 / 6 ? (r() < 1 / 6 ? 1 : 2) : 0));   // 0 empty, 1 cooperator, 2 defector
+  const payoff = i => {
+    let helpers = 0, occupied = 0;
+    for (const j of adj[i]) if (state[j]) { occupied++; if (state[j] === 1) helpers++; }
+    return ratio * helpers - (state[i] === 1 ? occupied : 0);
+  };
+  const frames = [state.slice()];
+  for (;;) {
+    const frontier = range(n).filter(i => !state[i] && adj[i].some(j => state[j]));
+    if (!frontier.length) break;
+    const i = frontier[Math.floor(r() * frontier.length)];
+    const nbrs = adj[i].filter(j => state[j]), pays = nbrs.map(payoff), best = Math.max(...pays);
+    const top = nbrs.filter((_, k) => pays[k] === best);
+    state[i] = state[top[Math.floor(r() * top.length)]];
+    frames.push(state.slice());
+  }
+  const share = s => { const occ = s.filter(v => v).length; return occ ? s.filter(v => v === 1).length / occ : 0; };
+  return {adj, frames, layout: layoutForce(adj, r), edges: edgesOf(adj), share, start: share(frames[0]), end: share(state)};
+}
+```
+
+```{ojs}
+viewof step = player(coop.frames.length - 1, {label: "Nodes filled", delay: 40})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Cooperative Action Model: the network",
+  ariaDescription: "A drawing of a 300-node random network. Teal nodes are cooperators, orange nodes defectors and gray nodes empty, at the step shown. The summary below the chart states the result in words.",
+  width: 440, height: 440, inset: 10,
+  x: {axis: null}, y: {axis: null},
+  marks: [
+    Plot.link(coop.edges, {x1: d => coop.layout[d[0]].x, y1: d => coop.layout[d[0]].y, x2: d => coop.layout[d[1]].x, y2: d => coop.layout[d[1]].y, stroke: C.gray, strokeOpacity: 0.35}),
+    Plot.dot(coop.layout, {x: "x", y: "y", r: 4, fill: d => [C.gray, C.teal, C.orange][coop.frames[step][d.i]], fillOpacity: d => (coop.frames[step][d.i] ? 1 : 0.35)})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`Cooperators made up **${pct(coop.start)}** of the occupied nodes at the start and **${pct(coop.share(coop.frames[step]))}** at this step; when the network is filled they make up **${pct(coop.end)}**. ${coop.end > coop.start + 0.03 ? `Clusters of cooperators outperformed the defectors around them and spread.` : coop.end < coop.start - 0.03 ? `With a benefit-cost ratio of ${ratio} and degree ${degree}, cooperators lose ground: their clusters are too thin to beat the defectors next to them.` : "Cooperators roughly hold their ground."}`}</div>`
+```
+
+### NetLogo experiment
+
+The same model in NetLogo (500 nodes), run by nlrx at eight benefit-cost ratios on sparse (average degree 4) and dense (degree 10) random networks, six seeds each. Each dot is the final share of cooperators in one run; the dashed line is the starting share, one in six.
+
+```{ojs}
+//| echo: false
+nlRuns = FileAttachment("../data/cooperative-action.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => d3.mean(v, d => d.coop_share), d => d.mean_degree, d => d.benefit_ratio).flatMap(([k, rows]) => rows.map(([ratio, share]) => ({k: `Degree ${k}`, ratio, share}))).sort((a, b) => a.ratio - b.ratio)
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Cooperative Action Model: NetLogo experiment",
+  ariaDescription: "Horizontal axis: benefit-cost ratio. Vertical axis: final share of cooperators. Dots are individual NetLogo runs and lines their averages, for networks of average degree 4 (teal) and 10 (orange). The dashed line is the starting share. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Benefit-cost ratio B/C"},
+  y: {label: "Final share of cooperators", domain: [0, 0.6], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Degree 4", "Degree 10"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([1 / 6], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.dot(nlRuns, {x: "benefit_ratio", y: "coop_share", fill: d => `Degree ${d.mean_degree}`, r: 3, fillOpacity: 0.5}),
+    Plot.line(nlMeans, {x: "ratio", y: "share", stroke: "k", strokeWidth: 2.5})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const grow = k => (nlMeans.find(d => d.k === k && d.share > 1 / 6) || {}).ratio;
+  const at = (k, x) => nlMeans.find(d => d.k === k && d.ratio === x).share;
+  return html`<div class="sim-readout">${md`In NetLogo, cooperation grows beyond its starting share of 17% once B/C reaches **${grow("Degree 4")}** on sparse networks, but only at **${grow("Degree 10")}** on dense ones. At B/C = 4, cooperators end at ${pct(at("Degree 4", 4))} of nodes on sparse networks and ${pct(at("Degree 10", 4))} on dense ones. Fewer neighbours make clusters easier to form, as the condition B/C ≥ D/K predicts.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **NetLogo** model is the reference implementation, and the **nlrx** script runs the experiment whose results are charted above (NetLogo 6.4, nlrx 0.4). The **Observable JS** replays the same rules in your browser, with its own random numbers.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, graphRandom, edgesOf, layoutForce, player, C, pct} from "../js/models.js"
+
+viewof ratio = Inputs.range([1, 10], {value: 4, step: 0.5, label: "Benefit-cost ratio B/C"})
+viewof degree = Inputs.range([2, 12], {value: 4, step: 1, label: "Average degree"})
+viewof seed = Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"})
+
+coop = {
+  const r = rng(seed), n = 300;
+  const adj = graphRandom(n, degree / (n - 1), r);
+  const state = range(n).map(() => (r() < 1 / 6 ? (r() < 1 / 6 ? 1 : 2) : 0));   // 0 empty, 1 cooperator, 2 defector
+  const payoff = i => {
+    let helpers = 0, occupied = 0;
+    for (const j of adj[i]) if (state[j]) { occupied++; if (state[j] === 1) helpers++; }
+    return ratio * helpers - (state[i] === 1 ? occupied : 0);
+  };
+  const frames = [state.slice()];
+  for (;;) {
+    const frontier = range(n).filter(i => !state[i] && adj[i].some(j => state[j]));
+    if (!frontier.length) break;
+    const i = frontier[Math.floor(r() * frontier.length)];
+    const nbrs = adj[i].filter(j => state[j]), pays = nbrs.map(payoff), best = Math.max(...pays);
+    const top = nbrs.filter((_, k) => pays[k] === best);
+    state[i] = state[top[Math.floor(r() * top.length)]];
+    frames.push(state.slice());
+  }
+  const share = s => { const occ = s.filter(v => v).length; return occ ? s.filter(v => v === 1).length / occ : 0; };
+  return {adj, frames, layout: layoutForce(adj, r), edges: edgesOf(adj), share, start: share(frames[0]), end: share(state)};
+}
+
+viewof step = player(coop.frames.length - 1, {label: "Nodes filled", delay: 40})
+
+Plot.plot({
+  ariaLabel: "Cooperative Action Model: the network",
+  ariaDescription: "A drawing of a 300-node random network. Teal nodes are cooperators, orange nodes defectors and gray nodes empty, at the step shown. The summary below the chart states the result in words.",
+  width: 440, height: 440, inset: 10,
+  x: {axis: null}, y: {axis: null},
+  marks: [
+    Plot.link(coop.edges, {x1: d => coop.layout[d[0]].x, y1: d => coop.layout[d[0]].y, x2: d => coop.layout[d[1]].x, y2: d => coop.layout[d[1]].y, stroke: C.gray, strokeOpacity: 0.35}),
+    Plot.dot(coop.layout, {x: "x", y: "y", r: 4, fill: d => [C.gray, C.teal, C.orange][coop.frames[step][d.i]], fillOpacity: d => (coop.frames[step][d.i] ? 1 : 0.35)})
+  ]
+})
+
+html`<div class="sim-readout">${md`Cooperators made up **${pct(coop.start)}** of the occupied nodes at the start and **${pct(coop.share(coop.frames[step]))}** at this step; when the network is filled they make up **${pct(coop.end)}**. ${coop.end > coop.start + 0.03 ? `Clusters of cooperators outperformed the defectors around them and spread.` : coop.end < coop.start - 0.03 ? `With a benefit-cost ratio of ${ratio} and degree ${degree}, cooperators lose ground: their clusters are too thin to beat the defectors next to them.` : "Cooperators roughly hold their ground."}`}</div>`
+
+nlRuns = FileAttachment("../data/cooperative-action.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => d3.mean(v, d => d.coop_share), d => d.mean_degree, d => d.benefit_ratio).flatMap(([k, rows]) => rows.map(([ratio, share]) => ({k: `Degree ${k}`, ratio, share}))).sort((a, b) => a.ratio - b.ratio)
+
+Plot.plot({
+  ariaLabel: "Cooperative Action Model: NetLogo experiment",
+  ariaDescription: "Horizontal axis: benefit-cost ratio. Vertical axis: final share of cooperators. Dots are individual NetLogo runs and lines their averages, for networks of average degree 4 (teal) and 10 (orange). The dashed line is the starting share. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Benefit-cost ratio B/C"},
+  y: {label: "Final share of cooperators", domain: [0, 0.6], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Degree 4", "Degree 10"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([1 / 6], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.dot(nlRuns, {x: "benefit_ratio", y: "coop_share", fill: d => `Degree ${d.mean_degree}`, r: 3, fillOpacity: 0.5}),
+    Plot.line(nlMeans, {x: "ratio", y: "share", stroke: "k", strokeWidth: 2.5})
+  ]
+})
+
+{
+  const grow = k => (nlMeans.find(d => d.k === k && d.share > 1 / 6) || {}).ratio;
+  const at = (k, x) => nlMeans.find(d => d.k === k && d.ratio === x).share;
+  return html`<div class="sim-readout">${md`In NetLogo, cooperation grows beyond its starting share of 17% once B/C reaches **${grow("Degree 4")}** on sparse networks, but only at **${grow("Degree 10")}** on dense ones. At B/C = 4, cooperators end at ${pct(at("Degree 4", 4))} of nodes on sparse networks and ${pct(at("Degree 10", 4))} on dense ones. Fewer neighbours make clusters easier to form, as the condition B/C ≥ D/K predicts.`}</div>`;
+}
+```
+
+## NetLogo {.unlisted}
+
+```{.netlogo}
+; The cooperative action model (The Model Thinker, chapter 22).
+; The Model Thinker Companion: reference implementation, run with nlrx by
+; abm/cooperative-action.R. The page replays the same rules in JavaScript.
+;
+; Nodes of a random network (average degree `mean-degree`) are habitats.
+; One node in six is occupied at the start, and one occupied node in six is
+; a cooperator; the rest are defectors. A cooperator pays a cost C = 1 for
+; each occupied neighbour and gives each of them a benefit B
+; (`benefit-ratio`, so B/C = benefit-ratio). Each tick one empty node next to
+; an occupied node is filled: it takes the type of its highest-payoff
+; occupied neighbour (ties broken at random). The run stops when no empty
+; node touches an occupied one.
+
+turtles-own [ state ]   ; "empty", "C" (cooperator) or "D" (defector)
+
+to setup
+  clear-all
+  create-turtles population [
+    set shape "circle"
+    set size 0.8
+    set state "empty"
+  ]
+  ; Random network: add links between random pairs until the average
+  ; degree is reached.
+  let target round (population * mean-degree / 2)
+  while [ count links < target ] [
+    ask one-of turtles [
+      let other-node one-of other turtles with [ not link-neighbor? myself ]
+      if other-node != nobody [ create-link-with other-node ]
+    ]
+  ]
+  ask turtles [
+    if random 6 = 0 [ set state ifelse-value (random 6 = 0) [ "C" ] [ "D" ] ]
+    recolor
+  ]
+  layout-circle turtles 15
+  reset-ticks
+end
+
+to go
+  let frontier turtles with [
+    state = "empty" and any? link-neighbors with [ state != "empty" ]
+  ]
+  if not any? frontier [ stop ]
+  ask one-of frontier [
+    let best max-one-of (link-neighbors with [ state != "empty" ]) [ payoff ]
+    set state [ state ] of best
+    recolor
+  ]
+  tick
+end
+
+to-report payoff
+  let occupied link-neighbors with [ state != "empty" ]
+  let helpers count occupied with [ state = "C" ]
+  report benefit-ratio * helpers
+    - ifelse-value (state = "C") [ count occupied ] [ 0 ]
+end
+
+to recolor
+  set color ifelse-value (state = "C") [ cyan ]
+    [ ifelse-value (state = "D") [ orange ] [ gray - 3 ] ]
+end
+
+to-report coop-share
+  let occupied turtles with [ state != "empty" ]
+  report ifelse-value (any? occupied)
+    [ count occupied with [ state = "C" ] / count occupied ] [ 0 ]
+end
+
+to-report initial-coop-share
+  report 1 / 6
+end
+```
+
+## nlrx (R) {.unlisted}
+
+```{.r}
+# The cooperative action model: how far does cooperation spread from a few
+# seeded cooperators, as the benefit-cost ratio and the network's degree
+# change? NetLogo model: abm/cooperative-action.nlogo.
+# Output: data/cooperative-action.csv (one row per setting and seed).
+source("abm/_nlrx.R")
+
+nl <- nl_model("cooperative-action")
+nl@experiment <- experiment(
+  expname = "ratio_degree_sweep",
+  outpath = tempdir(),
+  repetition = 1,
+  tickmetrics = "false", # measure once, when the network is filled
+  idsetup = "setup",
+  idgo = "go",
+  runtime = 1000, # cap; runs stop when no empty node touches an occupied one
+  metrics = c("coop-share"),
+  variables = list(
+    "benefit-ratio" = list(values = c(1, 1.5, 2, 3, 4, 6, 8, 10)),
+    "mean-degree" = list(values = c(4, 10))
+  ),
+  constants = list("population" = 500)
+)
+set.seed(22) # makes nlrx draw the same NetLogo seeds every time
+nl@simdesign <- simdesign_ff(nl, nseeds = 6)
+
+results <- run_experiment(nl)
+save_results(results, "cooperative-action",
+  keep = c("benefit_ratio", "mean_degree", "random_seed", "step", "coop_share")
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Unsophisticated cooperators can spread on networks when clusters of them outperform neighbouring defectors.
+- Cooperation spreads more easily when the benefit-cost ratio is high and the network is sparse: B/C ≥ D/K.
+- Different mechanisms of cooperation favour different network structures: reputation needs density, clustering needs sparseness.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Cooperation among organisms without foresight (trees, microbes, social insects) and among people in small, tight-knit groups.
+- **Reason.** Which mechanism of cooperation is plausible depends on how sophisticated the actors are.
+- **Design.** Organize teams in small, stable clusters and reward team performance, so cooperative groups can outcompete others.
+:::
+
+## Related models
+
+- [Repeated Prisoners' Dilemma](prisoners-dilemma.qmd): cooperation sustained by sophisticated, forward-looking players.
+- [Network Structures and Statistics](network-structure.qmd): degree and clustering, the network features that matter here.
+- [Replicator Dynamics](replicator-dynamics.qmd): selection on payoffs without network structure.
+- [Collective Action and Public Goods](public-goods.qmd): the many-player cooperation problem.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 22, "Models of Cooperation," pp. 262–266.
+- Martin Nowak, "Five Rules for the Evolution of Cooperation," *Science* 314, no. 5805 (2006): 1560–1563.

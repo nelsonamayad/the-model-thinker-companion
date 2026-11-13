@@ -1,0 +1,29 @@
+# The book is copyrighted. Never commit or publish it.
+*.epub
+
+_site/
+.quarto/
+/.luarc.json
+**/*.quarto_ipynb
+
+# Quarto writes outputs next to the sources during a render and moves them
+# into _site/ at the end; ignore leftovers from an interrupted render.
+/*.html
+/site_libs/
+models/*.html
+families/*.html
+**/*-listing.json
+**/*_files/
+__pycache__/
+
+# nlrx scratch output (the experiment results that the pages use are written
+# to data/ and committed).
+abm/out/
+.Rhistory
+.RData
+Rplots.pdf
+
+# Local planning notes.
+TODO.md
+
+/.quarto/

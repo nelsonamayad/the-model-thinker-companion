@@ -1,0 +1,215 @@
+---
+title: "The Effort Game"
+date: 2026-11-13
+description: "In a contest where the chance of winning is proportional to effort, more contestants means less effort from each but more effort in total."
+order: 42
+chapter: 21
+chapter-title: "Game Theory Models Times Three"
+pages: "247–249"
+family: "Games and cooperation"
+engine: "Equation-based"
+tool: "Observable JS (closed form and best-response iteration)"
+reference: "base R"
+uses: [Design, Predict, Explain]
+categories: ["Games and cooperation", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#42** · *The Model Thinker*, chapter 21, "Game Theory Models Times Three", pp. 247–249.
+
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form and best-response iteration) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Grant competitions, architectural contests, lobbying, sports and promotions are contests: players spend effort (time, money, talent) to win a prize, and more effort raises the chance of winning without guaranteeing it. The effort game, a version of Gordon Tullock's rent-seeking contest, models this with each player's chance of winning equal to their share of total effort.
+
+In equilibrium nobody spends more than the prize is worth, but the total effort is substantial. The surprising result is about the number of contestants. Adding contestants lowers each one's effort, because each has a smaller chance of winning, but raises the total. For an organizer who wants the most effort *in total*, a big field is good; for one who wants the best winning entry, a big field may be bad, because the winner tried less hard.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** $N$ players each choose an effort level $E_i \ge 0$, measured in money, to win a prize of value $M$.
+
+**Winning probability.**
+
+$$
+P(i \text{ wins}) = \frac{E_i}{E_1 + E_2 + \dots + E_N} .
+$$
+
+Player $i$'s expected payoff is $M \cdot P(i \text{ wins}) - E_i$.
+
+**Equilibrium.** In the symmetric Nash equilibrium,
+
+$$
+E^* = \frac{(N - 1)\,M}{N^2}, \qquad \text{total effort } N E^* = \frac{N-1}{N}\,M .
+$$
+
+**Result.** Individual effort falls with $N$ and total effort rises with $N$ toward $M$. Each player's expected payoff is $M/N^2$.
+:::
+
+Setting the derivative of $M E_i / (E_i + S_{-i}) - E_i$ to zero, where $S_{-i}$ is everyone else's effort, gives the best response $E_i = \sqrt{M S_{-i}} - S_{-i}$; imposing symmetry ($S_{-i} = (N-1)E$) yields $E^*$.
+
+## Interactive model
+
+The chart plots equilibrium effort per contestant and in total as the number of contestants grows, for the chosen prize. The readout checks the formula by letting players repeatedly best-respond to each other from random starting efforts, one player at a time.
+
+```{ojs}
+//| echo: false
+import {rng, range, C, fmt, num, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof M = Inputs.range([100, 10000], {value: 1000, step: 100, label: "Prize M ($)"})
+viewof N = Inputs.range([2, 50], {value: 5, step: 1, label: "Contestants N"})
+viewof seed = Inputs.range([1, 500], {value: 42, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+effort = {
+  const rows = range(49).map(i => { const n = i + 2; return {n, each: (n - 1) * M / (n * n), total: (n - 1) * M / n}; });
+  // Best-response dynamics from random starts.
+  const r = rng(seed);
+  let E = range(N).map(() => r() * M / 2);
+  for (let k = 0; k < 200; k++) {
+    for (let i = 0; i < N; i++) { const others = E.reduce((s, v, j) => s + (j === i ? 0 : v), 0); E[i] = Math.max(0, Math.sqrt(M * others) - others); }
+  }
+  return {rows, br: E, eq: (N - 1) * M / (N * N)};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "The Effort Game: equilibrium effort by number of contestants",
+  ariaDescription: "Horizontal axis: number of contestants. Vertical axis: dollars. The teal line is each contestant's equilibrium effort, which falls with more contestants; the orange line is total effort, which rises toward the prize (dashed line). The vertical line marks the chosen number of contestants. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Contestants N"},
+  y: {label: "Effort ($)", grid: true},
+  color: {legend: true, domain: ["Each contestant", "All contestants"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([M], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(effort.rows, {x: "n", y: "each", stroke: () => "Each contestant", strokeWidth: 2.5}),
+    Plot.line(effort.rows, {x: "n", y: "total", stroke: () => "All contestants", strokeWidth: 2.5}),
+    Plot.ruleX([N], {stroke: "currentColor", strokeOpacity: 0.4})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`With ${N} contestants and a prize of $${num(M)}, each spends **$${num(effort.eq)}** in equilibrium and together they spend **$${num((N - 1) * M / N)}** (${pct((N - 1) / N)} of the prize); each expects to net $${num(M / (N * N))}. Starting from random efforts and repeatedly best-responding, the players settle at ${Math.round(Math.min(...effort.br)) === Math.round(Math.max(...effort.br)) ? `$${num(effort.br[0])}` : `$${num(Math.min(...effort.br))}–$${num(Math.max(...effort.br))}`} each, matching the formula. With twice as many contestants each would spend $${num((2 * N - 1) * M / (4 * N * N))}.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, C, fmt, num, pct} from "../js/models.js"
+
+viewof M = Inputs.range([100, 10000], {value: 1000, step: 100, label: "Prize M ($)"})
+viewof N = Inputs.range([2, 50], {value: 5, step: 1, label: "Contestants N"})
+viewof seed = Inputs.range([1, 500], {value: 42, step: 1, label: "Random seed"})
+
+effort = {
+  const rows = range(49).map(i => { const n = i + 2; return {n, each: (n - 1) * M / (n * n), total: (n - 1) * M / n}; });
+  // Best-response dynamics from random starts.
+  const r = rng(seed);
+  let E = range(N).map(() => r() * M / 2);
+  for (let k = 0; k < 200; k++) {
+    for (let i = 0; i < N; i++) { const others = E.reduce((s, v, j) => s + (j === i ? 0 : v), 0); E[i] = Math.max(0, Math.sqrt(M * others) - others); }
+  }
+  return {rows, br: E, eq: (N - 1) * M / (N * N)};
+}
+
+Plot.plot({
+  ariaLabel: "The Effort Game: equilibrium effort by number of contestants",
+  ariaDescription: "Horizontal axis: number of contestants. Vertical axis: dollars. The teal line is each contestant's equilibrium effort, which falls with more contestants; the orange line is total effort, which rises toward the prize (dashed line). The vertical line marks the chosen number of contestants. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Contestants N"},
+  y: {label: "Effort ($)", grid: true},
+  color: {legend: true, domain: ["Each contestant", "All contestants"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([M], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(effort.rows, {x: "n", y: "each", stroke: () => "Each contestant", strokeWidth: 2.5}),
+    Plot.line(effort.rows, {x: "n", y: "total", stroke: () => "All contestants", strokeWidth: 2.5}),
+    Plot.ruleX([N], {stroke: "currentColor", strokeOpacity: 0.4})
+  ]
+})
+
+html`<div class="sim-readout">${md`With ${N} contestants and a prize of $${num(M)}, each spends **$${num(effort.eq)}** in equilibrium and together they spend **$${num((N - 1) * M / N)}** (${pct((N - 1) / N)} of the prize); each expects to net $${num(M / (N * N))}. Starting from random efforts and repeatedly best-responding, the players settle at ${Math.round(Math.min(...effort.br)) === Math.round(Math.max(...effort.br)) ? `$${num(effort.br[0])}` : `$${num(Math.min(...effort.br))}–$${num(Math.max(...effort.br))}`} each, matching the formula. With twice as many contestants each would spend $${num((2 * N - 1) * M / (4 * N * N))}.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# The effort game: equilibrium effort, checked by best-response dynamics.
+prize <- 1000
+n <- 5
+set.seed(42)
+
+each <- function(k) (k - 1) * prize / k^2
+cat(sprintf(
+  "Equilibrium: %.0f each, %.0f in total\n",
+  each(n), n * each(n)
+))
+
+effort <- runif(n, 0, prize / 2)
+for (k in 1:200) {
+  for (i in 1:n) {
+    others <- sum(effort[-i])
+    effort[i] <- max(0, sqrt(prize * others) - others) # best response
+  }
+}
+cat("Best-response dynamics settle at:", round(effort), "\n")
+
+sizes <- 2:50
+plot(sizes, each(sizes),
+  type = "l", lwd = 2, col = "#148a91",
+  ylim = c(0, prize), xlab = "Contestants", ylab = "Effort"
+)
+lines(sizes, sizes * each(sizes), lwd = 2, col = "#d95f02")
+abline(h = prize, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- In a contest where winning odds are proportional to effort, equilibrium total effort is a fraction $(N-1)/N$ of the prize.
+- More contestants means less effort from each and more in total.
+- Contest designers must decide whether they want total effort or the best single entry.
+:::
+
+## Uses
+
+::: uses
+- **Design.** Choose the number of finalists in grant competitions, procurement contests and promotion tournaments.
+- **Predict.** Estimate total lobbying or rent-seeking expenditure on a prize such as a licence or a contract.
+- **Explain.** Why open calls with many entrants can produce weaker winning entries than invitation-only contests.
+:::
+
+## Related models
+
+- [Zero-Sum Games](zero-sum-games.qmd): two-player games with discrete actions.
+- [Auctions and Revenue Equivalence](auctions.qmd): all-pay auctions are contests with deterministic winners.
+- [Collective Action and Public Goods](public-goods.qmd): another game where individual incentives shape the total.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 21, "Game Theory Models Times Three," pp. 247–249.

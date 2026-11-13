@@ -1,0 +1,202 @@
+---
+title: "Collective Action and Public Goods"
+date: 2026-11-13
+description: "Because each contributor bears the whole cost of a public good but shares its benefit with everyone, individuals contribute far less than the group would want, and the gap widens as the group grows."
+order: 45
+chapter: 23
+chapter-title: "Collective Action Problems"
+pages: "269–275"
+family: "Games and cooperation"
+engine: "Equation-based"
+tool: "Observable JS (closed form)"
+reference: "base R"
+uses: [Explain, Design, Act]
+categories: ["Games and cooperation", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#45** · *The Model Thinker*, chapter 23, "Collective Action Problems", pp. 269–275.
+
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Clean air, national defence, a tornado warning system and scientific knowledge are public goods: one person's use does not reduce anyone else's (non-rival), and nobody can be excluded (non-excludable). Everyone wants them, but each person who pays for them bears the whole cost while the benefit is shared with everyone. So people undervalue their own contributions and free ride on others'. This is a *collective action problem*: what is individually rational falls short of what is collectively best.
+
+Page's model makes the gap precise, and it grows with the size of the group. The socially best amount of the public good rises with the number of people who enjoy it, while each person's incentive to give falls. In a group of 100, the optimum asks each person for \$100 while equilibrium self-interest provides a cent each. Altruism narrows the gap but rarely closes it; solving collective action problems usually takes institutions: taxes, norms, monitoring and sanctions.
+
+## Formulation
+
+::: {.model-box}
+**Collective action problem.** Each of $N$ individuals free rides ($f$) or contributes ($c$). Payoffs depend on one's own action and the number of contributors $C$, with $\text{Payoff}(f, C) > \text{Payoff}(c, C + 1)$, yet total payoff is highest when everyone contributes.
+
+**Public good provision.** $N$ people each split an income $I > N$ between a public good and a private good, both costing \$1 per unit. With PUBLIC the total amount of the public good,
+
+$$
+\text{Utility}(\text{PUBLIC}, \text{PRIVATE}) = 2\sqrt{\text{PUBLIC}} + \text{PRIVATE} .
+$$
+
+**Results.** The social optimum maximizes the sum of utilities: $N/\sqrt{\text{PUBLIC}} = 1$, so PUBLIC $= N^2$, each person contributing $N$. In equilibrium each person stops where their own marginal benefit $1/\sqrt{\text{PUBLIC}}$ equals 1, so PUBLIC $= 1$, each contributing $1/N$.
+
+**Altruists.** If person $j$ maximizes $(1 - \alpha)\,\text{Utility}_j + \alpha \sum_{i=1}^N \text{Utility}_i$, then in equilibrium $\text{PUBLIC} = (1 - \alpha + \alpha N)^2$.
+:::
+
+## Interactive model
+
+The chart compares, for groups of each size, the amount of the public good that maximizes total welfare with the amount self-interested people provide, and with what altruists provide. Note the logarithmic scale: the gap is enormous, and altruism helps only in proportion to its strength.
+
+```{ojs}
+//| echo: false
+import {range, C, fmt, num, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof N = Inputs.range([2, 1000], {value: 100, step: 1, label: "Group size N"})
+viewof alpha = Inputs.range([0, 1], {value: 0.1, step: 0.01, label: "Altruism weight α"})
+```
+
+```{ojs}
+pg = {
+  const sizes = [...range(20).map(i => i + 2), ...range(20).map(i => Math.round(25 * 1.21 ** i))].filter((v, i, a) => v <= 1000 && a.indexOf(v) === i);
+  const rows = sizes.flatMap(n => [
+    {n, kind: "Social optimum", G: n * n},
+    {n, kind: "Altruists' equilibrium", G: (1 - alpha + alpha * n) ** 2},
+    {n, kind: "Self-interested equilibrium", G: 1}
+  ]);
+  const welfare = G => N * 2 * Math.sqrt(G) - G;   // total utility, net of incomes
+  return {rows, opt: N * N, alt: (1 - alpha + alpha * N) ** 2, eq: 1, welfare};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Collective Action and Public Goods: amount provided by group size",
+  ariaDescription: "Log-log axes. Horizontal axis: group size. Vertical axis: total amount of the public good. Lines for the social optimum (teal), the equilibrium among altruists (purple) and the self-interested equilibrium (orange, flat at 1). The vertical line marks the chosen group size. The summary below the chart states the result in words.",
+  height: 300,
+  x: {type: "log", label: "Group size N"},
+  y: {type: "log", label: "Public good provided (total $)", grid: true, tickFormat: "~s"},
+  color: {legend: true, domain: ["Social optimum", "Altruists' equilibrium", "Self-interested equilibrium"], range: [C.teal, C.purple, C.orange]},
+  marks: [
+    Plot.line(pg.rows, {x: "n", y: "G", stroke: "kind", strokeWidth: 2.5}),
+    Plot.ruleX([N], {stroke: "currentColor", strokeOpacity: 0.4})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`With ${num(N)} people, the social optimum is **$${num(pg.opt)}** of the public good ($${num(N)} from each person). Self-interested people provide just **$1** in total (${N >= 100 ? `$${fmt(1 / N, 3)}` : `$${fmt(1 / N, 2)}`} each), capturing ${pct(pg.welfare(1) / pg.welfare(pg.opt), 1)} of the attainable gain. With altruism weight α = ${alpha}, they provide **$${num(pg.alt)}**, ${pct(pg.alt / pg.opt, 1)} of the optimum.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {range, C, fmt, num, pct} from "../js/models.js"
+
+viewof N = Inputs.range([2, 1000], {value: 100, step: 1, label: "Group size N"})
+viewof alpha = Inputs.range([0, 1], {value: 0.1, step: 0.01, label: "Altruism weight α"})
+
+pg = {
+  const sizes = [...range(20).map(i => i + 2), ...range(20).map(i => Math.round(25 * 1.21 ** i))].filter((v, i, a) => v <= 1000 && a.indexOf(v) === i);
+  const rows = sizes.flatMap(n => [
+    {n, kind: "Social optimum", G: n * n},
+    {n, kind: "Altruists' equilibrium", G: (1 - alpha + alpha * n) ** 2},
+    {n, kind: "Self-interested equilibrium", G: 1}
+  ]);
+  const welfare = G => N * 2 * Math.sqrt(G) - G;   // total utility, net of incomes
+  return {rows, opt: N * N, alt: (1 - alpha + alpha * N) ** 2, eq: 1, welfare};
+}
+
+Plot.plot({
+  ariaLabel: "Collective Action and Public Goods: amount provided by group size",
+  ariaDescription: "Log-log axes. Horizontal axis: group size. Vertical axis: total amount of the public good. Lines for the social optimum (teal), the equilibrium among altruists (purple) and the self-interested equilibrium (orange, flat at 1). The vertical line marks the chosen group size. The summary below the chart states the result in words.",
+  height: 300,
+  x: {type: "log", label: "Group size N"},
+  y: {type: "log", label: "Public good provided (total $)", grid: true, tickFormat: "~s"},
+  color: {legend: true, domain: ["Social optimum", "Altruists' equilibrium", "Self-interested equilibrium"], range: [C.teal, C.purple, C.orange]},
+  marks: [
+    Plot.line(pg.rows, {x: "n", y: "G", stroke: "kind", strokeWidth: 2.5}),
+    Plot.ruleX([N], {stroke: "currentColor", strokeOpacity: 0.4})
+  ]
+})
+
+html`<div class="sim-readout">${md`With ${num(N)} people, the social optimum is **$${num(pg.opt)}** of the public good ($${num(N)} from each person). Self-interested people provide just **$1** in total (${N >= 100 ? `$${fmt(1 / N, 3)}` : `$${fmt(1 / N, 2)}`} each), capturing ${pct(pg.welfare(1) / pg.welfare(pg.opt), 1)} of the attainable gain. With altruism weight α = ${alpha}, they provide **$${num(pg.alt)}**, ${pct(pg.alt / pg.opt, 1)} of the optimum.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Public good provision: social optimum versus equilibrium.
+# Deterministic: no random numbers.
+n <- 100
+alpha <- 0.1 # weight on others' utility
+
+welfare <- function(g) n * 2 * sqrt(g) - g # total utility net of incomes
+# Check the closed forms numerically.
+opt <- optimize(welfare, c(0, 4 * n^2), maximum = TRUE)$maximum
+own <- function(g) 2 * sqrt(g) - g # one person's view, others' fixed at 0
+eq <- optimize(own, c(0, 10), maximum = TRUE)$maximum
+cat(sprintf(
+  "Social optimum %.0f (N^2 = %d); equilibrium %.2f (= 1)\n",
+  opt, n^2, eq
+))
+cat(sprintf(
+  "With altruism %.2f: %.0f in total\n", alpha,
+  (1 - alpha + alpha * n)^2
+))
+
+sizes <- 2:1000
+plot(sizes, sizes^2,
+  log = "xy", type = "l", lwd = 2, col = "#148a91",
+  xlab = "Group size", ylab = "Public good provided"
+)
+lines(sizes, (1 - alpha + alpha * sizes)^2, lwd = 2, col = "#7570b3")
+abline(h = 1, lwd = 2, col = "#d95f02")
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Public goods are under-provided because contributors bear all the cost and receive only a share of the benefit.
+- The problem worsens with group size: the optimal amount rises with N² while voluntary provision does not rise at all.
+- Altruism helps in proportion to its strength; institutions (taxes, norms, monitoring, sanctions) are usually needed.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Under-funded public radio, open-source software maintenance, climate mitigation and vaccination.
+- **Design.** Taxes, matching grants and assurance contracts that change individual incentives.
+- **Act.** Break large groups into small ones with visible contributions, where free riding is easier to notice and sanction.
+:::
+
+## Related models
+
+- [Repeated Prisoners' Dilemma](prisoners-dilemma.qmd): the two-player version of the same tension.
+- [Congestion Model](congestion-model.qmd): a collective action problem where use has a cost to others.
+- [Renewable Resource Extraction](renewable-resource.qmd): the tragedy of the commons.
+- [Public Projects and the Pivot Mechanism](pivot-mechanism.qmd): getting people to reveal what a public good is worth to them.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 23, "Collective Action Problems," pp. 269–275.
+- Elinor Ostrom, *Understanding Institutional Diversity* (Princeton University Press, 2004).

@@ -1,0 +1,244 @@
+---
+title: "SIR Model"
+date: 2026-11-13
+description: "A contagion spreads only if each case causes more than one new case on average (R0 > 1); vaccination, distancing and network structure all act through that number."
+order: 24
+chapter: 11
+chapter-title: "Broadcast, Diffusion, and Contagion"
+pages: "137–141"
+family: "Networks and contagion"
+engine: "Equation-based"
+tool: "Observable JS (difference equation)"
+reference: "R with deSolve"
+uses: [Predict, Act, Explain]
+categories: ["Networks and contagion", "Equation-based"]
+verified: true
+source-note: "The book's equation returns recovered people to the susceptible pool; the page offers that version and the standard one with lasting immunity."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#24** · *The Model Thinker*, chapter 11, "Broadcast, Diffusion, and Contagion", pp. 137–141.
+
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (difference equation) · Reference implementation: R with deSolve.
+
+Source check: ✓ The formulation was checked against the book. The book's equation returns recovered people to the susceptible pool; the page offers that version and the standard one with lasting immunity.
+:::
+
+## The idea
+
+In the diffusion model, once informed always informed. Diseases are different: people recover. The SIR model, central to epidemiology since Kermack and McKendrick in 1927, tracks the **s**usceptible, the **i**nfected and the **r**ecovered. Infected people pass the disease to the susceptible people they meet, and recover at some rate. Whether the disease takes off depends on a single number, the *basic reproduction number* $R_0$: how many people one infected person infects, on average, in a fully susceptible population.
+
+If $R_0 > 1$, each case produces more than one new case and the epidemic grows; if $R_0 < 1$, it dies out. That tipping point is why public health targets $R_0$: vaccination removes susceptible people, distancing lowers contact, and masks lower spread. Vaccinating a share $1 - 1/R_0$ of the population stops an outbreak without vaccinating everyone (herd immunity). And because spreading runs along networks, people with many contacts, *superspreaders*, matter far more than their numbers suggest.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A population $N_{\text{POP}}$ split into susceptible $S_t$, infected $I_t$ and recovered $R_t$. Infected people make contact with probability $P_{\text{contact}}$, a contact spreads the disease with probability $P_{\text{spread}}$, and infected people recover with probability $P_{\text{recover}}$ per period.
+
+**Equations.**
+
+$$
+I_{t+1} = I_t + P_{\text{contact}} P_{\text{spread}} \frac{I_t}{N_{\text{POP}}} S_t - P_{\text{recover}} I_t ,
+\qquad
+R_{t+1} = R_t + P_{\text{recover}} I_t .
+$$
+
+In the book's simplification, the recovered rejoin the susceptible pool, so $S_t = N_{\text{POP}} - I_t$; with lasting immunity, $S_t = N_{\text{POP}} - I_t - R_t$.
+
+**Basic reproduction number.**
+
+$$
+R_0 = \frac{P_{\text{spread}} \cdot P_{\text{contact}}}{P_{\text{recover}}} .
+$$
+
+**Results.** The disease spreads if and only if $R_0 > 1$. Vaccinating a share $V > 1 - 1/R_0$ prevents spread. Without immunity, the disease settles at an endemic level $I^* = N_{\text{POP}}(1 - 1/R_0)$, or $N_{\text{POP}}(1 - V - 1/R_0)$ with a share $V$ permanently vaccinated. On a network, $R_0$ scales with $\mathbb E[k^2]/\mathbb E[k]$ rather than the mean degree, so degree inequality (superspreaders) raises it.
+:::
+
+## Interactive model
+
+The defaults describe a disease with $R_0 = 2.5$ in a population with lasting immunity. Lower contact (distancing) to flatten the curve: the peak falls and arrives later. Raise vaccination past $1 - 1/R_0 = 60\%$ and the outbreak never starts. Switch off immunity to see the book's version, in which the disease becomes endemic.
+
+```{ojs}
+//| echo: false
+import {iterate, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof pContact = Inputs.range([0, 1], {value: 0.5, step: 0.01, label: "Contact probability P_contact"})
+viewof pSpread = Inputs.range([0, 1], {value: 0.5, step: 0.01, label: "Spread probability P_spread"})
+viewof pRecover = Inputs.range([0.02, 0.5], {value: 0.1, step: 0.01, label: "Recovery probability P_recover"})
+viewof vacc = Inputs.range([0, 0.9], {value: 0, step: 0.05, label: "Vaccinated share V"})
+viewof immunity = Inputs.toggle({label: "Recovered are immune", value: true})
+```
+
+```{ojs}
+sir = {
+  const N = 1e6, R0 = pContact * pSpread / pRecover;
+  const start = {S: N * (1 - vacc) - 10, I: 10, R: N * vacc};
+  const path = iterate(({S, I, R}) => {
+    const infect = Math.min(S, pContact * pSpread * (I / N) * S), rec = pRecover * I;
+    return immunity ? {S: S - infect, I: I + infect - rec, R: R + rec} : {S: S - infect + rec, I: I + infect - rec, R};
+  }, start, 250).map((d, t) => ({t, S: d.S / N, I: d.I / N, R: d.R / N}));
+  const peak = path.reduce((b, d) => (d.I > b.I ? d : b));
+  return {path, R0, Reff: R0 * (1 - vacc), peak, end: path[path.length - 1], everInfected: immunity ? path[path.length - 1].R - vacc : NaN};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "SIR Model: susceptible, infected and recovered over time",
+  ariaDescription: "Horizontal axis: period. Vertical axis: share of the population. Lines for susceptible (teal), infected (orange) and recovered or vaccinated (purple). The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Period"},
+  y: {label: "Share of population", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Susceptible", "Infected", "Recovered (or vaccinated)"], range: [C.teal, C.orange, C.purple]},
+  marks: [
+    Plot.line(sir.path, {x: "t", y: "S", stroke: () => "Susceptible", strokeWidth: 2}),
+    Plot.line(sir.path, {x: "t", y: "I", stroke: () => "Infected", strokeWidth: 3}),
+    immunity ? Plot.line(sir.path, {x: "t", y: "R", stroke: () => "Recovered (or vaccinated)", strokeWidth: 2}) : null
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`R₀ = ${fmt(pContact, 2)} × ${fmt(pSpread, 2)} / ${fmt(pRecover, 2)} = **${fmt(sir.R0, 2)}**${vacc > 0 ? `; with ${pct(vacc)} vaccinated the effective reproduction number is **${fmt(sir.Reff, 2)}**` : ""}. ${sir.Reff <= 1 ? `Each case causes fewer than one new case, so **the outbreak dies out**${sir.R0 > 1 ? `: vaccinating more than ${pct(1 - 1 / sir.R0)} gives herd immunity` : ""}.` : immunity ? `The epidemic peaks in **period ${sir.peak.t}** with **${pct(sir.peak.I, 1)}** of the population infected at once, and ${pct(sir.everInfected)} are eventually infected.` : `Without immunity the disease becomes **endemic**: infections settle at ${pct(sir.end.I, 1)} of the population, matching I\* = 1 − V − 1/R₀ = ${pct(1 - vacc - 1 / sir.R0, 1)}.`}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (R with deSolve): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {iterate, C, fmt, pct} from "../js/models.js"
+
+viewof pContact = Inputs.range([0, 1], {value: 0.5, step: 0.01, label: "Contact probability P_contact"})
+viewof pSpread = Inputs.range([0, 1], {value: 0.5, step: 0.01, label: "Spread probability P_spread"})
+viewof pRecover = Inputs.range([0.02, 0.5], {value: 0.1, step: 0.01, label: "Recovery probability P_recover"})
+viewof vacc = Inputs.range([0, 0.9], {value: 0, step: 0.05, label: "Vaccinated share V"})
+viewof immunity = Inputs.toggle({label: "Recovered are immune", value: true})
+
+sir = {
+  const N = 1e6, R0 = pContact * pSpread / pRecover;
+  const start = {S: N * (1 - vacc) - 10, I: 10, R: N * vacc};
+  const path = iterate(({S, I, R}) => {
+    const infect = Math.min(S, pContact * pSpread * (I / N) * S), rec = pRecover * I;
+    return immunity ? {S: S - infect, I: I + infect - rec, R: R + rec} : {S: S - infect + rec, I: I + infect - rec, R};
+  }, start, 250).map((d, t) => ({t, S: d.S / N, I: d.I / N, R: d.R / N}));
+  const peak = path.reduce((b, d) => (d.I > b.I ? d : b));
+  return {path, R0, Reff: R0 * (1 - vacc), peak, end: path[path.length - 1], everInfected: immunity ? path[path.length - 1].R - vacc : NaN};
+}
+
+Plot.plot({
+  ariaLabel: "SIR Model: susceptible, infected and recovered over time",
+  ariaDescription: "Horizontal axis: period. Vertical axis: share of the population. Lines for susceptible (teal), infected (orange) and recovered or vaccinated (purple). The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Period"},
+  y: {label: "Share of population", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Susceptible", "Infected", "Recovered (or vaccinated)"], range: [C.teal, C.orange, C.purple]},
+  marks: [
+    Plot.line(sir.path, {x: "t", y: "S", stroke: () => "Susceptible", strokeWidth: 2}),
+    Plot.line(sir.path, {x: "t", y: "I", stroke: () => "Infected", strokeWidth: 3}),
+    immunity ? Plot.line(sir.path, {x: "t", y: "R", stroke: () => "Recovered (or vaccinated)", strokeWidth: 2}) : null
+  ]
+})
+
+html`<div class="sim-readout">${md`R₀ = ${fmt(pContact, 2)} × ${fmt(pSpread, 2)} / ${fmt(pRecover, 2)} = **${fmt(sir.R0, 2)}**${vacc > 0 ? `; with ${pct(vacc)} vaccinated the effective reproduction number is **${fmt(sir.Reff, 2)}**` : ""}. ${sir.Reff <= 1 ? `Each case causes fewer than one new case, so **the outbreak dies out**${sir.R0 > 1 ? `: vaccinating more than ${pct(1 - 1 / sir.R0)} gives herd immunity` : ""}.` : immunity ? `The epidemic peaks in **period ${sir.peak.t}** with **${pct(sir.peak.I, 1)}** of the population infected at once, and ${pct(sir.everInfected)} are eventually infected.` : `Without immunity the disease becomes **endemic**: infections settle at ${pct(sir.end.I, 1)} of the population, matching I\* = 1 − V − 1/R₀ = ${pct(1 - vacc - 1 / sir.R0, 1)}.`}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# SIR model: the book's discrete-time version, and the continuous-time
+# version solved with deSolve. Deterministic: no random numbers.
+suppressPackageStartupMessages(library(deSolve))
+p_contact <- 0.5
+p_spread <- 0.5
+p_recover <- 0.1
+vacc <- 0 # vaccinated share
+n_pop <- 1e6
+r0 <- p_contact * p_spread / p_recover
+cat(sprintf(
+  "R0 = %.2f; herd-immunity threshold 1 - 1/R0 = %.0f%%\n",
+  r0, 100 * (1 - 1 / r0)
+))
+
+# Discrete time, lasting immunity (as on the page).
+s <- n_pop * (1 - vacc) - 10
+i <- 10
+infected <- numeric(250)
+for (t in 1:250) {
+  new_cases <- min(s, p_contact * p_spread * i / n_pop * s)
+  recoveries <- p_recover * i
+  s <- s - new_cases
+  i <- i + new_cases - recoveries
+  infected[t] <- i / n_pop
+}
+cat(sprintf(
+  "Discrete: peak %.1f%% infected in period %d\n",
+  100 * max(infected), which.max(infected)
+))
+
+# Continuous time with deSolve: dS = -beta S I, dI = beta S I - gamma I.
+sir <- function(t, y, parms) {
+  with(as.list(c(y, parms)), {
+    infect <- beta * s * i
+    list(c(s = -infect, i = infect - gamma * i, r = gamma * i))
+  })
+}
+out <- ode(
+  y = c(s = 1 - vacc - 1e-5, i = 1e-5, r = vacc), times = 0:250,
+  func = sir, parms = c(beta = p_contact * p_spread, gamma = p_recover)
+)
+cat(sprintf(
+  "Continuous: peak %.1f%% at t = %d; %.0f%% ever infected\n",
+  100 * max(out[, "i"]), out[which.max(out[, "i"]), "time"],
+  100 * (out[251, "r"] - vacc)
+))
+
+matplot(out[, "time"], out[, c("s", "i", "r")],
+  type = "l", lty = 1, lwd = 2, col = c("#148a91", "#d95f02", "#7570b3"),
+  xlab = "Time", ylab = "Share of population"
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- A contagion spreads only if $R_0 = P_{\text{spread}} P_{\text{contact}} / P_{\text{recover}}$ exceeds 1: a tipping point.
+- Vaccinating more than $1 - 1/R_0$ of the population prevents outbreaks; distancing flattens and delays the peak.
+- On networks, the spread of contacts matters: superspreaders raise $R_0$ through $\mathbb E[k^2]/\mathbb E[k]$.
+:::
+
+## Uses
+
+::: uses
+- **Act.** Set vaccination targets and evaluate distancing, masking and testing by their effect on $R_0$.
+- **Predict.** Forecast the size and timing of epidemic peaks for hospital planning.
+- **Explain.** Fads and behaviours that people adopt and abandon, and Page's reading of when a new corporate strategy takes hold: when enthusiasm spreads faster than it fades.
+:::
+
+## Related models
+
+- [Diffusion Model](diffusion-model.qmd): the SIR model without recovery.
+- [Friendship Paradox](friendship-paradox.qmd): why high-degree people are both exposed early and key to spread.
+- [Network Robustness](network-robustness.qmd): vaccinating hubs is a targeted attack on the disease's network.
+- [Markov Models](markov-models.qmd): another way to model movement between states such as healthy, sick and recovered.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 11, "Broadcast, Diffusion, and Contagion," pp. 137–141.
+- William Ogilvy Kermack and A. G. McKendrick, "A Contribution to the Mathematical Theory of Epidemics," *Proceedings of the Royal Society of London, Series A* 115, no. 772 (1927): 700–721, [doi:10.1098/rspa.1927.0118](https://doi.org/10.1098/rspa.1927.0118).

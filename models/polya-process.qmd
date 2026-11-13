@@ -1,0 +1,258 @@
+---
+title: "Polya Process"
+date: 2026-11-13
+description: "An urn that adds a ball of whatever colour is drawn locks in early luck: the long-run share can end up anywhere, and every share is equally likely."
+order: 28
+chapter: 14
+chapter-title: "Path Dependence"
+pages: "163–166"
+family: "Processes and dynamics"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Explain, Reason, Act]
+categories: ["Processes and dynamics", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#28** · *The Model Thinker*, chapter 14, "Path Dependence", pp. 163–166.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+History matters when what happens now changes the odds of what happens next. Choose a QWERTY keyboard, a railway gauge or a video format, and every adopter makes the next adopter more likely to choose the same. The Polya process captures this with an urn: draw a ball, then return it together with another ball of the same colour. Each draw reinforces itself.
+
+The result is *path dependence*. Early draws, which are pure chance, shift the urn's composition, and later draws can only partly undo them. Run the process many times and the long-run share of white balls settles down in every run, but at a different value each time, and every value between 0 and 1 is equally likely. Page also notes a subtler property: the probability of any sequence depends only on how many of each colour it contains, not on their order. The outcome distribution is path dependent; the probability of reaching it is not.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** An urn starts with one white and one gray ball. Each period a ball is drawn at random, and it is returned along with one more ball of the same colour. The outcome is the colour drawn.
+
+**Equation.** After $t$ draws with $w_t$ white draws, the urn holds $t + 2$ balls, $w_t + 1$ of them white, so
+
+$$
+\Pr(\text{white at } t + 1) = \frac{w_t + 1}{t + 2} .
+$$
+
+**Results.**
+
+- The share of white balls converges in every run, but its limit is random and uniformly distributed on $[0, 1]$. (Starting from $a$ white and $b$ gray balls, the limit has a Beta$(a, b)$ distribution.)
+- Any sequence with $w$ white draws out of $t$ has probability $\dfrac{w!\,(t - w)!}{(t+1)!}$, whatever the order.
+:::
+
+## Interactive model
+
+Each line is one urn followed for the chosen number of draws. The lines start out jagged, then flatten at a value fixed mostly by the first few draws. The histogram shows the final white share of 3,000 urns: with one ball of each colour to start, it is flat. Change the starting balls to see the limit concentrate.
+
+```{ojs}
+//| echo: false
+import {rng, range, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof white0 = Inputs.range([1, 20], {value: 1, step: 1, label: "Starting white balls"})
+viewof gray0 = Inputs.range([1, 20], {value: 1, step: 1, label: "Starting gray balls"})
+viewof draws = Inputs.range([50, 2000], {value: 500, step: 50, label: "Draws"})
+viewof seed = Inputs.range([1, 500], {value: 28, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+polya = {
+  const r = rng(seed);
+  const run = (record) => {
+    let w = white0, g = gray0;
+    const path = record ? [{t: 0, share: w / (w + g)}] : null;
+    for (let t = 1; t <= draws; t++) {
+      if (r() < w / (w + g)) w++; else g++;
+      if (record && (t % 5 === 0 || t < 50)) path.push({t, share: w / (w + g)});
+    }
+    return record ? path : w / (w + g);
+  };
+  const paths = range(12).flatMap(k => run(true).map(d => ({...d, k})));
+  const finals = range(3000).map(() => run(false));
+  const after20 = range(400).map(() => { let w = white0, g = gray0; for (let t = 0; t < 20; t++) { if (r() < w / (w + g)) w++; else g++; } const s20 = w / (w + g); for (let t = 20; t < draws; t++) { if (r() < w / (w + g)) w++; else g++; } return {s20, sEnd: w / (w + g)}; });
+  const corr = d3.mean(after20, d => d.s20 * d.sEnd) - d3.mean(after20, d => d.s20) * d3.mean(after20, d => d.sEnd);
+  const r20 = corr / (d3.deviation(after20, d => d.s20) * d3.deviation(after20, d => d.sEnd));
+  return {paths, finals, r20};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Polya Process: share of white balls in twelve urns",
+  ariaDescription: "Horizontal axis: number of draws. Vertical axis: share of white balls in the urn. Each line is one urn; lines settle at different values. The summary below the charts states the result in words.",
+  height: 240,
+  x: {label: "Draws"},
+  y: {label: "Share white", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [Plot.line(polya.paths, {x: "t", y: "share", z: "k", stroke: "k", strokeWidth: 1.5})],
+  color: {scheme: "tableau10"}
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Polya Process: distribution of final shares",
+  ariaDescription: "Horizontal axis: final share of white balls. Vertical axis: number of urns, out of 3,000. With one ball of each colour to start, the histogram is flat. The summary below the charts states the result in words.",
+  height: 200,
+  x: {label: "Final share white", domain: [0, 1], tickFormat: "%"},
+  y: {label: "Urns", grid: true},
+  marks: [
+    Plot.rectY(polya.finals, Plot.binX({y: "count"}, {x: d => d, thresholds: 20, domain: [0, 1], fill: C.teal, fillOpacity: 0.8})),
+    Plot.ruleY([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const q = p => d3.quantile(polya.finals, p);
+  return html`<div class="sim-readout">${md`Across 3,000 urns, the final white share ranges from ${pct(d3.min(polya.finals))} to ${pct(d3.max(polya.finals))}; the middle half lies between ${pct(q(0.25))} and ${pct(q(0.75))}. ${white0 === 1 && gray0 === 1 ? "The histogram is flat: **every long-run share is equally likely**." : `Starting with ${white0} white and ${gray0} gray balls, the limit centres on ${pct(white0 / (white0 + gray0))}, with less spread the more balls the urn starts with.`} The share after just 20 draws correlates **${fmt(polya.r20, 2)}** with the final share: early luck decides the outcome.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, C, fmt, pct} from "../js/models.js"
+
+viewof white0 = Inputs.range([1, 20], {value: 1, step: 1, label: "Starting white balls"})
+viewof gray0 = Inputs.range([1, 20], {value: 1, step: 1, label: "Starting gray balls"})
+viewof draws = Inputs.range([50, 2000], {value: 500, step: 50, label: "Draws"})
+viewof seed = Inputs.range([1, 500], {value: 28, step: 1, label: "Random seed"})
+
+polya = {
+  const r = rng(seed);
+  const run = (record) => {
+    let w = white0, g = gray0;
+    const path = record ? [{t: 0, share: w / (w + g)}] : null;
+    for (let t = 1; t <= draws; t++) {
+      if (r() < w / (w + g)) w++; else g++;
+      if (record && (t % 5 === 0 || t < 50)) path.push({t, share: w / (w + g)});
+    }
+    return record ? path : w / (w + g);
+  };
+  const paths = range(12).flatMap(k => run(true).map(d => ({...d, k})));
+  const finals = range(3000).map(() => run(false));
+  const after20 = range(400).map(() => { let w = white0, g = gray0; for (let t = 0; t < 20; t++) { if (r() < w / (w + g)) w++; else g++; } const s20 = w / (w + g); for (let t = 20; t < draws; t++) { if (r() < w / (w + g)) w++; else g++; } return {s20, sEnd: w / (w + g)}; });
+  const corr = d3.mean(after20, d => d.s20 * d.sEnd) - d3.mean(after20, d => d.s20) * d3.mean(after20, d => d.sEnd);
+  const r20 = corr / (d3.deviation(after20, d => d.s20) * d3.deviation(after20, d => d.sEnd));
+  return {paths, finals, r20};
+}
+
+Plot.plot({
+  ariaLabel: "Polya Process: share of white balls in twelve urns",
+  ariaDescription: "Horizontal axis: number of draws. Vertical axis: share of white balls in the urn. Each line is one urn; lines settle at different values. The summary below the charts states the result in words.",
+  height: 240,
+  x: {label: "Draws"},
+  y: {label: "Share white", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [Plot.line(polya.paths, {x: "t", y: "share", z: "k", stroke: "k", strokeWidth: 1.5})],
+  color: {scheme: "tableau10"}
+})
+
+Plot.plot({
+  ariaLabel: "Polya Process: distribution of final shares",
+  ariaDescription: "Horizontal axis: final share of white balls. Vertical axis: number of urns, out of 3,000. With one ball of each colour to start, the histogram is flat. The summary below the charts states the result in words.",
+  height: 200,
+  x: {label: "Final share white", domain: [0, 1], tickFormat: "%"},
+  y: {label: "Urns", grid: true},
+  marks: [
+    Plot.rectY(polya.finals, Plot.binX({y: "count"}, {x: d => d, thresholds: 20, domain: [0, 1], fill: C.teal, fillOpacity: 0.8})),
+    Plot.ruleY([0])
+  ]
+})
+
+{
+  const q = p => d3.quantile(polya.finals, p);
+  return html`<div class="sim-readout">${md`Across 3,000 urns, the final white share ranges from ${pct(d3.min(polya.finals))} to ${pct(d3.max(polya.finals))}; the middle half lies between ${pct(q(0.25))} and ${pct(q(0.75))}. ${white0 === 1 && gray0 === 1 ? "The histogram is flat: **every long-run share is equally likely**." : `Starting with ${white0} white and ${gray0} gray balls, the limit centres on ${pct(white0 / (white0 + gray0))}, with less spread the more balls the urn starts with.`} The share after just 20 draws correlates **${fmt(polya.r20, 2)}** with the final share: early luck decides the outcome.`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Polya process: self-reinforcing urns settle at random limits.
+white0 <- 1
+gray0 <- 1
+draws <- 500
+set.seed(28)
+
+polya <- function() {
+  w <- white0
+  g <- gray0
+  share <- numeric(draws)
+  for (t in 1:draws) {
+    if (runif(1) < w / (w + g)) w <- w + 1 else g <- g + 1
+    share[t] <- w / (w + g)
+  }
+  share
+}
+paths <- replicate(12, polya())
+finals <- replicate(3000, tail(polya(), 1))
+cat("Final shares of 3000 urns by decile (uniform if flat):\n")
+print(round(quantile(finals, seq(0, 1, 0.1)), 2))
+cat(sprintf(
+  "Correlation of share after 20 draws with final share: %.2f\n",
+  cor(paths[20, ], paths[draws, ])
+))
+
+par(mfrow = c(1, 2))
+matplot(paths,
+  type = "l", lty = 1, ylim = c(0, 1), xlab = "Draws",
+  ylab = "Share white", col = hcl.colors(12)
+)
+hist(finals,
+  breaks = 20, col = "#148a91", border = "white", main = "",
+  xlab = "Final share white"
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Self-reinforcing choices make outcomes path dependent: early random events determine where the process settles.
+- In the classic urn, every long-run share is equally likely, so the eventual outcome is unpredictable in advance.
+- The probability of a final composition does not depend on the order of the draws that produced it.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Technology lock-in (QWERTY, VHS, railway gauges), the persistence of early market leaders, and why history matters for which cities grow.
+- **Reason.** Distinguish path dependence from tipping points: here every step matters a little, rather than one moment mattering a lot.
+- **Act.** Early interventions, when the urn holds few balls, have far more leverage than late ones.
+:::
+
+## Related models
+
+- [Balancing Process](balancing-process.qmd): the opposite rule, which pulls every urn back to 50–50.
+- [Bernoulli Urn Model](bernoulli-urn.qmd): the urn without feedback.
+- [Power Laws and Preferential Attachment](power-laws.qmd): the same rich-get-richer feedback across many entities.
+- [The Bass Model](bass-model.qmd): adoption that makes further adoption more likely.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 14, "Path Dependence," pp. 163–166.
+- F. Eggenberger and G. Pólya, "Über die Statistik verketteter Vorgänge," *Zeitschrift für Angewandte Mathematik und Mechanik* 3, no. 4 (1923): 279–289, [doi:10.1002/zamm.19230030407](https://doi.org/10.1002/zamm.19230030407).
+- Scott E. Page, "Essay: Path Dependence," *Quarterly Journal of Political Science* 1 (2006): 87–115.

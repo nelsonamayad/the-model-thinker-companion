@@ -1,0 +1,197 @@
+---
+title: "Renewable Resource Extraction"
+date: 2026-11-13
+description: "A resource that regrows can be harvested forever at a rate equal to its growth, but harvesting more than that, even slightly, drives it to collapse."
+order: 47
+chapter: 23
+chapter-title: "Collective Action Problems"
+pages: "277–281"
+family: "Games and cooperation"
+engine: "Equation-based"
+tool: "Observable JS (difference equation)"
+reference: "base R"
+uses: [Act, Predict, Design]
+categories: ["Games and cooperation", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#47** · *The Model Thinker*, chapter 23, "Collective Action Problems", pp. 277–281.
+
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (difference equation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Fish, forests, groundwater and pasture regrow. Harvest no more than the regrowth and the stock stays the same forever; harvest more and the stock shrinks, which reduces next year's regrowth, which makes the same harvest an even larger share of what is left. The decline accelerates and the resource collapses, sometimes suddenly after a long period of slow erosion. When many users share the resource, each one's extra catch costs the others, and the *tragedy of the commons* follows.
+
+Page's model shows how fragile sustainability is. The sustainable harvest is a fixed fraction of the stock, $g/(1+g)$, and taking even slightly more leads to collapse in finite time, often after a long stretch in which the decline looks gentle. That is why measurement error, delays and uncertainty about growth rates are so dangerous, and why Elinor Ostrom's work on community governance of commons (monitoring, graduated sanctions, rules made by users) matters.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** $R(t)$ is the amount of a renewable resource at the start of period $t$; $C(t)$ is the amount consumed in period $t$; the remainder grows at rate $g$.
+
+**Equation.**
+
+$$
+R(t + 1) = (1 + g)\,\big[R(t) - C(t)\big] .
+$$
+
+**Equilibrium.** The stock stays constant when
+
+$$
+C^* = \frac{g}{1 + g}\, R .
+$$
+
+**Result.** Consuming exactly $C^*$ each period sustains the resource forever. Consuming a constant amount above $C^*$ makes the stock fall faster and faster until it is exhausted; consuming less lets it grow.
+:::
+
+The collapse time follows from the equation: with constant consumption $C$, the gap between the stock and the sustainable stock $C(1+g)/g$ grows by a factor $1 + g$ every period, so overshooting by a little buys time but not safety.
+
+## Interactive model
+
+A resource of 1,000 units grows 5% a year. At the default harvest of 50 units a year, a little above the sustainable 47.6, the stock declines slowly for decades and then collapses. Set the harvest to the sustainable level, or below it, to compare.
+
+```{ojs}
+//| echo: false
+import {iterate, C, fmt, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof g = Inputs.range([0.01, 0.2], {value: 0.05, step: 0.005, label: "Growth rate g"})
+viewof harvest = Inputs.range([0, 150], {value: 50, step: 0.5, label: "Harvest per year C"})
+viewof years = Inputs.range([20, 200], {value: 100, step: 5, label: "Years"})
+```
+
+```{ojs}
+resource = {
+  const R0 = 1000, sustainable = g / (1 + g) * R0;
+  const path = iterate(R => Math.max(0, (1 + g) * (R - Math.min(R, harvest))), R0, years).map((R, t) => ({t, R}));
+  const collapse = path.find(d => d.R === 0);
+  return {path, sustainable, collapse, R0};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Renewable Resource Extraction: stock over time",
+  ariaDescription: "Horizontal axis: year. Vertical axis: stock of the resource, starting at 1,000. The teal line is the stock under the chosen harvest; the dashed line is the starting stock, which a sustainable harvest maintains. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Year"},
+  y: {label: "Stock R(t)", grid: true},
+  marks: [
+    Plot.ruleY([resource.R0], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(resource.path, {x: "t", y: "R", stroke: C.teal, strokeWidth: 2.5}),
+    Plot.ruleY([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`With a growth rate of ${fmt(100 * g, 1)}%, the sustainable harvest from a stock of 1,000 is g/(1 + g) × 1,000 = **${fmt(resource.sustainable, 1)}** a year. ${resource.collapse ? `Harvesting ${harvest} a year (${fmt(100 * (harvest / resource.sustainable - 1), 0)}% more) **exhausts the resource in year ${resource.collapse.t}**; after 20 years the stock is still ${num(resource.path[Math.min(20, years)].R)}, so the early decline is easy to overlook.` : harvest > resource.sustainable + 1e-9 ? `Harvesting ${harvest} a year depletes the stock to ${num(resource.path[years].R)} by year ${years}; it will collapse later.` : `Harvesting ${harvest} a year is sustainable: the stock ${harvest < resource.sustainable - 1e-9 ? `grows to ${num(resource.path[years].R)}` : "stays at 1,000"} by year ${years}.`}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {iterate, C, fmt, num} from "../js/models.js"
+
+viewof g = Inputs.range([0.01, 0.2], {value: 0.05, step: 0.005, label: "Growth rate g"})
+viewof harvest = Inputs.range([0, 150], {value: 50, step: 0.5, label: "Harvest per year C"})
+viewof years = Inputs.range([20, 200], {value: 100, step: 5, label: "Years"})
+
+resource = {
+  const R0 = 1000, sustainable = g / (1 + g) * R0;
+  const path = iterate(R => Math.max(0, (1 + g) * (R - Math.min(R, harvest))), R0, years).map((R, t) => ({t, R}));
+  const collapse = path.find(d => d.R === 0);
+  return {path, sustainable, collapse, R0};
+}
+
+Plot.plot({
+  ariaLabel: "Renewable Resource Extraction: stock over time",
+  ariaDescription: "Horizontal axis: year. Vertical axis: stock of the resource, starting at 1,000. The teal line is the stock under the chosen harvest; the dashed line is the starting stock, which a sustainable harvest maintains. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Year"},
+  y: {label: "Stock R(t)", grid: true},
+  marks: [
+    Plot.ruleY([resource.R0], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(resource.path, {x: "t", y: "R", stroke: C.teal, strokeWidth: 2.5}),
+    Plot.ruleY([0])
+  ]
+})
+
+html`<div class="sim-readout">${md`With a growth rate of ${fmt(100 * g, 1)}%, the sustainable harvest from a stock of 1,000 is g/(1 + g) × 1,000 = **${fmt(resource.sustainable, 1)}** a year. ${resource.collapse ? `Harvesting ${harvest} a year (${fmt(100 * (harvest / resource.sustainable - 1), 0)}% more) **exhausts the resource in year ${resource.collapse.t}**; after 20 years the stock is still ${num(resource.path[Math.min(20, years)].R)}, so the early decline is easy to overlook.` : harvest > resource.sustainable + 1e-9 ? `Harvesting ${harvest} a year depletes the stock to ${num(resource.path[years].R)} by year ${years}; it will collapse later.` : `Harvesting ${harvest} a year is sustainable: the stock ${harvest < resource.sustainable - 1e-9 ? `grows to ${num(resource.path[years].R)}` : "stays at 1,000"} by year ${years}.`}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Renewable resource extraction: sustainable harvest and collapse.
+# Deterministic: no random numbers.
+g <- 0.05 # growth rate
+harvest <- 50 # harvest per year
+years <- 100
+r0 <- 1000
+
+stock <- numeric(years + 1)
+stock[1] <- r0
+for (t in 1:years) {
+  stock[t + 1] <- max(0, (1 + g) * (stock[t] - min(stock[t], harvest)))
+}
+cat(sprintf("Sustainable harvest g/(1+g) R = %.1f\n", g / (1 + g) * r0))
+cat("Year of collapse:", which(stock == 0)[1] - 1, "\n")
+
+plot(0:years, stock,
+  type = "l", lwd = 2, col = "#148a91", xlab = "Year",
+  ylab = "Stock"
+)
+abline(h = r0, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- A renewable resource sustains a harvest equal to its regrowth, $g/(1+g)$ of the stock.
+- Harvesting slightly more leads to accelerating decline and collapse, often after a long, gentle-looking decline.
+- Shared resources are prone to over-harvesting, so they need rules, monitoring and enforcement.
+:::
+
+## Uses
+
+::: uses
+- **Act.** Set catch limits for fisheries, cutting quotas for forests and pumping limits for aquifers.
+- **Predict.** Anticipate collapse from small, persistent over-harvesting, before the stock visibly crashes.
+- **Design.** Community institutions for commons: clear boundaries, user-made rules, monitoring and graduated sanctions.
+:::
+
+## Related models
+
+- [Congestion Model](congestion-model.qmd): over-use of a resource that does not regrow.
+- [Collective Action and Public Goods](public-goods.qmd): the incentive problem behind the tragedy of the commons.
+- [Exponential Growth](exponential-growth.qmd): the compounding that drives both regrowth and collapse.
+- [Lotka–Volterra Model](lotka-volterra.qmd): harvesters and resource as predator and prey.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 23, "Collective Action Problems," pp. 277–281.
+- Garrett Hardin, "The Tragedy of the Commons," *Science* 162, no. 3859 (1968): 1243–1248.
+- Elinor Ostrom, Marco A. Janssen and John M. Anderies, "Going Beyond Panaceas," *Proceedings of the National Academy of Sciences* 104 (2007): 15176–15178.

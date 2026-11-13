@@ -1,0 +1,371 @@
+---
+title: "Granovetter's Riot Model"
+date: 2026-11-13
+description: "People join a riot once enough others have, so the whole distribution of thresholds, not its average, decides whether a protest fizzles or engulfs everyone."
+order: 35
+chapter: 19
+chapter-title: "Threshold Models with Feedbacks"
+pages: "213–216"
+family: "Processes and dynamics"
+engine: "Agent-based"
+tool: "NetLogo 6.4 + nlrx; JavaScript replay"
+reference: "NetLogo 6.4 model, nlrx experiment"
+uses: [Explain, Predict, Act]
+categories: ["Processes and dynamics", "Agent-based"]
+verified: true
+source-note: "The box states the joining rule with a strict inequality; the book's worked examples use 'at most', which we follow."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#35** · *The Model Thinker*, chapter 19, "Threshold Models with Feedbacks", pp. 213–216.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment.
+
+Source check: ✓ The formulation was checked against the book. The box states the joining rule with a strict inequality; the book's worked examples use 'at most', which we follow.
+:::
+
+## The idea
+
+Why do some protests grow into movements while others, with similar grievances, fizzle? Mark Granovetter's answer is that each person has a threshold: the number of others who must already be in the street before they will join. A few people join with no encouragement at all. Each new participant may push someone else past their threshold, and so on, a cascade of positive feedback.
+
+The model's lesson is that the *distribution* of thresholds matters at least as much as its average. In Granovetter's famous example, a hundred people have thresholds 0, 1, 2, …, 99: the first person's action brings in the second, who brings in the third, and everyone riots. Change one person, the one with threshold 1, to threshold 2, and the riot stops at a single participant. Two crowds that differ in one person's disposition produce completely different events. That makes collective action hard to predict, and it tells organizers that a committed core is not enough: they also need people ready to follow.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** $N$ individuals, each with a riot threshold $T(i) \in \{0, 1, \dots, N\}$. Let $R(t)$ be the number rioting at time $t$.
+
+**Rule.** Initially, those with $T(i) = 0$ riot. Individual $i$ participates at time $t$ if
+
+$$
+T(i) \le R(t-1),
+$$
+
+and keeps participating once they have joined.
+
+**Result.** Writing $F(r)$ for the number of people with threshold at most $r$, the riot grows as $R(t) = F(R(t-1))$ and stops at the first $r$ where $F(r) = r$. Small changes in the distribution of thresholds, holding its mean fixed, can switch the outcome from almost nobody to almost everybody.
+:::
+
+## Interactive model
+
+One crowd of 100, replayed in your browser: red people are rioting on the day shown, which starts midway through the cascade; press **Play** to watch it from the first day. With normally distributed thresholds averaging 25, a spread of 10 produces almost no riot, while a spread of 15 brings in nearly everyone. The second chart shows why: the riot climbs the staircase between the threshold distribution and the diagonal, and stops where they first meet.
+
+```{ojs}
+//| echo: false
+import {rng, range, drawGrid, player, C, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof mode = Inputs.radio(["Normal thresholds", "Granovetter's example: 0, 1, 2, …, 99"], {value: "Normal thresholds", label: "Thresholds"})
+viewof meanT = Inputs.range([0, 60], {value: 25, step: 1, label: "Mean threshold (normal)"})
+viewof sdT = Inputs.range([0, 30], {value: 15, step: 0.5, label: "Spread of thresholds (sd)"})
+viewof tweak = Inputs.toggle({label: "Example: raise the threshold-1 person to 2", value: false})
+viewof seed = Inputs.range([1, 500], {value: 35, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+riot = {
+  const r = rng(seed), N = 100;
+  let thr = mode === "Normal thresholds" ? range(N).map(() => Math.max(0, Math.round(r.normal(meanT, sdT)))) : range(N);
+  if (mode !== "Normal thresholds" && tweak) thr = thr.map(t => (t === 1 ? 2 : t));
+  const order = r.shuffle(range(N));          // where each person stands in the grid
+  const rioting = thr.map(t => t === 0);
+  const frames = [order.map(i => (rioting[i] ? 1 : 0))], R = [rioting.filter(Boolean).length];
+  for (let t = 1; t <= 120; t++) {
+    const prev = R[t - 1];
+    thr.forEach((T, i) => { if (!rioting[i] && T <= prev) rioting[i] = true; });
+    const now = rioting.filter(Boolean).length;
+    if (now === prev) break;
+    R.push(now);
+    frames.push(order.map(i => (rioting[i] ? 1 : 0)));
+  }
+  const F = range(N + 1).map(x => ({x, F: thr.filter(T => T <= x).length}));
+  const stairs = R.flatMap((v, t) => (t ? [{x: R[t - 1], y: R[t - 1]}, {x: R[t - 1], y: v}] : [{x: 0, y: 0}, {x: 0, y: v}]));
+  return {thr, frames, R, F, stairs, final: R[R.length - 1]};
+}
+```
+
+```{ojs}
+viewof day = player(riot.frames.length - 1, {value: Math.floor((riot.frames.length - 1) / 2), label: "Day", delay: 250})
+```
+
+```{ojs}
+drawGrid(riot.frames[day], 10, [C.gray, C.red], {
+  size: 200,
+  ariaLabel: "Granovetter's Riot Model: the crowd",
+  ariaDescription: "A 10 by 10 grid of the 100 people; red squares are rioting on the day shown, gray squares are not. The summary below the charts states the result in words."
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Granovetter's Riot Model: threshold distribution and the riot's path",
+  ariaDescription: "Horizontal axis: number of people rioting. Vertical axis: number of people whose threshold is at most that number (teal steps). The dashed diagonal marks equality; the orange staircase is the riot's growth day by day, which stops where the teal steps first meet the diagonal. The summary below the charts states the result in words.",
+  height: 300,
+  width: 360,
+  x: {label: "Rioting yesterday R(t−1)", domain: [0, 100]},
+  y: {label: "Rioting today R(t)", domain: [0, 100], grid: true},
+  marks: [
+    Plot.line([[0, 0], [100, 100]], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6}),
+    Plot.line(riot.F, {x: "x", y: "F", stroke: C.teal, strokeWidth: 2, curve: "step-after"}),
+    Plot.line(riot.stairs, {x: "x", y: "y", stroke: C.orange, strokeWidth: 1.8}),
+    Plot.dot([{x: riot.final, y: riot.final}], {x: "x", y: "y", fill: C.orange, r: 5})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const zero = riot.thr.filter(t => t === 0).length;
+  const avg = riot.thr.reduce((s, t) => s + t, 0) / riot.thr.length;
+  return html`<div class="sim-readout">${md`On day ${day}, **${riot.R[day]}** people are rioting. ${zero} ${zero === 1 ? "person has" : "people have"} a threshold of zero, the average threshold is ${avg.toFixed(1)}, and the riot ${riot.final === 100 ? `**draws in everyone** within ${riot.R.length - 1} days` : `**stops at ${riot.final} people** after ${riot.R.length - 1} day${riot.R.length === 2 ? "" : "s"}`}. ${mode !== "Normal thresholds" ? (tweak ? "Raising one person's threshold from 1 to 2 leaves the first rioter alone: nobody has a threshold of 1." : "Each rioter brings in the next: person k joins once k people riot.") : riot.final < 20 ? "Too few people have low thresholds for the cascade to take off; widen the spread." : ""}`}</div>`;
+}
+```
+
+### NetLogo experiment
+
+The same model in NetLogo, run by nlrx with 100 people whose thresholds are normal with mean 25, at thirteen spreads and twelve seeds each. Each dot is a run's final share rioting; the line is the average.
+
+```{ojs}
+//| echo: false
+nlRuns = FileAttachment("../data/riot-model.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => ({share: d3.mean(v, d => d.riot_share), full: v.filter(d => d.riot_share > 0.9).length / v.length}), d => d.sd_threshold).map(([sd, s]) => ({sd, ...s})).sort((a, b) => a.sd - b.sd)
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Granovetter's Riot Model: NetLogo experiment",
+  ariaDescription: "Horizontal axis: standard deviation of thresholds, with the mean fixed at 25. Vertical axis: final share of the crowd rioting. Gray dots are individual NetLogo runs and the teal line is their average; the outcome jumps from almost nobody to almost everybody between spreads of 10 and 16. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Spread of thresholds (sd), mean 25"},
+  y: {label: "Final share rioting", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [
+    Plot.dot(nlRuns, {x: "sd_threshold", y: "riot_share", fill: C.gray, r: 3.5, fillOpacity: 0.6}),
+    Plot.line(nlMeans, {x: "sd", y: "share", stroke: C.teal, strokeWidth: 2.5}),
+    Plot.ruleX([sdT], {stroke: C.orange})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const small = nlMeans.filter(d => d.share < 0.05).map(d => d.sd), big = nlMeans.filter(d => d.full === 1).map(d => d.sd);
+  const mixed = nlMeans.filter(d => d.full > 0 && d.full < 1);
+  return html`<div class="sim-readout">${md`In NetLogo, with the average threshold fixed at 25, crowds whose thresholds have a spread of **${d3.max(small)} or less** produce almost no riot (under 5% join), while a spread of **${d3.min(big)} or more** brings in everyone in every run. ${mixed.length ? `In between, at ${mixed.length > 1 ? "spreads" : "a spread"} of ${mixed.map(d => d.sd).join(" and ")}, the same distribution sometimes fizzles and sometimes explodes (${mixed.map(d => pct(d.full)).join(", ")} of runs engulf the crowd).` : ""} The mean is the same throughout: only the spread changed.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **NetLogo** model is the reference implementation, and the **nlrx** script runs the experiment whose results are charted above (NetLogo 6.4, nlrx 0.4). The **Observable JS** replays the same rules in your browser, with its own random numbers.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, drawGrid, player, C, pct} from "../js/models.js"
+
+viewof mode = Inputs.radio(["Normal thresholds", "Granovetter's example: 0, 1, 2, …, 99"], {value: "Normal thresholds", label: "Thresholds"})
+viewof meanT = Inputs.range([0, 60], {value: 25, step: 1, label: "Mean threshold (normal)"})
+viewof sdT = Inputs.range([0, 30], {value: 15, step: 0.5, label: "Spread of thresholds (sd)"})
+viewof tweak = Inputs.toggle({label: "Example: raise the threshold-1 person to 2", value: false})
+viewof seed = Inputs.range([1, 500], {value: 35, step: 1, label: "Random seed"})
+
+riot = {
+  const r = rng(seed), N = 100;
+  let thr = mode === "Normal thresholds" ? range(N).map(() => Math.max(0, Math.round(r.normal(meanT, sdT)))) : range(N);
+  if (mode !== "Normal thresholds" && tweak) thr = thr.map(t => (t === 1 ? 2 : t));
+  const order = r.shuffle(range(N));          // where each person stands in the grid
+  const rioting = thr.map(t => t === 0);
+  const frames = [order.map(i => (rioting[i] ? 1 : 0))], R = [rioting.filter(Boolean).length];
+  for (let t = 1; t <= 120; t++) {
+    const prev = R[t - 1];
+    thr.forEach((T, i) => { if (!rioting[i] && T <= prev) rioting[i] = true; });
+    const now = rioting.filter(Boolean).length;
+    if (now === prev) break;
+    R.push(now);
+    frames.push(order.map(i => (rioting[i] ? 1 : 0)));
+  }
+  const F = range(N + 1).map(x => ({x, F: thr.filter(T => T <= x).length}));
+  const stairs = R.flatMap((v, t) => (t ? [{x: R[t - 1], y: R[t - 1]}, {x: R[t - 1], y: v}] : [{x: 0, y: 0}, {x: 0, y: v}]));
+  return {thr, frames, R, F, stairs, final: R[R.length - 1]};
+}
+
+viewof day = player(riot.frames.length - 1, {value: Math.floor((riot.frames.length - 1) / 2), label: "Day", delay: 250})
+
+drawGrid(riot.frames[day], 10, [C.gray, C.red], {
+  size: 200,
+  ariaLabel: "Granovetter's Riot Model: the crowd",
+  ariaDescription: "A 10 by 10 grid of the 100 people; red squares are rioting on the day shown, gray squares are not. The summary below the charts states the result in words."
+})
+
+Plot.plot({
+  ariaLabel: "Granovetter's Riot Model: threshold distribution and the riot's path",
+  ariaDescription: "Horizontal axis: number of people rioting. Vertical axis: number of people whose threshold is at most that number (teal steps). The dashed diagonal marks equality; the orange staircase is the riot's growth day by day, which stops where the teal steps first meet the diagonal. The summary below the charts states the result in words.",
+  height: 300,
+  width: 360,
+  x: {label: "Rioting yesterday R(t−1)", domain: [0, 100]},
+  y: {label: "Rioting today R(t)", domain: [0, 100], grid: true},
+  marks: [
+    Plot.line([[0, 0], [100, 100]], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6}),
+    Plot.line(riot.F, {x: "x", y: "F", stroke: C.teal, strokeWidth: 2, curve: "step-after"}),
+    Plot.line(riot.stairs, {x: "x", y: "y", stroke: C.orange, strokeWidth: 1.8}),
+    Plot.dot([{x: riot.final, y: riot.final}], {x: "x", y: "y", fill: C.orange, r: 5})
+  ]
+})
+
+{
+  const zero = riot.thr.filter(t => t === 0).length;
+  const avg = riot.thr.reduce((s, t) => s + t, 0) / riot.thr.length;
+  return html`<div class="sim-readout">${md`On day ${day}, **${riot.R[day]}** people are rioting. ${zero} ${zero === 1 ? "person has" : "people have"} a threshold of zero, the average threshold is ${avg.toFixed(1)}, and the riot ${riot.final === 100 ? `**draws in everyone** within ${riot.R.length - 1} days` : `**stops at ${riot.final} people** after ${riot.R.length - 1} day${riot.R.length === 2 ? "" : "s"}`}. ${mode !== "Normal thresholds" ? (tweak ? "Raising one person's threshold from 1 to 2 leaves the first rioter alone: nobody has a threshold of 1." : "Each rioter brings in the next: person k joins once k people riot.") : riot.final < 20 ? "Too few people have low thresholds for the cascade to take off; widen the spread." : ""}`}</div>`;
+}
+
+nlRuns = FileAttachment("../data/riot-model.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => ({share: d3.mean(v, d => d.riot_share), full: v.filter(d => d.riot_share > 0.9).length / v.length}), d => d.sd_threshold).map(([sd, s]) => ({sd, ...s})).sort((a, b) => a.sd - b.sd)
+
+Plot.plot({
+  ariaLabel: "Granovetter's Riot Model: NetLogo experiment",
+  ariaDescription: "Horizontal axis: standard deviation of thresholds, with the mean fixed at 25. Vertical axis: final share of the crowd rioting. Gray dots are individual NetLogo runs and the teal line is their average; the outcome jumps from almost nobody to almost everybody between spreads of 10 and 16. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Spread of thresholds (sd), mean 25"},
+  y: {label: "Final share rioting", domain: [0, 1], tickFormat: "%", grid: true},
+  marks: [
+    Plot.dot(nlRuns, {x: "sd_threshold", y: "riot_share", fill: C.gray, r: 3.5, fillOpacity: 0.6}),
+    Plot.line(nlMeans, {x: "sd", y: "share", stroke: C.teal, strokeWidth: 2.5}),
+    Plot.ruleX([sdT], {stroke: C.orange})
+  ]
+})
+
+{
+  const small = nlMeans.filter(d => d.share < 0.05).map(d => d.sd), big = nlMeans.filter(d => d.full === 1).map(d => d.sd);
+  const mixed = nlMeans.filter(d => d.full > 0 && d.full < 1);
+  return html`<div class="sim-readout">${md`In NetLogo, with the average threshold fixed at 25, crowds whose thresholds have a spread of **${d3.max(small)} or less** produce almost no riot (under 5% join), while a spread of **${d3.min(big)} or more** brings in everyone in every run. ${mixed.length ? `In between, at ${mixed.length > 1 ? "spreads" : "a spread"} of ${mixed.map(d => d.sd).join(" and ")}, the same distribution sometimes fizzles and sometimes explodes (${mixed.map(d => pct(d.full)).join(", ")} of runs engulf the crowd).` : ""} The mean is the same throughout: only the spread changed.`}</div>`;
+}
+```
+
+## NetLogo {.unlisted}
+
+```{.netlogo}
+; Granovetter's riot model (The Model Thinker, chapter 19).
+; The Model Thinker Companion: reference implementation, run with nlrx by
+; abm/riot-model.R. The page replays the same rules in JavaScript.
+;
+; Each of `population` people has a riot threshold: the number of people
+; already rioting that it takes for them to join. Thresholds are drawn from a
+; normal distribution with mean `mean-threshold` and standard deviation
+; `sd-threshold`, rounded to whole numbers and kept at zero or above.
+; People with a threshold of zero riot from the start. Each tick, everyone
+; whose threshold is at most yesterday's number of rioters joins (and stays).
+; The run stops when nobody new joins.
+
+globals [
+  rioters          ; number rioting now
+]
+
+turtles-own [ threshold rioting? ]
+
+to setup
+  clear-all
+  create-turtles population [
+    set threshold max list 0 round random-normal mean-threshold sd-threshold
+    set rioting? threshold = 0
+    set shape "circle"
+    setxy random-xcor random-ycor
+    recolor
+  ]
+  set rioters count turtles with [ rioting? ]
+  reset-ticks
+end
+
+to go
+  let previous rioters
+  ask turtles with [ not rioting? and threshold <= previous ] [
+    set rioting? true
+    recolor
+  ]
+  set rioters count turtles with [ rioting? ]
+  tick
+  if rioters = previous [ stop ]
+end
+
+to recolor
+  set color ifelse-value rioting? [ red ] [ gray ]
+end
+
+to-report riot-share
+  report rioters / population
+end
+```
+
+## nlrx (R) {.unlisted}
+
+```{.r}
+# Granovetter's riot model: how does the final size of a riot depend on the
+# spread of thresholds, holding the average threshold fixed?
+# NetLogo model: abm/riot-model.nlogo. Output: data/riot-model.csv (one row
+# per threshold spread and seed).
+source("abm/_nlrx.R")
+
+nl <- nl_model("riot-model")
+nl@experiment <- experiment(
+  expname = "spread_sweep",
+  outpath = tempdir(),
+  repetition = 1,
+  tickmetrics = "false", # measure once, when nobody new joins
+  idsetup = "setup",
+  idgo = "go",
+  runtime = 200, # cap; runs stop when the riot stops growing
+  metrics = c("rioters", "riot-share"),
+  variables = list(
+    "sd-threshold" = list(values = seq(0, 24, by = 2))
+  ),
+  constants = list("population" = 100, "mean-threshold" = 25)
+)
+set.seed(19) # makes nlrx draw the same NetLogo seeds every time
+nl@simdesign <- simdesign_ff(nl, nseeds = 12)
+
+results <- run_experiment(nl)
+save_results(results, "riot-model",
+  keep = c("sd_threshold", "random_seed", "step", "rioters", "riot_share")
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Threshold cascades make collective outcomes depend on the whole distribution of dispositions, not on the average.
+- Near the tipping point, tiny differences in a crowd's make-up lead to completely different events, so outcomes are hard to predict.
+- More diverse thresholds make cascades more likely, because they create the low-threshold followers a cascade needs.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Sudden uprisings, bank runs, fads, standing ovations and market crashes, and why similar situations lead to different outcomes.
+- **Predict.** Be humble: the size of a cascade cannot be read off average attitudes measured in a survey.
+- **Act.** Organizers need both a core willing to act alone and a chain of people with slightly higher thresholds; authorities, conversely, act on the early joiners.
+:::
+
+## Related models
+
+- [Ping-Pong Model](ping-pong-model.qmd): thresholds with negative instead of positive feedback.
+- [Schelling's Segregation Model](schelling-segregation.qmd): thresholds that trigger moving rather than joining.
+- [Diffusion Model](diffusion-model.qmd): spreading through contacts rather than through a visible total.
+- [Forest Fire Model](forest-fire-model.qmd): cascades of any size near a critical point.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 19, "Threshold Models with Feedbacks," pp. 213–216.
+- Mark Granovetter, "Threshold Models of Collective Behavior," *American Journal of Sociology* 83, no. 6 (1978): 1420–1443, [doi:10.1086/226707](https://doi.org/10.1086/226707).

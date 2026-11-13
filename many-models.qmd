@@ -1,0 +1,48 @@
+---
+title: "Many-model thinking"
+date: 2026-11-13
+description: "Why use many models, what models are for, and how this site is organized."
+sidebar: false
+---
+
+## Why many models
+
+Page's central claim is that no single model is right about anything complex. A model simplifies, and each simplification leaves something out. A collection of diverse models, each wrong in different ways, can be right more often than any one of them. Two of the book's first models make the claim precise: the [Condorcet jury theorem](models/condorcet-jury-theorem.qmd) shows that independent classifiers voting together beat any one of them, and the [diversity prediction theorem](models/diversity-prediction-theorem.qmd) shows that the error of an average forecast equals the average error minus the diversity of the forecasts.
+
+So the book does two things at once. It teaches a toolbox of core models, and it teaches the habit of applying several of them to the same question: what Page calls *one-to-many* (one model, many applications) and *many-to-one* (many models, one question). The last chapter of the paperback edition does this for the opioid epidemic, COVID-19 and inequality.
+
+## The seven uses of models
+
+Page lists seven things models are for, with the mnemonic **REDCAPE**. Every entry on this site has a **Uses** section tagged with them.
+
+::: {.redcape}
+| Use | What it means |
+|---|---|
+| Reason | Identify conditions and deduce what follows from them, including what is impossible. |
+| Explain | Give testable explanations of things we observe. |
+| Design | Choose the features of institutions, policies and rules. |
+| Communicate | Share understanding precisely enough that others can check it. |
+| Act | Guide policy choices and strategic actions. |
+| Predict | Forecast numbers and categories, of the future or of the unknown. |
+| Explore | Investigate possibilities and hypotheticals that cannot be tried for real. |
+:::
+
+## How to read an entry
+
+Every model page has the same shape:
+
+1. **The idea**: the model in plain words, with an example.
+2. **Formulation**: the setup, the equations or rules, and the result, in a box. Symbols follow the book where possible.
+3. **Interactive model**: the application, with a summary under each chart that states the result in words and updates as you change the settings. Under it, **Show model code** has the code that runs on the page and the reference implementation.
+4. **Takeaways**, **Uses**, **Related models** (other lenses on the same questions) and **Sources** (the chapter and pages in the book, and the original work).
+
+## The right tool for each model
+
+Models are built with the tool that suits them.
+
+- **Equation-based models** (difference and differential equations, closed-form results, Markov chains, games, mechanisms and learning rules) are computed live in your browser with Observable JS, so every slider gives an immediate answer. Each has a reference version in R, using the package suited to its class: deSolve for differential equations, igraph for networks, base R otherwise.
+- **[Agent-based models](agent-based.qmd)** are populations of agents following local rules, whose outcomes emerge from interaction and vary from run to run. One run proves little, so each is written in NetLogo 6.4 and run across parameter values and random seeds with the R package [nlrx](https://docs.ropensci.org/nlrx/). The page charts those NetLogo results, and also replays the same rules in JavaScript so you can watch a single run.
+
+## The families
+
+{{< include _family-cards.md >}}

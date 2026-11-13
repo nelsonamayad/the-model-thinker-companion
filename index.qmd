@@ -1,0 +1,57 @@
+---
+title: "The Model Thinker Companion"
+date: 2026-11-13
+subtitle: "An homage to Scott E. Page's *The Model Thinker*"
+description-meta: "Every model in Scott E. Page's The Model Thinker: its formulation, and an interactive application that runs in your browser."
+sidebar: false
+toc: false
+page-layout: full
+listing:
+  id: all-models
+  contents: models
+  type: table
+  sort: "order"
+  sort-ui: [order, title, chapter]
+  filter-ui: true
+  page-size: 100
+  fields: [order, title, description, chapter, categories]
+  field-display-names:
+    order: "#"
+    title: "Model"
+    description: "What it says"
+    chapter: "Ch."
+    categories: "Family · Built as"
+---
+
+:::: {.hero-wrap}
+::: {.hero}
+In *The Model Thinker* (2018), Scott E. Page argues that to make sense of data and of the world we need not one model but many, each a different lens: crowds and categories, bell curves and long tails, networks and contagions, Markov chains and feedback loops, games, mechanisms and learning rules. This site gives each model in the book its own page with two things: the **formulation** (the assumptions, variables and equations, stated precisely) and an **interactive application** you can run in your browser.
+
+Each model is built with the tool that suits it. Equation-based models are computed live as you move the sliders. **Agent-based models** are written in [NetLogo](https://ccl.northwestern.edu/netlogo/) and run as designed experiments with [nlrx](https://docs.ropensci.org/nlrx/); their pages chart those results and replay the same rules so you can watch a run unfold.
+
+[Many-model thinking](many-models.qmd){.btn .btn-primary .me-2} [Agent-based models](agent-based.qmd){.btn .btn-outline-primary .me-2} [Random model](random.qmd){.btn .btn-outline-primary .me-2} [About this site](about.qmd){.btn .btn-link}
+
+[Version 0.1, 13 November 2026.]{.site-version}
+:::
+
+::: {.hero-cover}
+```{=html}
+<a href="https://www.basicbooks.com"><img src="assets/book-cover.jpg" class="book-cover" width="360" height="540" alt="Cover of The Model Thinker: What You Need to Know to Make Data Work for You, expanded edition, by Scott E. Page"></a>
+```
+
+[*The Model Thinker*, expanded edition (Basic Books, 2021). Cover design by Chin-Yee Lai; cover © 2021 Hachette Book Group.]{.cover-credit}
+:::
+::::
+
+## Browse by family {#families}
+
+Families follow the arc of the book, from many-model reasoning to learning and search. Every model belongs to exactly one.
+
+{{< include _family-cards.md >}}
+
+## Every model {#all-models}
+
+Models are numbered in the order the book presents them. Type in the filter box to search, click a column header to sort, or click a family or "Agent-based" tag to filter.
+
+::: {#all-models}
+:::

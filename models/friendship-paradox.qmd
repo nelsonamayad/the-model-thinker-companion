@@ -1,0 +1,191 @@
+---
+title: "Friendship Paradox"
+date: 2026-11-13
+description: "In any network where people have different numbers of friends, the average person's friends have more friends than the average person does."
+order: 18
+chapter: 10
+chapter-title: "Network Models"
+pages: "124–125"
+family: "Networks and contagion"
+engine: "Equation-based"
+tool: "Observable JS (network simulation)"
+reference: "R with igraph"
+uses: [Reason, Explain, Act]
+categories: ["Networks and contagion", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#18** · *The Model Thinker*, chapter 10, "Network Models", pp. 124–125.
+
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (network simulation) · Reference implementation: R with igraph.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Most people find that their friends seem to have more friends than they do, and they are right. This is not a quirk of insecurity but a mathematical fact about networks, first pointed out by the sociologist Scott Feld. Popular people show up in many friend lists, so when you average over everyone's friends, popular people are counted many times and loners hardly at all.
+
+The paradox has a practical side. If you pick people at random, you get a typical person; if you pick a random *friend* of a random person, you get someone better connected. Epidemiologists use this to find central people without mapping the network: monitor the friends of randomly chosen people, and an outbreak shows up there first. Page adds that if popularity goes with other traits, your friends will also tend to be richer, happier or better looking than you, on average.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A network of $N$ people where person $i$ has degree $k_i$, with mean $\bar k$ and variance $\sigma_k^2$.
+
+**Result (friendship paradox).** If any two people differ in degree, then on average a person has lower degree than their neighbours. Picking a person and then one of their friends at random, the friend's expected degree is
+
+$$
+\mathbb{E}[\text{degree of a friend}] = \frac{\sum_i k_i^2}{\sum_i k_i} = \bar k + \frac{\sigma_k^2}{\bar k} > \bar k .
+$$
+:::
+
+Each person with degree $k_i$ appears in exactly $k_i$ friend lists, so a randomly chosen friendship endpoint is a person chosen with probability proportional to degree. The gap $\sigma_k^2 / \bar k$ is zero only when everyone has the same degree.
+
+## Interactive model
+
+A network of 1,000 people. Each dot is a person: their number of friends against the average number of friends their friends have. Dots above the diagonal are people whose friends are, on average, more popular than they are. In a network with hubs (preferential attachment) almost everyone is above the line.
+
+```{ojs}
+//| echo: false
+import {rng, mean, variance, graphRandom, graphPrefAttach, graphSmallWorld, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof kind = Inputs.radio(["Preferential attachment (hubs)", "Random", "Small world (near-equal degrees)"], {value: "Preferential attachment (hubs)", label: "Network"})
+viewof seed = Inputs.range([1, 500], {value: 18, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+paradox = {
+  const r = rng(seed), n = 1000;
+  const adj = kind.startsWith("Pref") ? graphPrefAttach(n, 3, r) : kind === "Random" ? graphRandom(n, 6 / (n - 1), r) : graphSmallWorld(n, 6, 0.2, r);
+  const deg = adj.map(a => a.length);
+  const people = adj.map((nb, i) => ({i, k: deg[i], friends: nb.length ? mean(nb.map(j => deg[j])) : NaN})).filter(d => d.k > 0);
+  const kbar = mean(deg), friendMean = deg.reduce((s, k) => s + k * k, 0) / deg.reduce((s, k) => s + k, 0);
+  return {people, kbar, friendMean, varK: variance(deg), above: people.filter(d => d.friends > d.k).length / people.length};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Friendship Paradox: own degree against friends' average degree",
+  ariaDescription: "Log-log axes. Horizontal axis: a person's number of friends. Vertical axis: the average number of friends their friends have. The diagonal marks equality; most dots lie above it. The summary below the chart states the result in words.",
+  height: 320,
+  x: {type: "log", label: "My number of friends", grid: true},
+  y: {type: "log", label: "My friends' average number of friends", grid: true},
+  marks: [
+    Plot.line([[1, 1], [500, 500]], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.dot(paradox.people, {x: "k", y: "friends", fill: d => (d.friends > d.k ? C.orange : C.teal), r: 2.5, fillOpacity: 0.6})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`The average person has **${fmt(paradox.kbar, 1)}** friends, but the average friend has **${fmt(paradox.friendMean, 1)}** (= k̄ + σ²/k̄ = ${fmt(paradox.kbar, 1)} + ${fmt(paradox.varK / paradox.kbar, 1)}). **${pct(paradox.above)}** of people have friends who are, on average, more popular than they are. ${kind.startsWith("Small") ? "With nearly equal degrees the gap is small, but it never quite vanishes." : ""}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (R with igraph): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, mean, variance, graphRandom, graphPrefAttach, graphSmallWorld, C, fmt, pct} from "../js/models.js"
+
+viewof kind = Inputs.radio(["Preferential attachment (hubs)", "Random", "Small world (near-equal degrees)"], {value: "Preferential attachment (hubs)", label: "Network"})
+viewof seed = Inputs.range([1, 500], {value: 18, step: 1, label: "Random seed"})
+
+paradox = {
+  const r = rng(seed), n = 1000;
+  const adj = kind.startsWith("Pref") ? graphPrefAttach(n, 3, r) : kind === "Random" ? graphRandom(n, 6 / (n - 1), r) : graphSmallWorld(n, 6, 0.2, r);
+  const deg = adj.map(a => a.length);
+  const people = adj.map((nb, i) => ({i, k: deg[i], friends: nb.length ? mean(nb.map(j => deg[j])) : NaN})).filter(d => d.k > 0);
+  const kbar = mean(deg), friendMean = deg.reduce((s, k) => s + k * k, 0) / deg.reduce((s, k) => s + k, 0);
+  return {people, kbar, friendMean, varK: variance(deg), above: people.filter(d => d.friends > d.k).length / people.length};
+}
+
+Plot.plot({
+  ariaLabel: "Friendship Paradox: own degree against friends' average degree",
+  ariaDescription: "Log-log axes. Horizontal axis: a person's number of friends. Vertical axis: the average number of friends their friends have. The diagonal marks equality; most dots lie above it. The summary below the chart states the result in words.",
+  height: 320,
+  x: {type: "log", label: "My number of friends", grid: true},
+  y: {type: "log", label: "My friends' average number of friends", grid: true},
+  marks: [
+    Plot.line([[1, 1], [500, 500]], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.dot(paradox.people, {x: "k", y: "friends", fill: d => (d.friends > d.k ? C.orange : C.teal), r: 2.5, fillOpacity: 0.6})
+  ]
+})
+
+html`<div class="sim-readout">${md`The average person has **${fmt(paradox.kbar, 1)}** friends, but the average friend has **${fmt(paradox.friendMean, 1)}** (= k̄ + σ²/k̄ = ${fmt(paradox.kbar, 1)} + ${fmt(paradox.varK / paradox.kbar, 1)}). **${pct(paradox.above)}** of people have friends who are, on average, more popular than they are. ${kind.startsWith("Small") ? "With nearly equal degrees the gap is small, but it never quite vanishes." : ""}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# The friendship paradox in a preferential-attachment network.
+suppressPackageStartupMessages(library(igraph))
+n <- 1000
+set.seed(18)
+
+g <- sample_pa(n, m = 3, directed = FALSE)
+k <- degree(g)
+friends <- sapply(adjacent_vertices(g, V(g)), function(nb) mean(k[nb]))
+
+cat(sprintf("Average person: %.1f friends\n", mean(k)))
+cat(sprintf(
+  "Average friend: %.1f friends (k + var/k = %.1f)\n",
+  sum(k^2) / sum(k), mean(k) + var(k) * (n - 1) / n / mean(k)
+))
+cat(sprintf(
+  "%.0f%% of people have friends with more friends on average\n",
+  100 * mean(friends > k)
+))
+
+plot(k, friends,
+  log = "xy", pch = 19, col = adjustcolor("#d95f02", 0.4),
+  xlab = "My friends", ylab = "My friends' average friends"
+)
+abline(0, 1, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- On average your friends have more friends than you, because popular people appear in many friend lists.
+- The size of the gap is the variance of degree divided by the mean degree.
+- Sampling friends of random people is a cheap way to find well-connected people.
+:::
+
+## Uses
+
+::: uses
+- **Act.** Vaccinate or monitor friends of randomly chosen people to reach hubs and detect outbreaks early.
+- **Explain.** Why people often feel less popular, active or successful than their friends, especially on social media.
+- **Reason.** Correct for degree when sampling through networks (respondent-driven sampling).
+:::
+
+## Related models
+
+- [Network Structures and Statistics](network-structure.qmd): degree distributions and where the variance comes from.
+- [SIR Model](sir-model.qmd): degree variance (superspreaders) speeds contagion for the same reason.
+- [Quality and Degree Network Formation](network-formation.qmd): the process that creates hubs.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 10, "Network Models," pp. 124–125.
+- Scott L. Feld, "Why Your Friends Have More Friends than You Do," *American Journal of Sociology* 96, no. 6 (1991): 1464–1477.

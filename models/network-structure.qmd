@@ -1,0 +1,305 @@
+---
+title: "Network Structures and Statistics"
+date: 2026-11-13
+description: "Degree, path length, clustering and betweenness distinguish common network structures, and comparing a network with many random ones tells us whether its structure is an accident."
+order: 16
+chapter: 10
+chapter-title: "Network Models"
+pages: "117–122"
+family: "Networks and contagion"
+engine: "Equation-based"
+tool: "Observable JS (network generators and statistics)"
+reference: "R with igraph"
+uses: [Explain, Reason, Communicate]
+categories: ["Networks and contagion", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#16** · *The Model Thinker*, chapter 10, "Network Models", pp. 117–122.
+
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (network generators and statistics) · Reference implementation: R with igraph.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Friendships, flight routes, power lines, citations and supply chains are networks: nodes connected by edges. A few statistics capture most of what matters about their shape. **Degree** is how many neighbours a node has. **Path length** is how many steps separate two nodes. **Clustering** is how often a node's neighbours are themselves connected. **Betweenness** is how often a node sits on the shortest paths between others.
+
+Different processes leave different signatures in these statistics. A random network has short paths but almost no clustering. A geographic network, where nodes link to their neighbours, is highly clustered but has long paths. A small world, a geographic network with a few long-range links, has both short paths and high clustering, like real social networks. Preferential attachment creates hubs, and a hub-and-spoke network is the extreme. To ask whether an observed network has a particular structure, Page suggests a Monte Carlo test: compare its statistics with those of many random networks of the same size.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A network with $N$ nodes and $E$ edges, $A_{ij} = 1$ if $i$ and $j$ are linked.
+
+**Statistics.**
+
+- Degree: $k_i = \sum_j A_{ij}$, with mean $\bar k = 2E/N$.
+- Path length: $d(i, j)$, the fewest edges between $i$ and $j$; the average over pairs is $L$.
+- Clustering coefficient: $C_i = \dfrac{\#\{\text{links among } i\text{'s neighbours}\}}{k_i(k_i - 1)/2}$, averaged over nodes.
+- Betweenness: the number of shortest paths between other nodes that pass through $i$.
+
+**Monte Carlo test.** Generate many random networks with the same $N$ and $E$, compute the same statistics, and reject randomness if the observed network's statistics are extreme relative to that distribution.
+
+**Result.** Random networks have $L \approx \ln N / \ln \bar k$ and clustering $C \approx \bar k / N$; real social networks show far higher clustering at similar path lengths.
+:::
+
+## Interactive model
+
+Pick a structure. The drawing shows one network of 60 nodes, sized by degree. On the right, each gray dot is one of 100 random networks with the same numbers of nodes and edges; the orange dot is the chosen network. A small world stands far above the random cloud in clustering, with paths only a little longer than random; the geographic ring, with the same clustering, has much longer paths.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, sd, graphRandom, graphSmallWorld, graphPrefAttach, graphStar, graphStats, edgesOf, layoutForce, layoutCircle, C, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof structure = Inputs.select(["Small world", "Random", "Geographic (ring)", "Preferential attachment", "Hub and spoke"], {value: "Small world", label: "Structure"})
+viewof k = Inputs.range([2, 8], {value: 4, step: 2, label: "Mean degree (approx.)"})
+viewof beta = Inputs.range([0, 1], {value: 0.1, step: 0.02, label: "Rewiring (small world)"})
+viewof seed = Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+net = {
+  const r = rng(seed), n = 60;
+  const adj = {
+    "Random": () => graphRandom(n, k / (n - 1), r),
+    "Small world": () => graphSmallWorld(n, k, beta, r),
+    "Geographic (ring)": () => graphSmallWorld(n, k, 0, r),
+    "Preferential attachment": () => graphPrefAttach(n, k / 2, r),
+    "Hub and spoke": () => graphStar(n)
+  }[structure]();
+  const stats = graphStats(adj);
+  // Betweenness (Brandes), for the most central node.
+  const bet = new Float64Array(n);
+  for (let s = 0; s < n; s++) {
+    const S = [], P = range(n).map(() => []), sigma = new Float64Array(n), dist = new Int32Array(n).fill(-1);
+    sigma[s] = 1; dist[s] = 0;
+    const Q = [s];
+    for (let h = 0; h < Q.length; h++) {
+      const v = Q[h]; S.push(v);
+      for (const w of adj[v]) {
+        if (dist[w] < 0) { dist[w] = dist[v] + 1; Q.push(w); }
+        if (dist[w] === dist[v] + 1) { sigma[w] += sigma[v]; P[w].push(v); }
+      }
+    }
+    const delta = new Float64Array(n);
+    while (S.length) { const w = S.pop(); for (const v of P[w]) delta[v] += (sigma[v] / sigma[w]) * (1 + delta[w]); if (w !== s) bet[w] += delta[w]; }
+  }
+  const maxBet = Math.max(...bet) / 2;
+  // Monte Carlo: random networks with the same N and E.
+  const E = stats.edges, pairs = [];
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) pairs.push([i, j]);
+  const mc = range(100).map(() => {
+    const pick = r.shuffle(pairs).slice(0, E), a = range(n).map(() => []);
+    for (const [i, j] of pick) { a[i].push(j); a[j].push(i); }
+    const st = graphStats(a);
+    return {L: st.pathLength, C: st.clustering};
+  });
+  const layout = structure === "Small world" || structure === "Geographic (ring)" ? layoutCircle(n) : layoutForce(adj, r);
+  return {adj, n, stats, maxBet, mc, layout, edges: edgesOf(adj)};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Network Structures and Statistics: the network",
+  ariaDescription: "A drawing of the chosen 60-node network. Circles are nodes, sized by degree; lines are edges. The summary below the charts states the network's statistics in words.",
+  width: 360, height: 360, inset: 12,
+  x: {axis: null}, y: {axis: null},
+  r: {range: [1.5, 6]},
+  marks: [
+    Plot.link(net.edges, {x1: d => net.layout[d[0]].x, y1: d => net.layout[d[0]].y, x2: d => net.layout[d[1]].x, y2: d => net.layout[d[1]].y, stroke: C.gray, strokeOpacity: 0.6}),
+    Plot.dot(net.layout, {x: "x", y: "y", r: d => net.adj[d.i].length, fill: C.teal, stroke: "white", strokeWidth: 0.5})
+  ]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Network Structures and Statistics: Monte Carlo comparison with random networks",
+  ariaDescription: "Horizontal axis: average path length. Vertical axis: clustering coefficient. Gray dots are 100 random networks with the same numbers of nodes and edges; the orange dot is the chosen network. The summary below the charts states the result in words.",
+  height: 300,
+  x: {label: "Average path length L", grid: true},
+  y: {label: "Clustering coefficient C", grid: true},
+  marks: [
+    Plot.dot(net.mc, {x: "L", y: "C", fill: C.gray, r: 3, fillOpacity: 0.6}),
+    Plot.dot([net.stats], {x: "pathLength", y: "clustering", fill: C.orange, r: 7, stroke: "currentColor"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const s = net.stats, cM = mean(net.mc.map(d => d.C)), cS = sd(net.mc.map(d => d.C)), lM = mean(net.mc.filter(d => Number.isFinite(d.L)).map(d => d.L));
+  const z = (s.clustering - cM) / (cS || 1e-9);
+  return html`<div class="sim-readout">${md`This ${structure.toLowerCase()} network has ${s.edges} edges, mean degree **${fmt(s.meanDegree, 1)}** (maximum ${s.maxDegree}), average path length **${fmt(s.pathLength, 2)}**, clustering **${fmt(s.clustering, 2)}**, and its most central node lies on ${fmt(net.maxBet, 0)} shortest paths between other pairs. Random networks of the same size average path length ${fmt(lM, 2)} and clustering ${fmt(cM, 2)}. ${Math.abs(z) > 3 ? `Its clustering is **${fmt(z, 0)} standard deviations** from the random networks': this structure is not an accident.` : "Its statistics are within the range of random networks: we could not reject randomness."}`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (R with igraph): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, sd, graphRandom, graphSmallWorld, graphPrefAttach, graphStar, graphStats, edgesOf, layoutForce, layoutCircle, C, fmt} from "../js/models.js"
+
+viewof structure = Inputs.select(["Small world", "Random", "Geographic (ring)", "Preferential attachment", "Hub and spoke"], {value: "Small world", label: "Structure"})
+viewof k = Inputs.range([2, 8], {value: 4, step: 2, label: "Mean degree (approx.)"})
+viewof beta = Inputs.range([0, 1], {value: 0.1, step: 0.02, label: "Rewiring (small world)"})
+viewof seed = Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"})
+
+net = {
+  const r = rng(seed), n = 60;
+  const adj = {
+    "Random": () => graphRandom(n, k / (n - 1), r),
+    "Small world": () => graphSmallWorld(n, k, beta, r),
+    "Geographic (ring)": () => graphSmallWorld(n, k, 0, r),
+    "Preferential attachment": () => graphPrefAttach(n, k / 2, r),
+    "Hub and spoke": () => graphStar(n)
+  }[structure]();
+  const stats = graphStats(adj);
+  // Betweenness (Brandes), for the most central node.
+  const bet = new Float64Array(n);
+  for (let s = 0; s < n; s++) {
+    const S = [], P = range(n).map(() => []), sigma = new Float64Array(n), dist = new Int32Array(n).fill(-1);
+    sigma[s] = 1; dist[s] = 0;
+    const Q = [s];
+    for (let h = 0; h < Q.length; h++) {
+      const v = Q[h]; S.push(v);
+      for (const w of adj[v]) {
+        if (dist[w] < 0) { dist[w] = dist[v] + 1; Q.push(w); }
+        if (dist[w] === dist[v] + 1) { sigma[w] += sigma[v]; P[w].push(v); }
+      }
+    }
+    const delta = new Float64Array(n);
+    while (S.length) { const w = S.pop(); for (const v of P[w]) delta[v] += (sigma[v] / sigma[w]) * (1 + delta[w]); if (w !== s) bet[w] += delta[w]; }
+  }
+  const maxBet = Math.max(...bet) / 2;
+  // Monte Carlo: random networks with the same N and E.
+  const E = stats.edges, pairs = [];
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) pairs.push([i, j]);
+  const mc = range(100).map(() => {
+    const pick = r.shuffle(pairs).slice(0, E), a = range(n).map(() => []);
+    for (const [i, j] of pick) { a[i].push(j); a[j].push(i); }
+    const st = graphStats(a);
+    return {L: st.pathLength, C: st.clustering};
+  });
+  const layout = structure === "Small world" || structure === "Geographic (ring)" ? layoutCircle(n) : layoutForce(adj, r);
+  return {adj, n, stats, maxBet, mc, layout, edges: edgesOf(adj)};
+}
+
+Plot.plot({
+  ariaLabel: "Network Structures and Statistics: the network",
+  ariaDescription: "A drawing of the chosen 60-node network. Circles are nodes, sized by degree; lines are edges. The summary below the charts states the network's statistics in words.",
+  width: 360, height: 360, inset: 12,
+  x: {axis: null}, y: {axis: null},
+  r: {range: [1.5, 6]},
+  marks: [
+    Plot.link(net.edges, {x1: d => net.layout[d[0]].x, y1: d => net.layout[d[0]].y, x2: d => net.layout[d[1]].x, y2: d => net.layout[d[1]].y, stroke: C.gray, strokeOpacity: 0.6}),
+    Plot.dot(net.layout, {x: "x", y: "y", r: d => net.adj[d.i].length, fill: C.teal, stroke: "white", strokeWidth: 0.5})
+  ]
+})
+
+Plot.plot({
+  ariaLabel: "Network Structures and Statistics: Monte Carlo comparison with random networks",
+  ariaDescription: "Horizontal axis: average path length. Vertical axis: clustering coefficient. Gray dots are 100 random networks with the same numbers of nodes and edges; the orange dot is the chosen network. The summary below the charts states the result in words.",
+  height: 300,
+  x: {label: "Average path length L", grid: true},
+  y: {label: "Clustering coefficient C", grid: true},
+  marks: [
+    Plot.dot(net.mc, {x: "L", y: "C", fill: C.gray, r: 3, fillOpacity: 0.6}),
+    Plot.dot([net.stats], {x: "pathLength", y: "clustering", fill: C.orange, r: 7, stroke: "currentColor"})
+  ]
+})
+
+{
+  const s = net.stats, cM = mean(net.mc.map(d => d.C)), cS = sd(net.mc.map(d => d.C)), lM = mean(net.mc.filter(d => Number.isFinite(d.L)).map(d => d.L));
+  const z = (s.clustering - cM) / (cS || 1e-9);
+  return html`<div class="sim-readout">${md`This ${structure.toLowerCase()} network has ${s.edges} edges, mean degree **${fmt(s.meanDegree, 1)}** (maximum ${s.maxDegree}), average path length **${fmt(s.pathLength, 2)}**, clustering **${fmt(s.clustering, 2)}**, and its most central node lies on ${fmt(net.maxBet, 0)} shortest paths between other pairs. Random networks of the same size average path length ${fmt(lM, 2)} and clustering ${fmt(cM, 2)}. ${Math.abs(z) > 3 ? `Its clustering is **${fmt(z, 0)} standard deviations** from the random networks': this structure is not an accident.` : "Its statistics are within the range of random networks: we could not reject randomness."}`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Network statistics and a Monte Carlo test against random networks.
+suppressPackageStartupMessages(library(igraph))
+n <- 60
+k <- 4 # mean degree
+beta <- 0.1 # rewiring probability of the small world
+set.seed(16)
+
+g <- sample_smallworld(1, n, k / 2, beta) # Watts-Strogatz
+stats <- function(x) {
+  c(
+    path_length = mean_distance(x),
+    clustering = transitivity(x, type = "average")
+  )
+}
+observed <- stats(g)
+cat(sprintf(
+  "Mean degree %.1f, max betweenness %.0f\n", mean(degree(g)),
+  max(betweenness(g))
+))
+print(round(observed, 3))
+
+# 100 random networks with the same numbers of nodes and edges.
+random <- t(replicate(100, stats(sample_gnm(n, ecount(g)))))
+print(round(colMeans(random), 3))
+z <- (observed["clustering"] - mean(random[, "clustering"])) /
+  sd(random[, "clustering"])
+cat(sprintf("Clustering is %.0f sd above random networks'\n", z))
+
+plot(random,
+  pch = 19, col = "grey70", xlab = "Average path length",
+  ylab = "Clustering", ylim = range(c(random[, 2], observed[2]))
+)
+points(observed[1], observed[2], pch = 19, col = "#d95f02", cex = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Degree, path length, clustering and betweenness are the basic vocabulary for describing network structure.
+- Small worlds combine the short paths of random networks with the clustering of geographic ones.
+- Comparing a network with random networks of the same size (a Monte Carlo test) tells us which features need explaining.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Why gossip spreads fast in clustered communities with a few bridges, and why some airports or people are bottlenecks.
+- **Reason.** Test whether an observed social, biological or technological network has structure beyond chance.
+- **Communicate.** Summarize a complex network in four numbers that others can compare.
+:::
+
+## Related models
+
+- [Quality and Degree Network Formation](network-formation.qmd): a process that produces hubs.
+- [Six Degrees of Separation](six-degrees.qmd): why a few random links make the world small.
+- [Network Robustness](network-robustness.qmd): how structure determines what happens when nodes fail.
+- [Friendship Paradox](friendship-paradox.qmd): a consequence of unequal degrees.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 10, "Network Models," pp. 117–122.
+- Duncan Watts and Steven Strogatz, "Collective Dynamics of 'Small-World' Networks," *Nature* 393, no. 6684 (1998): 440–442.
+- Mark E. Newman, *Networks: An Introduction* (Oxford University Press, 2010).

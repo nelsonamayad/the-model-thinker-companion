@@ -1,0 +1,241 @@
+---
+title: "Power Laws and Preferential Attachment"
+date: 2026-11-13
+description: "When newcomers join groups in proportion to their size, a few groups grow enormous and sizes follow a long-tailed power law."
+order: 9
+chapter: 6
+chapter-title: "Power-Law Distributions: Long Tails"
+pages: "69–74"
+family: "Distributions"
+engine: "Equation-based"
+tool: "Observable JS (stochastic process)"
+reference: "base R"
+uses: [Explain, Predict, Reason]
+categories: ["Distributions", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#9** · *The Model Thinker*, chapter 6, "Power-Law Distributions: Long Tails", pp. 69–74.
+
+Filed under [Distributions](../families/distributions.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (stochastic process) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+City populations, book sales, website links, earthquake energies and citation counts have long tails: most are small, a few are enormous, and the largest are far bigger than any bell curve would allow. Such distributions are power laws. In the special case known as Zipf's law, the second-largest is half the size of the largest, the third a third, and so on.
+
+Page's first mechanism for generating power laws is *preferential attachment*: the rich get richer. Picture students arriving on campus. Occasionally one founds a new club; usually a newcomer joins an existing club, choosing each with probability proportional to its current membership. Big clubs attract more members because they are big. Early luck compounds, and club sizes end up following a power law.
+
+## Formulation
+
+::: {.model-box}
+**Power law.** A distribution on $[x_{\min}, \infty)$ with density
+
+$$
+p(x) = C\, x^{-a}, \qquad C = (a-1)\,x_{\min}^{a-1}, \quad a > 1.
+$$
+
+The smaller the exponent $a$, the longer the tail. With $a = 2$ (Zipf's law), $\text{rank} \times \text{size} \approx \text{constant}$.
+
+**Preferential attachment.** Arrivals come one at a time. The first founds an entity. Each later arrival founds a new entity with probability $p$ (small) and otherwise joins an existing entity $j$ with probability
+
+$$
+\Pr(\text{join } j) = \frac{\text{size}_j}{\text{arrivals so far}} .
+$$
+
+**Result.** Entity sizes follow a power law. For this process the share of entities larger than $s$ falls like $s^{-1/(1-p)}$, so $a = 1 + \tfrac{1}{1-p}$, close to Zipf's $a = 2$ when $p$ is small; equivalently, on a log–log rank–size plot the slope is about $-(1-p)$.
+:::
+
+The exponent comes from Herbert Simon's analysis of this process; the book states the result qualitatively. In any single run the first entities enjoy a large head start, so the very top of the distribution is noisy. Joining a random member's entity is the same as joining entities in proportion to their size, which is how the simulation implements the rule.
+
+## Interactive model
+
+The chart plots the size of every entity against its rank, on logarithmic axes. Preferential attachment (teal) gives a straight line, the signature of a power law, with a few giant entities. For contrast, the gray line has newcomers pick an existing entity uniformly at random, ignoring size: the tail vanishes.
+
+```{ojs}
+//| echo: false
+import {rng, range, lm, C, fmt, pct, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof arrivals = Inputs.range([2000, 50000], {value: 20000, step: 1000, label: "Arrivals"})
+viewof p = Inputs.range([0.005, 0.3], {value: 0.05, step: 0.005, label: "Chance of founding a new entity p"})
+viewof seed = Inputs.range([1, 500], {value: 9, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+pa = {
+  const r = rng(seed);
+  const run = (preferential) => {
+    const owner = [0], sizes = [1];
+    for (let t = 1; t < arrivals; t++) {
+      let e;
+      if (r() < p) { e = sizes.length; sizes.push(0); }
+      else e = preferential ? owner[Math.floor(r() * t)] : Math.floor(r() * sizes.length);
+      sizes[e]++; owner.push(e);
+    }
+    const sorted = sizes.slice().sort((a, b) => b - a);
+    return sorted.map((s, i) => ({rank: i + 1, size: s}));
+  };
+  const pref = run(true), unif = run(false);
+  const top = pref.slice(4, Math.min(500, pref.length)).filter(d => d.size > 0);
+  const fit = lm(top.map(d => Math.log(d.rank)), top.map(d => Math.log(d.size)));
+  const share = (rows, f) => rows.slice(0, Math.max(1, Math.round(rows.length * f))).reduce((s, d) => s + d.size, 0) / arrivals;
+  return {pref, unif, slope: fit.b, top1: share(pref, 0.01), top1u: share(unif, 0.01), largest: pref[0].size / arrivals, largestU: unif[0].size / arrivals};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Power Laws and Preferential Attachment: rank-size plot",
+  ariaDescription: "Log-log axes. Horizontal axis: rank of the entity, largest first. Vertical axis: entity size. Teal: preferential attachment, a nearly straight line. Gray: newcomers joining uniformly at random, which bends down sharply. The summary below the chart states the result in words.",
+  height: 300,
+  x: {type: "log", label: "Rank (largest = 1)"},
+  y: {type: "log", label: "Size (members)", grid: true},
+  color: {legend: true, domain: ["Preferential attachment", "Uniform choice"], range: [C.teal, C.gray]},
+  marks: [
+    Plot.line(pa.unif, {x: "rank", y: "size", stroke: () => "Uniform choice", strokeWidth: 2}),
+    Plot.line(pa.pref, {x: "rank", y: "size", stroke: () => "Preferential attachment", strokeWidth: 2.5})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`With preferential attachment, ${num(arrivals)} arrivals form ${num(pa.pref.length)} entities. The largest holds **${pct(pa.largest, 1)}** of all members and the top 1% of entities hold **${pct(pa.top1)}**. Over ranks 5 to 500 the rank–size slope is **${fmt(pa.slope, 2)}**${Math.abs(pa.slope + 1 - p) < 0.15 ? `, close to the predicted −(1 − p) = ${fmt(-(1 - p), 2)}` : `; the theory predicts −(1 − p) = ${fmt(-(1 - p), 2)} for very large populations, and a single run wanders from it`}. When newcomers ignore size, the largest entity holds only ${pct(pa.largestU, 1)} and the top 1% hold ${pct(pa.top1u)}.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, lm, C, fmt, pct, num} from "../js/models.js"
+
+viewof arrivals = Inputs.range([2000, 50000], {value: 20000, step: 1000, label: "Arrivals"})
+viewof p = Inputs.range([0.005, 0.3], {value: 0.05, step: 0.005, label: "Chance of founding a new entity p"})
+viewof seed = Inputs.range([1, 500], {value: 9, step: 1, label: "Random seed"})
+
+pa = {
+  const r = rng(seed);
+  const run = (preferential) => {
+    const owner = [0], sizes = [1];
+    for (let t = 1; t < arrivals; t++) {
+      let e;
+      if (r() < p) { e = sizes.length; sizes.push(0); }
+      else e = preferential ? owner[Math.floor(r() * t)] : Math.floor(r() * sizes.length);
+      sizes[e]++; owner.push(e);
+    }
+    const sorted = sizes.slice().sort((a, b) => b - a);
+    return sorted.map((s, i) => ({rank: i + 1, size: s}));
+  };
+  const pref = run(true), unif = run(false);
+  const top = pref.slice(4, Math.min(500, pref.length)).filter(d => d.size > 0);
+  const fit = lm(top.map(d => Math.log(d.rank)), top.map(d => Math.log(d.size)));
+  const share = (rows, f) => rows.slice(0, Math.max(1, Math.round(rows.length * f))).reduce((s, d) => s + d.size, 0) / arrivals;
+  return {pref, unif, slope: fit.b, top1: share(pref, 0.01), top1u: share(unif, 0.01), largest: pref[0].size / arrivals, largestU: unif[0].size / arrivals};
+}
+
+Plot.plot({
+  ariaLabel: "Power Laws and Preferential Attachment: rank-size plot",
+  ariaDescription: "Log-log axes. Horizontal axis: rank of the entity, largest first. Vertical axis: entity size. Teal: preferential attachment, a nearly straight line. Gray: newcomers joining uniformly at random, which bends down sharply. The summary below the chart states the result in words.",
+  height: 300,
+  x: {type: "log", label: "Rank (largest = 1)"},
+  y: {type: "log", label: "Size (members)", grid: true},
+  color: {legend: true, domain: ["Preferential attachment", "Uniform choice"], range: [C.teal, C.gray]},
+  marks: [
+    Plot.line(pa.unif, {x: "rank", y: "size", stroke: () => "Uniform choice", strokeWidth: 2}),
+    Plot.line(pa.pref, {x: "rank", y: "size", stroke: () => "Preferential attachment", strokeWidth: 2.5})
+  ]
+})
+
+html`<div class="sim-readout">${md`With preferential attachment, ${num(arrivals)} arrivals form ${num(pa.pref.length)} entities. The largest holds **${pct(pa.largest, 1)}** of all members and the top 1% of entities hold **${pct(pa.top1)}**. Over ranks 5 to 500 the rank–size slope is **${fmt(pa.slope, 2)}**${Math.abs(pa.slope + 1 - p) < 0.15 ? `, close to the predicted −(1 − p) = ${fmt(-(1 - p), 2)}` : `; the theory predicts −(1 − p) = ${fmt(-(1 - p), 2)} for very large populations, and a single run wanders from it`}. When newcomers ignore size, the largest entity holds only ${pct(pa.largestU, 1)} and the top 1% hold ${pct(pa.top1u)}.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Preferential attachment: entity sizes follow a power law.
+arrivals <- 20000
+p <- 0.05 # chance an arrival founds a new entity
+set.seed(9)
+
+grow <- function(preferential) {
+  owner <- integer(arrivals)
+  owner[1] <- 1
+  sizes <- 1
+  for (t in 2:arrivals) {
+    if (runif(1) < p) {
+      e <- length(sizes) + 1
+      sizes[e] <- 0
+    } else if (preferential) {
+      e <- owner[sample.int(t - 1, 1)] # a random member's entity
+    } else {
+      e <- sample.int(length(sizes), 1) # any entity, ignoring size
+    }
+    sizes[e] <- sizes[e] + 1
+    owner[t] <- e
+  }
+  sort(sizes, decreasing = TRUE)
+}
+
+pref <- grow(TRUE)
+unif <- grow(FALSE)
+top <- 5:min(500, length(pref)) # skip the noisy very top
+slope <- coef(lm(log(pref[top]) ~ log(top)))[2]
+cat(sprintf(
+  "%d entities; largest holds %.1f%%; rank-size slope %.2f (theory %.2f)\n",
+  length(pref), 100 * pref[1] / arrivals, slope, -(1 - p)
+))
+
+plot(seq_along(pref), pref,
+  log = "xy", type = "l", lwd = 2, col = "#148a91",
+  xlab = "Rank", ylab = "Size"
+)
+lines(seq_along(unif), unif, lwd = 2, col = "grey60")
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Preferential attachment, where growth is proportional to current size, produces power-law sizes with a few giants.
+- Long tails mean the largest events dominate totals, averages are unstable, and the biggest outcome may be unprecedented.
+- The same founding rate with size-blind joining produces no long tail: the feedback is what matters.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** City sizes, firm sizes, book and music sales, web links and citations, where success breeds success.
+- **Predict.** Plan for events far larger than any yet seen (floods, pandemics, market crashes) when their sizes follow a power law.
+- **Reason.** Long tails change questions of equity (winner-take-most markets) and of risk (catastrophes dominate expected losses).
+:::
+
+## Related models
+
+- [Forest Fire Model](forest-fire-model.qmd): a second route to power laws, self-organized criticality.
+- [Quality and Degree Network Formation](network-formation.qmd): preferential attachment in networks, producing hubs.
+- [Polya Process](polya-process.qmd): the urn version of the rich-get-richer feedback.
+- [Lognormal Distribution](lognormal-distribution.qmd): skewed but with a thinner tail, from independent multiplicative shocks.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 6, "Power-Law Distributions: Long Tails," pp. 69–74.
+- Mark E. Newman, "Power Laws, Pareto Distributions and Zipf's Law," *Contemporary Physics* 46 (2005): 323–351.
+- Albert-László Barabási and Réka Albert, "Emergence of Scaling in Random Networks," *Science* 286, no. 5439 (1999): 509–512, [doi:10.1126/science.286.5439.509](https://doi.org/10.1126/science.286.5439.509).

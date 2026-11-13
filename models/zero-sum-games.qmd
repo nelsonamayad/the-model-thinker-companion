@@ -1,0 +1,240 @@
+---
+title: "Zero-Sum Games"
+date: 2026-11-13
+description: "When one player's gain is the other's loss, each should play the strategy that guarantees the most against the worst case, which often means randomizing."
+order: 40
+chapter: 21
+chapter-title: "Game Theory Models Times Three"
+pages: "243–246"
+family: "Games and cooperation"
+engine: "Equation-based"
+tool: "Observable JS (closed form)"
+reference: "base R"
+uses: [Act, Reason, Predict]
+categories: ["Games and cooperation", "Equation-based"]
+verified: true
+source-note: "The penalty-kick payoffs are illustrative numbers of our own, not data from the book."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#40** · *The Model Thinker*, chapter 21, "Game Theory Models Times Three", pp. 243–246.
+
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book. The penalty-kick payoffs are illustrative numbers of our own, not data from the book.
+:::
+
+## The idea
+
+In a zero-sum game, what one player wins the other loses: sports, elections between two candidates, poker, a penalty kick. Each player chooses an action, and payoffs depend on both choices. Game theory looks for a *Nash equilibrium*, a pair of strategies in which each player's choice is the best response to the other's.
+
+Two lessons stand out. First, look for dominant strategies and rule out what an opponent would never do. In Page's *Minimize Risk* game the row player is always better off playing safe, so the column player should expect that and play safe too. Second, when there is no such solution, randomize. In Matching Pennies any predictable choice can be exploited, so the only equilibrium is for both players to flip a coin. The same logic tells penalty takers to mix corners, tennis players to mix serves and poker players to bluff at random.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** Two players; the row player chooses row 1 or 2, the column player column 1 or 2. The row player's payoffs are
+
+$$
+\begin{pmatrix} a & b \\ c & d \end{pmatrix},
+$$
+
+and the column player receives the negative. A strategy may randomize: the row player plays row 1 with probability $p$, the column player column 1 with probability $q$.
+
+**Nash equilibrium.** A pair of strategies in which each is a best response to the other. If some entry is the smallest in its row and the largest in its column (a *saddle point*), both players play pure strategies. Otherwise, each mixes so as to make the opponent indifferent:
+
+$$
+p^* = \frac{d - c}{a - b - c + d}, \qquad q^* = \frac{d - b}{a - b - c + d}, \qquad \text{value } V = \frac{ad - bc}{a - b - c + d} .
+$$
+
+**Result.** Every finite two-player zero-sum game has an equilibrium in possibly mixed strategies, and in it each player guarantees the game's value whatever the opponent does (von Neumann's minimax theorem).
+:::
+
+## Interactive model
+
+The chart shows the row player's expected payoff, as a function of how often it plays row 1, against each of the column player's actions. The opponent will pick whichever line is lower, so the row player should choose the peak of the lower envelope. For Matching Pennies the peak is at 50%; for Minimize Risk it is at a corner (play safe always).
+
+```{ojs}
+//| echo: false
+import {seq, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof preset = Inputs.radio(["Matching Pennies", "Minimize Risk", "Penalty kick (illustrative)"], {value: "Matching Pennies", label: "Game"})
+```
+
+```{ojs}
+game = ({
+  "Matching Pennies": {rows: ["Heads", "Tails"], cols: ["Heads", "Tails"], M: [[1, -1], [-1, 1]], unit: ""},
+  "Minimize Risk": {rows: ["Risky", "Safe"], cols: ["Risky", "Safe"], M: [[-10, 0], [10, 0]], unit: ""},
+  "Penalty kick (illustrative)": {rows: ["Kick left", "Kick right"], cols: ["Dive left", "Dive right"], M: [[0.58, 0.95], [0.93, 0.70]], unit: "probability of scoring"}
+})[preset]
+```
+
+```{ojs}
+solved = {
+  const [[a, b], [c, d]] = game.M;
+  // Saddle point: row minimum that is also column maximum.
+  let saddle = null;
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+    const v = game.M[i][j];
+    if (v === Math.min(...game.M[i]) && v === Math.max(game.M[0][j], game.M[1][j])) saddle = saddle || {i, j, v};
+  }
+  const den = a - b - c + d;
+  const p = saddle ? (saddle.i === 0 ? 1 : 0) : (d - c) / den;
+  const q = saddle ? (saddle.j === 0 ? 1 : 0) : (d - b) / den;
+  const V = saddle ? saddle.v : (a * d - b * c) / den;
+  const lines = seq(0, 1, 101).flatMap(x => [
+    {p: x, v: x * a + (1 - x) * c, vs: `vs ${game.cols[0]}`},
+    {p: x, v: x * b + (1 - x) * d, vs: `vs ${game.cols[1]}`}
+  ]);
+  return {p, q, V, saddle, lines};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Zero-Sum Games: row player's payoff against each column action",
+  ariaDescription: "Horizontal axis: probability that the row player plays its first action. Vertical axis: the row player's expected payoff. Two lines, one for each column action; the dot marks the equilibrium, the highest point of the lower of the two lines. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: `Probability row plays "${game.rows[0]}"`, tickFormat: "%"},
+  y: {label: `Row player's expected payoff${game.unit ? ` (${game.unit})` : ""}`, grid: true},
+  color: {legend: true, range: [C.teal, C.orange]},
+  marks: [
+    Plot.line(solved.lines, {x: "p", y: "v", stroke: "vs", strokeWidth: 2.5}),
+    Plot.dot([{p: solved.p, v: solved.V}], {x: "p", y: "v", r: 7, fill: "currentColor"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`Payoffs to the row player: ${game.rows.map((r, i) => game.cols.map((c, j) => `(${r}, ${c}) = ${game.M[i][j]}`).join(", ")).join("; ")}. ${solved.saddle ? `There is a **pure-strategy equilibrium**: row plays **${game.rows[solved.saddle.i]}** and column plays **${game.cols[solved.saddle.j]}**, for a value of ${fmt(solved.V, 2)}. ${preset === "Minimize Risk" ? "Safe dominates risky for the row player, so the column player, anticipating that, also plays safe." : ""}` : `There is no pure-strategy equilibrium. Row plays **${game.rows[0]} ${pct(solved.p)}** of the time and column plays **${game.cols[0]} ${pct(solved.q)}** of the time; the row player then guarantees ${fmt(solved.V, 3)} on average, whatever the column player does.${preset.startsWith("Penalty") ? " The kicker favours the stronger side, but not always: predictability would be punished." : ""}`}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {seq, C, fmt, pct} from "../js/models.js"
+
+viewof preset = Inputs.radio(["Matching Pennies", "Minimize Risk", "Penalty kick (illustrative)"], {value: "Matching Pennies", label: "Game"})
+
+game = ({
+  "Matching Pennies": {rows: ["Heads", "Tails"], cols: ["Heads", "Tails"], M: [[1, -1], [-1, 1]], unit: ""},
+  "Minimize Risk": {rows: ["Risky", "Safe"], cols: ["Risky", "Safe"], M: [[-10, 0], [10, 0]], unit: ""},
+  "Penalty kick (illustrative)": {rows: ["Kick left", "Kick right"], cols: ["Dive left", "Dive right"], M: [[0.58, 0.95], [0.93, 0.70]], unit: "probability of scoring"}
+})[preset]
+
+solved = {
+  const [[a, b], [c, d]] = game.M;
+  // Saddle point: row minimum that is also column maximum.
+  let saddle = null;
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+    const v = game.M[i][j];
+    if (v === Math.min(...game.M[i]) && v === Math.max(game.M[0][j], game.M[1][j])) saddle = saddle || {i, j, v};
+  }
+  const den = a - b - c + d;
+  const p = saddle ? (saddle.i === 0 ? 1 : 0) : (d - c) / den;
+  const q = saddle ? (saddle.j === 0 ? 1 : 0) : (d - b) / den;
+  const V = saddle ? saddle.v : (a * d - b * c) / den;
+  const lines = seq(0, 1, 101).flatMap(x => [
+    {p: x, v: x * a + (1 - x) * c, vs: `vs ${game.cols[0]}`},
+    {p: x, v: x * b + (1 - x) * d, vs: `vs ${game.cols[1]}`}
+  ]);
+  return {p, q, V, saddle, lines};
+}
+
+Plot.plot({
+  ariaLabel: "Zero-Sum Games: row player's payoff against each column action",
+  ariaDescription: "Horizontal axis: probability that the row player plays its first action. Vertical axis: the row player's expected payoff. Two lines, one for each column action; the dot marks the equilibrium, the highest point of the lower of the two lines. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: `Probability row plays "${game.rows[0]}"`, tickFormat: "%"},
+  y: {label: `Row player's expected payoff${game.unit ? ` (${game.unit})` : ""}`, grid: true},
+  color: {legend: true, range: [C.teal, C.orange]},
+  marks: [
+    Plot.line(solved.lines, {x: "p", y: "v", stroke: "vs", strokeWidth: 2.5}),
+    Plot.dot([{p: solved.p, v: solved.V}], {x: "p", y: "v", r: 7, fill: "currentColor"})
+  ]
+})
+
+html`<div class="sim-readout">${md`Payoffs to the row player: ${game.rows.map((r, i) => game.cols.map((c, j) => `(${r}, ${c}) = ${game.M[i][j]}`).join(", ")).join("; ")}. ${solved.saddle ? `There is a **pure-strategy equilibrium**: row plays **${game.rows[solved.saddle.i]}** and column plays **${game.cols[solved.saddle.j]}**, for a value of ${fmt(solved.V, 2)}. ${preset === "Minimize Risk" ? "Safe dominates risky for the row player, so the column player, anticipating that, also plays safe." : ""}` : `There is no pure-strategy equilibrium. Row plays **${game.rows[0]} ${pct(solved.p)}** of the time and column plays **${game.cols[0]} ${pct(solved.q)}** of the time; the row player then guarantees ${fmt(solved.V, 3)} on average, whatever the column player does.${preset.startsWith("Penalty") ? " The kicker favours the stronger side, but not always: predictability would be punished." : ""}`}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Zero-sum 2x2 games: saddle points or mixed-strategy equilibria.
+# Deterministic: no random numbers.
+solve_2x2 <- function(m) {
+  for (i in 1:2) {
+    for (j in 1:2) {
+      if (m[i, j] == min(m[i, ]) && m[i, j] == max(m[, j])) {
+        return(c(p = 2 - i, q = 2 - j, value = m[i, j])) # pure strategies
+      }
+    }
+  }
+  den <- m[1, 1] - m[1, 2] - m[2, 1] + m[2, 2]
+  c(
+    p = (m[2, 2] - m[2, 1]) / den, q = (m[2, 2] - m[1, 2]) / den,
+    value = (m[1, 1] * m[2, 2] - m[1, 2] * m[2, 1]) / den
+  )
+}
+games <- list(
+  matching_pennies = matrix(c(1, -1, -1, 1), 2, byrow = TRUE),
+  minimize_risk = matrix(c(-10, 0, 10, 0), 2, byrow = TRUE),
+  penalty_kick = matrix(c(0.58, 0.95, 0.93, 0.70), 2, byrow = TRUE)
+)
+print(round(t(sapply(games, solve_2x2)), 3))
+
+m <- games$penalty_kick
+p <- seq(0, 1, by = 0.01)
+plot(p, p * m[1, 1] + (1 - p) * m[2, 1],
+  type = "l", lwd = 2,
+  col = "#148a91", ylim = range(m), xlab = "Probability of row 1",
+  ylab = "Row player's expected payoff"
+)
+lines(p, p * m[1, 2] + (1 - p) * m[2, 2], lwd = 2, col = "#d95f02")
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- In zero-sum games, rule out dominated strategies first, including the ones your opponent would never use.
+- When no pure strategy is safe, randomize, with probabilities that make the opponent indifferent.
+- Equilibrium mixing is not 50–50 in general: it depends on the payoffs.
+:::
+
+## Uses
+
+::: uses
+- **Act.** Mix penalty-kick directions, serve placements, run and pass plays, audits and security patrols.
+- **Reason.** Anticipate what an opponent will never do, and use that to narrow your own choices.
+- **Predict.** Professional athletes' mixing rates come close to equilibrium predictions.
+:::
+
+## Related models
+
+- [Sequential Games](sequential-games.qmd): games where players move in turn.
+- [The Effort Game](effort-game.qmd): a game with continuous actions.
+- [Repeated Prisoners' Dilemma](prisoners-dilemma.qmd): a non-zero-sum game where cooperation is possible.
+- [Spatial Competition Model](spatial-competition.qmd): two-candidate elections as a zero-sum game.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 21, "Game Theory Models Times Three," pp. 243–246.
+- John von Neumann and Oskar Morgenstern, *Theory of Games and Economic Behavior* (Princeton University Press, 1953).

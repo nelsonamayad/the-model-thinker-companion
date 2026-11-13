@@ -1,0 +1,378 @@
+---
+title: "Game of Life"
+date: 2026-11-13
+description: "Two rules about how many neighbours a cell needs to be born or to survive generate still lifes, blinkers, travelling gliders and long, unpredictable histories."
+order: 31
+chapter: 15
+chapter-title: "Local Interaction Models"
+pages: "176–179"
+family: "Processes and dynamics"
+engine: "Agent-based"
+tool: "NetLogo 6.4 + nlrx; JavaScript replay"
+reference: "NetLogo 6.4 model, nlrx experiment"
+uses: [Explore, Explain, Reason]
+categories: ["Processes and dynamics", "Agent-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#31** · *The Model Thinker*, chapter 15, "Local Interaction Models", pp. 176–179.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+John Conway's Game of Life is a grid of cells, each alive or dead, updated all at once by two rules. A dead cell with exactly three live neighbours comes to life. A live cell with fewer than two or more than three live neighbours dies, of loneliness or overcrowding. That is all. Yet from these rules come patterns that sit still, patterns that blink, *gliders* that walk across the grid, *guns* that fire gliders, and even configurations that compute anything a computer can.
+
+Page uses the Game of Life to show what local interaction models can produce: all four of Wolfram's classes of behaviour (equilibrium, cycles, randomness and complexity) from the same simple rules, depending only on where you start. It is a reminder that complex aggregate behaviour need not come from complex individuals, and that the only way to know what some systems will do is to run them.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** Each cell of a two-dimensional grid (here $60 \times 60$, wrapped at the edges) is alive (on) or dead (off). Each cell's neighbours are the eight adjacent cells. Let $n_i$ be the number of live neighbours of cell $i$.
+
+**Rules.** All cells update at the same time:
+
+- Life rule: a dead cell with exactly three live neighbours becomes alive ($n_i = 3$).
+- Death rule: a live cell with fewer than two or more than three live neighbours dies ($n_i < 2$ or $n_i > 3$); otherwise it survives.
+
+**Result.** Depending on the initial configuration, the grid settles into still lifes (equilibrium), oscillates (cycles), produces moving patterns such as gliders, or goes through long irregular transients. From random starts, the density of live cells falls and settles at a few percent of the grid, a scattered "ash" of still lifes and blinkers.
+:::
+
+## Interactive model
+
+Choose a starting pattern and step through the generations, or press **Play**. A random soup churns for a long time before settling into a scattering of still lifes and blinkers. A single glider travels diagonally forever (the grid wraps). The R-pentomino, five cells, keeps evolving for more than a thousand generations on an unbounded grid.
+
+```{ojs}
+//| echo: false
+import {rng, torus8, drawGrid, player, C, pct, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof pattern = Inputs.radio(["Random soup", "Glider", "R-pentomino"], {value: "Random soup", label: "Start"})
+viewof density = Inputs.range([5, 80], {value: 35, step: 5, label: "Soup density (%)"})
+viewof seed = Inputs.range([1, 500], {value: 31, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+life = {
+  const r = rng(seed), n = 60, N = n * n, nb = torus8(n), gens = 300;
+  let cells = new Uint8Array(N);
+  const place = (pts) => { for (const [x, y] of pts) cells[(y + 28) * n + (x + 28)] = 1; };
+  if (pattern === "Random soup") for (let i = 0; i < N; i++) cells[i] = r() * 100 < density ? 1 : 0;
+  else if (pattern === "Glider") place([[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]]);
+  else place([[1, 0], [2, 0], [0, 1], [1, 1], [1, 2]]);
+  const frames = [cells], series = [];
+  for (let g = 0; g <= gens; g++) {
+    let alive = 0;
+    for (let i = 0; i < N; i++) alive += cells[i];
+    series.push({gen: g, density: alive / N});
+    if (g === gens) break;
+    const next = new Uint8Array(N);
+    for (let i = 0; i < N; i++) {
+      let k = 0;
+      for (let j = 0; j < 8; j++) k += cells[nb[8 * i + j]];
+      next[i] = cells[i] ? (k === 2 || k === 3 ? 1 : 0) : (k === 3 ? 1 : 0);
+    }
+    cells = next;
+    frames.push(cells);
+  }
+  // Generation from which the grid repeats with period 1 or 2.
+  let settled = null;
+  for (let g = 2; g <= gens; g++) {
+    const a = frames[g], b = frames[g - 2];
+    let same = true;
+    for (let i = 0; i < N && same; i++) if (a[i] !== b[i]) same = false;
+    if (same) { settled = g - 2; break; }
+  }
+  return {n, frames, series, settled};
+}
+```
+
+```{ojs}
+viewof gen = player(300, {value: pattern === "Random soup" ? 300 : 40, label: "Generation", delay: 80})
+```
+
+```{ojs}
+drawGrid(life.frames[gen], life.n, [null, C.green], {
+  size: 420,
+  ariaLabel: "Game of Life: the grid",
+  ariaDescription: "A 60 by 60 grid; green cells are alive, blank cells are dead. The summary below the charts states the result in words."
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Game of Life: density of live cells over time",
+  ariaDescription: "Horizontal axis: generation. Vertical axis: share of cells alive. The vertical line marks the generation shown. The summary below the charts states the result in words.",
+  height: 180,
+  x: {label: "Generation"},
+  y: {label: "Share alive", tickFormat: ".0%", grid: true},
+  marks: [
+    Plot.line(life.series, {x: "gen", y: "density", stroke: C.green, strokeWidth: 2}),
+    Plot.ruleX([gen], {stroke: C.orange})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const now = life.series[gen];
+  const fate = life.settled !== null ? `From generation **${life.settled}** on, the grid is frozen or blinks with period two: it has reached a still life and oscillators.` : pattern === "Glider" ? "The glider never settles: it moves one cell diagonally every four generations, wrapping around the grid." : "In 300 generations the grid has not settled into a still or period-two state.";
+  return html`<div class="sim-readout">${md`At generation ${gen}, **${num(Math.round(now.density * 3600))}** cells are alive (${pct(now.density, 1)} of the grid${pattern === "Random soup" ? `, down from ${pct(life.series[0].density)} at the start` : ""}). ${fate}`}</div>`;
+}
+```
+
+### NetLogo experiment
+
+The same rules in NetLogo (a 60 × 60 wrapped grid), run by nlrx from random soups at seven initial densities, five seeds each, for 400 generations. Each line is the average density of live cells over time for one starting density.
+
+```{ojs}
+//| echo: false
+nlRuns = FileAttachment("../data/game-of-life.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => d3.mean(v, d => d.density), d => d.initial_density, d => d.step).flatMap(([d0, rows]) => rows.map(([step, density]) => ({d0, step, density}))).sort((a, b) => a.d0 - b.d0 || a.step - b.step)
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Game of Life: NetLogo experiment",
+  ariaDescription: "Horizontal axis: generation, 0 to 400. Vertical axis: share of cells alive, log scale. One line per initial density from 5% to 80%, averaged over five seeds; most converge to a few percent, while the sparsest and densest starts die out. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Generation"},
+  y: {label: "Share alive", type: "log", grid: true, tickFormat: ".1%"},
+  color: {type: "ordinal", scheme: "viridis", label: "Initial density (%)", legend: true},
+  marks: [Plot.line(nlMeans.filter(d => d.density > 0), {x: "step", y: "density", stroke: d => String(d.d0), strokeWidth: 2})]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const end = nlMeans.filter(d => d.step === 400);
+  const mid = end.filter(d => d.d0 >= 10 && d.d0 <= 65);
+  const lo = end.find(d => d.d0 === 5), hi = end.find(d => d.d0 === 80);
+  return html`<div class="sim-readout">${md`In NetLogo, random soups started at 10% to 65% density all decay to about **${pct(d3.min(mid, d => d.density), 1)}–${pct(d3.max(mid, d => d.density), 1)}** live cells after 400 generations: very different starts, nearly the same ash. Soups at 5% and 80% almost die out (${pct(lo.density, 1)} and ${pct(hi.density, 1)}), too sparse for births or too crowded to survive.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **NetLogo** model is the reference implementation, and the **nlrx** script runs the experiment whose results are charted above (NetLogo 6.4, nlrx 0.4). The **Observable JS** replays the same rules in your browser, with its own random numbers.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, torus8, drawGrid, player, C, pct, num} from "../js/models.js"
+
+viewof pattern = Inputs.radio(["Random soup", "Glider", "R-pentomino"], {value: "Random soup", label: "Start"})
+viewof density = Inputs.range([5, 80], {value: 35, step: 5, label: "Soup density (%)"})
+viewof seed = Inputs.range([1, 500], {value: 31, step: 1, label: "Random seed"})
+
+life = {
+  const r = rng(seed), n = 60, N = n * n, nb = torus8(n), gens = 300;
+  let cells = new Uint8Array(N);
+  const place = (pts) => { for (const [x, y] of pts) cells[(y + 28) * n + (x + 28)] = 1; };
+  if (pattern === "Random soup") for (let i = 0; i < N; i++) cells[i] = r() * 100 < density ? 1 : 0;
+  else if (pattern === "Glider") place([[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]]);
+  else place([[1, 0], [2, 0], [0, 1], [1, 1], [1, 2]]);
+  const frames = [cells], series = [];
+  for (let g = 0; g <= gens; g++) {
+    let alive = 0;
+    for (let i = 0; i < N; i++) alive += cells[i];
+    series.push({gen: g, density: alive / N});
+    if (g === gens) break;
+    const next = new Uint8Array(N);
+    for (let i = 0; i < N; i++) {
+      let k = 0;
+      for (let j = 0; j < 8; j++) k += cells[nb[8 * i + j]];
+      next[i] = cells[i] ? (k === 2 || k === 3 ? 1 : 0) : (k === 3 ? 1 : 0);
+    }
+    cells = next;
+    frames.push(cells);
+  }
+  // Generation from which the grid repeats with period 1 or 2.
+  let settled = null;
+  for (let g = 2; g <= gens; g++) {
+    const a = frames[g], b = frames[g - 2];
+    let same = true;
+    for (let i = 0; i < N && same; i++) if (a[i] !== b[i]) same = false;
+    if (same) { settled = g - 2; break; }
+  }
+  return {n, frames, series, settled};
+}
+
+viewof gen = player(300, {value: pattern === "Random soup" ? 300 : 40, label: "Generation", delay: 80})
+
+drawGrid(life.frames[gen], life.n, [null, C.green], {
+  size: 420,
+  ariaLabel: "Game of Life: the grid",
+  ariaDescription: "A 60 by 60 grid; green cells are alive, blank cells are dead. The summary below the charts states the result in words."
+})
+
+Plot.plot({
+  ariaLabel: "Game of Life: density of live cells over time",
+  ariaDescription: "Horizontal axis: generation. Vertical axis: share of cells alive. The vertical line marks the generation shown. The summary below the charts states the result in words.",
+  height: 180,
+  x: {label: "Generation"},
+  y: {label: "Share alive", tickFormat: ".0%", grid: true},
+  marks: [
+    Plot.line(life.series, {x: "gen", y: "density", stroke: C.green, strokeWidth: 2}),
+    Plot.ruleX([gen], {stroke: C.orange})
+  ]
+})
+
+{
+  const now = life.series[gen];
+  const fate = life.settled !== null ? `From generation **${life.settled}** on, the grid is frozen or blinks with period two: it has reached a still life and oscillators.` : pattern === "Glider" ? "The glider never settles: it moves one cell diagonally every four generations, wrapping around the grid." : "In 300 generations the grid has not settled into a still or period-two state.";
+  return html`<div class="sim-readout">${md`At generation ${gen}, **${num(Math.round(now.density * 3600))}** cells are alive (${pct(now.density, 1)} of the grid${pattern === "Random soup" ? `, down from ${pct(life.series[0].density)} at the start` : ""}). ${fate}`}</div>`;
+}
+
+nlRuns = FileAttachment("../data/game-of-life.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => d3.mean(v, d => d.density), d => d.initial_density, d => d.step).flatMap(([d0, rows]) => rows.map(([step, density]) => ({d0, step, density}))).sort((a, b) => a.d0 - b.d0 || a.step - b.step)
+
+Plot.plot({
+  ariaLabel: "Game of Life: NetLogo experiment",
+  ariaDescription: "Horizontal axis: generation, 0 to 400. Vertical axis: share of cells alive, log scale. One line per initial density from 5% to 80%, averaged over five seeds; most converge to a few percent, while the sparsest and densest starts die out. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Generation"},
+  y: {label: "Share alive", type: "log", grid: true, tickFormat: ".1%"},
+  color: {type: "ordinal", scheme: "viridis", label: "Initial density (%)", legend: true},
+  marks: [Plot.line(nlMeans.filter(d => d.density > 0), {x: "step", y: "density", stroke: d => String(d.d0), strokeWidth: 2})]
+})
+
+{
+  const end = nlMeans.filter(d => d.step === 400);
+  const mid = end.filter(d => d.d0 >= 10 && d.d0 <= 65);
+  const lo = end.find(d => d.d0 === 5), hi = end.find(d => d.d0 === 80);
+  return html`<div class="sim-readout">${md`In NetLogo, random soups started at 10% to 65% density all decay to about **${pct(d3.min(mid, d => d.density), 1)}–${pct(d3.max(mid, d => d.density), 1)}** live cells after 400 generations: very different starts, nearly the same ash. Soups at 5% and 80% almost die out (${pct(lo.density, 1)} and ${pct(hi.density, 1)}), too sparse for births or too crowded to survive.`}</div>`;
+}
+```
+
+## NetLogo {.unlisted}
+
+```{.netlogo}
+; Conway's Game of Life (The Model Thinker, chapter 15).
+; The Model Thinker Companion: reference implementation, run with nlrx by
+; abm/game-of-life.R. The page replays the same rules in JavaScript.
+;
+; Each cell of a wrapped grid is alive or dead. All cells update at once:
+; a dead cell with exactly three live neighbours becomes alive; a live cell
+; with fewer than two or more than three live neighbours dies. Cells start
+; alive with probability `initial-density` percent.
+
+globals [
+  changed         ; share of cells that changed state in the last tick
+]
+
+patches-own [ alive? live-neighbors ]
+
+to setup
+  clear-all
+  ask patches [
+    set alive? random-float 100 < initial-density
+    recolor
+  ]
+  set changed 0
+  reset-ticks
+end
+
+to go
+  ask patches [ set live-neighbors count neighbors with [ alive? ] ]
+  let flips 0
+  ask patches [
+    let next ifelse-value alive?
+      [ live-neighbors = 2 or live-neighbors = 3 ]
+      [ live-neighbors = 3 ]
+    if next != alive? [ set flips flips + 1 ]
+    set alive? next
+    recolor
+  ]
+  set changed flips / count patches
+  tick
+end
+
+to recolor
+  set pcolor ifelse-value alive? [ 55 ] [ black ]
+end
+
+to-report density
+  report count patches with [ alive? ] / count patches
+end
+```
+
+## nlrx (R) {.unlisted}
+
+```{.r}
+# The Game of Life: how does the share of live cells evolve from random
+# starting densities? NetLogo model: abm/game-of-life.nlogo.
+# Output: data/game-of-life.csv (one row per initial density, seed and
+# sampled tick).
+source("abm/_nlrx.R")
+
+nl <- nl_model("game-of-life")
+nl@experiment <- experiment(
+  expname = "density_sweep",
+  outpath = tempdir(),
+  repetition = 1,
+  tickmetrics = "true", # record the trajectory
+  evalticks = seq(0, 400, by = 10),
+  idsetup = "setup",
+  idgo = "go",
+  runtime = 400,
+  metrics = c("density", "changed"),
+  variables = list(
+    "initial-density" = list(values = c(5, 10, 20, 35, 50, 65, 80))
+  ),
+  constants = list()
+)
+set.seed(31) # makes nlrx draw the same NetLogo seeds every time
+nl@simdesign <- simdesign_ff(nl, nseeds = 5)
+
+results <- run_experiment(nl)
+save_results(results, "game-of-life",
+  keep = c("initial_density", "random_seed", "step", "density", "changed")
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Two local rules generate equilibria, cycles, moving structures and long irregular dynamics.
+- The same rules can produce every class of behaviour; which one appears depends on the starting configuration.
+- For many complex systems there is no shortcut: the only way to know what happens is to run the model.
+:::
+
+## Uses
+
+::: uses
+- **Explore.** A laboratory for emergence: search for patterns, test conjectures about what rules can produce.
+- **Explain.** How rich aggregate patterns (in ecosystems, cities, or markets) can arise from simple local behaviour.
+- **Reason.** Some outcomes are computationally irreducible: they cannot be predicted faster than by simulation.
+:::
+
+## Related models
+
+- [Local Majority Model](local-majority.qmd): a conformity rule on the same grid, which always freezes.
+- [Information Entropy](entropy.qmd): a way to classify the patterns the Game of Life produces.
+- [Forest Fire Model](forest-fire-model.qmd): another grid model whose global behaviour no single cell controls.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 15, "Local Interaction Models," pp. 176–179.
+- Martin Gardner, "Mathematical Games," *Scientific American* 223, no. 4 (1970): 120–123, [doi:10.1038/scientificamerican1070-120](https://doi.org/10.1038/scientificamerican1070-120).
+- Elwyn R. Berlekamp, John H. Conway and Richard K. Guy, "What Is Life?," in *Winning Ways for Your Mathematical Plays*, vol. 2 (Academic Press, 1982).

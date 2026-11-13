@@ -1,0 +1,235 @@
+---
+title: "Linear Models"
+date: 2026-11-13
+description: "A straight-line relationship between variables, fitted to data by regression, reports each variable's sign, significance and magnitude, but not, by itself, its causal effect."
+order: 11
+chapter: 7
+chapter-title: "Linear Models"
+pages: "83–91"
+family: "Linear and nonlinear models"
+engine: "Equation-based"
+tool: "Observable JS (least squares)"
+reference: "R with stats::lm"
+uses: [Predict, Explain, Act]
+categories: ["Linear and nonlinear models", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#11** · *The Model Thinker*, chapter 7, "Linear Models", pp. 83–91.
+
+Filed under [Linear and nonlinear models](../families/linear-nonlinear.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (least squares) · Reference implementation: R with stats::lm.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+A linear model says that when one variable changes, another changes in proportion. Each extra hour of study adds the same number of points to a test score; each extra square metre adds the same amount to a house price. Linear models are the most used models in the social sciences because they are simple to state, easy to fit to data by regression, and easy to read.
+
+A regression tells us three things about each variable: its **sign** (does it go with the outcome up or down?), its **significance** (could the pattern be chance?) and its **magnitude** (how much the outcome changes per unit). What it does not tell us is causation. If a variable we left out drives both the explanatory variable and the outcome, the coefficient absorbs its influence. Adding that variable, in a multiple regression, can change the answer completely.
+
+## Formulation
+
+::: {.model-box}
+**Linear model.** A dependent variable $y$ changes linearly with an independent variable $x$:
+
+$$
+y = m x + b ,
+$$
+
+with slope $m$ and intercept $b$.
+
+**Multiple regression.** With several independent variables and noise $\varepsilon$,
+
+$$
+y = b_0 + b_1 x_1 + b_2 x_2 + \dots + b_k x_k + \varepsilon ,
+$$
+
+and regression chooses the coefficients that minimize the sum of squared errors $\sum_i (y_i - \hat y_i)^2$.
+
+**Result.** Each coefficient's sign, significance ($p$-value) and magnitude summarize how $y$ moves with $x_j$ *holding the other included variables fixed*. If an omitted variable $z$ affects $y$ (with coefficient $c$) and is correlated with $x_1$, the simple-regression slope on $x_1$ is biased by about $c \cdot \operatorname{cov}(x_1, z)/\operatorname{var}(x_1)$.
+:::
+
+$R^2$, the share of the variation in $y$ that the model explains, is defined as for [categorization models](categorization-models.qmd). Page's companion point, the *big coefficient versus the new reality*, is that regression finds the best tweaks within the current system but cannot evaluate a different system.
+
+## Interactive model
+
+Simulated students: test scores depend on hours of study and on family income, and students from richer families also study more. The orange line is a simple regression of scores on study hours alone; the teal line is the study-hours slope from a multiple regression that also includes income. With the defaults the simple regression overstates the effect of studying more than twofold, because it credits studying with income's effect. Set the correlation to zero and the two agree.
+
+```{ojs}
+//| echo: false
+import {rng, range, lm, ols, pValue, mean, C, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof effect = Inputs.range([-2, 6], {value: 2, step: 0.5, label: "True effect of an hour of study"})
+viewof incomeEffect = Inputs.range([0, 10], {value: 5, step: 0.5, label: "Effect of income (points per sd)"})
+viewof rho = Inputs.range([-0.9, 0.9], {value: 0.6, step: 0.05, label: "Correlation of study and income"})
+viewof n = Inputs.range([30, 1000], {value: 200, step: 10, label: "Students n"})
+viewof seed = Inputs.range([1, 500], {value: 12, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+reg = {
+  const r = rng(seed);
+  const data = range(n).map(() => {
+    const income = r.normal();
+    const hours = 5 + 2 * (rho * income + Math.sqrt(1 - rho * rho) * r.normal());
+    return {hours, income, score: 50 + effect * hours + incomeEffect * income + r.normal(0, 8)};
+  });
+  const simple = lm(data.map(d => d.hours), data.map(d => d.score));
+  const multi = ols(data.map(d => [d.hours, d.income]), data.map(d => d.score));
+  const mh = mean(data.map(d => d.hours)), ms = mean(data.map(d => d.score));
+  return {
+    data, simple, multi, mh, ms,
+    pSimple: pValue(simple.b, simple.seB, n - 2),
+    pMulti: pValue(multi.coef[1], multi.se[1], multi.df)
+  };
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Linear Models: test scores against hours of study",
+  ariaDescription: "Horizontal axis: hours of study. Vertical axis: test score. Gray dots are students. The orange line is the simple regression on hours; the teal line has the hours slope from the multiple regression that also includes income. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Hours of study"},
+  y: {label: "Test score", grid: true},
+  marks: [
+    Plot.dot(reg.data, {x: "hours", y: "score", fill: C.gray, r: 2.5, fillOpacity: 0.6}),
+    Plot.line([0, 10].map(h => ({h, y: reg.simple.a + reg.simple.b * h})), {x: "h", y: "y", stroke: C.orange, strokeWidth: 2.5}),
+    Plot.line([0, 10].map(h => ({h, y: reg.ms + reg.multi.coef[1] * (h - reg.mh)})), {x: "h", y: "y", stroke: C.teal, strokeWidth: 2.5}),
+    Plot.text([{h: 9.6, y: reg.simple.a + reg.simple.b * 9.6, t: "hours only"}, {h: 9.6, y: reg.ms + reg.multi.coef[1] * (9.6 - reg.mh), t: "holding income fixed"}], {x: "h", y: "y", text: "t", dy: -10, fill: (d, i) => [C.orange, C.teal][i], textAnchor: "end"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const sig = p => (p < 0.001 ? "p < 0.001" : `p = ${fmt(p, 3)}`);
+  return html`<div class="sim-readout">${md`**Hours only:** each hour of study goes with **${fmt(reg.simple.b, 2)}** more points (${sig(reg.pSimple)}, R² = ${fmt(reg.simple.r2, 2)}). **Holding income fixed:** each hour adds **${fmt(reg.multi.coef[1], 2)}** points (${sig(reg.pMulti)}, R² = ${fmt(reg.multi.r2, 2)}). The true effect is ${effect}. ${Math.abs(reg.simple.b - effect) > Math.abs(reg.multi.coef[1] - effect) + 0.5 ? `Leaving income out ${reg.simple.b > effect ? "inflates" : "deflates"} the effect of studying, because students who study more also come from ${rho > 0 ? "richer" : "poorer"} families: the correlation is not the causal effect.` : "Here the two regressions agree, because income and studying are nearly unrelated or income barely matters."}`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (R with stats::lm): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, lm, ols, pValue, mean, C, fmt} from "../js/models.js"
+
+viewof effect = Inputs.range([-2, 6], {value: 2, step: 0.5, label: "True effect of an hour of study"})
+viewof incomeEffect = Inputs.range([0, 10], {value: 5, step: 0.5, label: "Effect of income (points per sd)"})
+viewof rho = Inputs.range([-0.9, 0.9], {value: 0.6, step: 0.05, label: "Correlation of study and income"})
+viewof n = Inputs.range([30, 1000], {value: 200, step: 10, label: "Students n"})
+viewof seed = Inputs.range([1, 500], {value: 12, step: 1, label: "Random seed"})
+
+reg = {
+  const r = rng(seed);
+  const data = range(n).map(() => {
+    const income = r.normal();
+    const hours = 5 + 2 * (rho * income + Math.sqrt(1 - rho * rho) * r.normal());
+    return {hours, income, score: 50 + effect * hours + incomeEffect * income + r.normal(0, 8)};
+  });
+  const simple = lm(data.map(d => d.hours), data.map(d => d.score));
+  const multi = ols(data.map(d => [d.hours, d.income]), data.map(d => d.score));
+  const mh = mean(data.map(d => d.hours)), ms = mean(data.map(d => d.score));
+  return {
+    data, simple, multi, mh, ms,
+    pSimple: pValue(simple.b, simple.seB, n - 2),
+    pMulti: pValue(multi.coef[1], multi.se[1], multi.df)
+  };
+}
+
+Plot.plot({
+  ariaLabel: "Linear Models: test scores against hours of study",
+  ariaDescription: "Horizontal axis: hours of study. Vertical axis: test score. Gray dots are students. The orange line is the simple regression on hours; the teal line has the hours slope from the multiple regression that also includes income. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Hours of study"},
+  y: {label: "Test score", grid: true},
+  marks: [
+    Plot.dot(reg.data, {x: "hours", y: "score", fill: C.gray, r: 2.5, fillOpacity: 0.6}),
+    Plot.line([0, 10].map(h => ({h, y: reg.simple.a + reg.simple.b * h})), {x: "h", y: "y", stroke: C.orange, strokeWidth: 2.5}),
+    Plot.line([0, 10].map(h => ({h, y: reg.ms + reg.multi.coef[1] * (h - reg.mh)})), {x: "h", y: "y", stroke: C.teal, strokeWidth: 2.5}),
+    Plot.text([{h: 9.6, y: reg.simple.a + reg.simple.b * 9.6, t: "hours only"}, {h: 9.6, y: reg.ms + reg.multi.coef[1] * (9.6 - reg.mh), t: "holding income fixed"}], {x: "h", y: "y", text: "t", dy: -10, fill: (d, i) => [C.orange, C.teal][i], textAnchor: "end"})
+  ]
+})
+
+{
+  const sig = p => (p < 0.001 ? "p < 0.001" : `p = ${fmt(p, 3)}`);
+  return html`<div class="sim-readout">${md`**Hours only:** each hour of study goes with **${fmt(reg.simple.b, 2)}** more points (${sig(reg.pSimple)}, R² = ${fmt(reg.simple.r2, 2)}). **Holding income fixed:** each hour adds **${fmt(reg.multi.coef[1], 2)}** points (${sig(reg.pMulti)}, R² = ${fmt(reg.multi.r2, 2)}). The true effect is ${effect}. ${Math.abs(reg.simple.b - effect) > Math.abs(reg.multi.coef[1] - effect) + 0.5 ? `Leaving income out ${reg.simple.b > effect ? "inflates" : "deflates"} the effect of studying, because students who study more also come from ${rho > 0 ? "richer" : "poorer"} families: the correlation is not the causal effect.` : "Here the two regressions agree, because income and studying are nearly unrelated or income barely matters."}`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Linear models: an omitted variable biases a simple regression.
+effect <- 2 # true effect of an hour of study
+income_effect <- 5 # effect of a one-sd difference in family income
+rho <- 0.6 # correlation between study hours and income
+n <- 200
+set.seed(12)
+
+income <- rnorm(n)
+hours <- 5 + 2 * (rho * income + sqrt(1 - rho^2) * rnorm(n))
+score <- 50 + effect * hours + income_effect * income + rnorm(n, 0, 8)
+
+simple <- lm(score ~ hours)
+multiple <- lm(score ~ hours + income)
+print(summary(simple)$coefficients["hours", ])
+print(summary(multiple)$coefficients["hours", ])
+cat(sprintf(
+  "Hours only: %.2f points per hour; holding income fixed: %.2f (true %g)\n",
+  coef(simple)["hours"], coef(multiple)["hours"], effect
+))
+
+plot(hours, score, pch = 19, col = "grey70", xlab = "Hours of study")
+abline(simple, col = "#d95f02", lwd = 2)
+abline(
+  a = mean(score) - coef(multiple)["hours"] * mean(hours),
+  b = coef(multiple)["hours"], col = "#148a91", lwd = 2
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- A regression reports sign, significance and magnitude for each variable, holding the other included variables fixed.
+- Correlation is not causation: an omitted variable correlated with both sides biases the coefficient, sometimes even flipping its sign.
+- Big coefficients point to the best levers within the current system; they say nothing about systems that do not yet exist.
+:::
+
+## Uses
+
+::: uses
+- **Predict.** Forecast house prices, sales or test scores from a handful of measured attributes.
+- **Explain.** Test whether a variable is associated with an outcome after accounting for others.
+- **Act.** Prioritize interventions with large, significant coefficients, while checking that the relationship is causal.
+:::
+
+## Related models
+
+- [Categorization Models](categorization-models.qmd): the boxes-instead-of-lines alternative, with the same $R^2$.
+- [Exponential Growth](exponential-growth.qmd): why straight-line extrapolation fails for compounding quantities.
+- [Diversity Prediction Theorem](diversity-prediction-theorem.qmd): averaging regressions built on different variables.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 7, "Linear Models," pp. 83–91.
+- Michael Mauboussin, *The Success Equation: Untangling Skill and Luck in Business* (Harvard Business Review Press, 2012).

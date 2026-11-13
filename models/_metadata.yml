@@ -1,0 +1,7 @@
+# Settings shared by every model page.
+
+# Each page shows its code once, in the "Show model code" block that
+# scripts/build_site.py generates after the interactive model, so the
+# individual cells don't echo their code.
+execute:
+  echo: false

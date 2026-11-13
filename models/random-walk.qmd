@@ -1,0 +1,284 @@
+---
+title: "Random Walk"
+date: 2026-11-13
+description: "A running total of coin flips wanders without bound yet keeps returning to zero, spreads out like the square root of time, and takes power-law-distributed times to come back."
+order: 27
+chapter: 13
+chapter-title: "Random Walks"
+pages: "155–161"
+family: "Processes and dynamics"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Explain, Predict, Reason]
+categories: ["Processes and dynamics", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#27** · *The Model Thinker*, chapter 13, "Random Walks", pp. 155–161.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Keep a running total of coin flips: add one for heads, subtract one for tails. The total is a simple random walk. It has no trend and no memory, yet it produces patterns that look meaningful: long climbs, sudden reversals, apparent support levels. All of them are chance. Random walks are the null model for anything that accumulates random shocks, from a gambler's winnings to a firm's headcount to a stock's price.
+
+The model's results are counterintuitive. The walk is *recurrent*: it returns to zero again and again. It is also *unbounded*: wait long enough and it passes any level. Its typical distance from the start grows only like the square root of time, which is why risk measures such as value at risk scale with $\sqrt t$. And the time it takes to return to zero follows a power law: half the walks return in two steps, but some take longer than any time you care to name. Page uses that to explain long-tailed firm life spans, and the efficient-markets argument to explain why stock prices should look like random walks.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A value $V_t$ with $V_0 = 0$ and
+
+$$
+V_{t+1} = V_t + R(-1, 1),
+$$
+
+where $R(-1, 1)$ is $+1$ or $-1$ with equal probability, independently each period.
+
+**Results.**
+
+- $\mathbb E[V_t] = 0$ and the standard deviation of $V_t$ is $\sqrt t$.
+- The walk is recurrent (it returns to 0 infinitely often) and unbounded (it eventually exceeds any threshold).
+- The time $\tau$ of the first return to 0 has a power-law tail: $\Pr(\tau = 2n) \approx \dfrac{1}{2\sqrt\pi}\, n^{-3/2}$; half of all walks return at $t = 2$.
+- Value at risk: if an investment moves up or down by $M$ each period, its $N$-period 2.5% value at risk is about $2M\sqrt N$.
+:::
+
+## Interactive model
+
+The top chart shows several walks over the chosen number of steps, with the $\pm 2\sqrt t$ envelope that should contain about 95% of walks at any time. The bottom chart simulates 20,000 walks and plots how long each took to first return to zero, on log–log axes: the points fall along a line of slope −3/2, a power law.
+
+```{ojs}
+//| echo: false
+import {rng, range, C, fmt, pct, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof steps = Inputs.range([50, 2000], {value: 500, step: 50, label: "Steps t"})
+viewof walkers = Inputs.range([1, 20], {value: 8, step: 1, label: "Walks shown"})
+viewof seed = Inputs.range([1, 500], {value: 27, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+walk = {
+  const r = rng(seed);
+  const paths = range(walkers).flatMap(w => {
+    let v = 0;
+    const out = [{w, t: 0, v: 0}];
+    for (let t = 1; t <= steps; t++) { v += r() < 0.5 ? 1 : -1; out.push({w, t, v}); }
+    return out;
+  });
+  const envelope = range(steps + 1).map(t => ({t, hi: 2 * Math.sqrt(t), lo: -2 * Math.sqrt(t)}));
+  // First-return times of 20,000 walks (capped at 10,000 steps).
+  const cap = 10000, returns = new Map();
+  let never = 0, byTwo = 0;
+  for (let k = 0; k < 20000; k++) {
+    let v = 0, t = 0;
+    do { v += r() < 0.5 ? 1 : -1; t++; } while (v !== 0 && t < cap);
+    if (v !== 0) never++; else { returns.set(t, (returns.get(t) || 0) + 1); if (t === 2) byTwo++; }
+  }
+  const bins = [];
+  for (let b = 1; 2 ** b <= cap; b++) {
+    const lo = 2 ** b, hi = 2 ** (b + 1);
+    let c = 0;
+    for (const [t, n] of returns) if (t >= lo && t < hi) c += n;
+    if (c) bins.push({t: Math.sqrt(lo * hi), p: c / 20000 / (lo / 2)});
+  }
+  return {paths, envelope, bins, never: never / 20000, byTwo: byTwo / 20000, cap};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Random Walk: sample paths",
+  ariaDescription: "Horizontal axis: step. Vertical axis: value of the walk. Each line is one random walk; the shaded band is plus or minus two times the square root of time. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Step t"},
+  y: {label: "Value V_t", grid: true},
+  marks: [
+    Plot.areaY(walk.envelope, {x: "t", y1: "lo", y2: "hi", fill: C.teal, fillOpacity: 0.12}),
+    Plot.ruleY([0], {stroke: "currentColor"}),
+    Plot.line(walk.paths, {x: "t", y: "v", z: "w", stroke: "w", strokeWidth: 1.4})
+  ],
+  color: {scheme: "tableau10"}
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Random Walk: distribution of first-return times",
+  ariaDescription: "Log-log axes. Horizontal axis: steps until the walk first returns to zero. Vertical axis: probability per return opportunity. Orange points from 20,000 simulated walks fall close to the dashed line of slope minus three halves. The summary below the charts states the result in words.",
+  height: 230,
+  x: {type: "log", label: "Steps to first return to zero"},
+  y: {type: "log", label: "Probability per even step", grid: true},
+  marks: [
+    Plot.line([4, walk.cap].map(t => ({t, p: 1 / (2 * Math.sqrt(Math.PI)) * (t / 2) ** -1.5})), {x: "t", y: "p", stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.dot(walk.bins, {x: "t", y: "p", fill: C.orange, r: 5})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const ends = walk.paths.filter(d => d.t === steps).map(d => d.v);
+  const inside = ends.filter(v => Math.abs(v) <= 2 * Math.sqrt(steps)).length;
+  return html`<div class="sim-readout">${md`After ${num(steps)} steps the walks end between ${Math.min(...ends)} and ${Math.max(...ends)}; the standard deviation of a walk's position is √${steps} ≈ **${fmt(Math.sqrt(steps), 1)}**, and ${inside} of the ${walkers} shown end inside ±2√t. Of 20,000 walks, **${pct(walk.byTwo, 1)}** returned to zero after exactly two steps, while **${pct(walk.never, 1)}** had still not returned after ${num(walk.cap)} steps: return times follow a power law, so very long excursions are not rare.`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, C, fmt, pct, num} from "../js/models.js"
+
+viewof steps = Inputs.range([50, 2000], {value: 500, step: 50, label: "Steps t"})
+viewof walkers = Inputs.range([1, 20], {value: 8, step: 1, label: "Walks shown"})
+viewof seed = Inputs.range([1, 500], {value: 27, step: 1, label: "Random seed"})
+
+walk = {
+  const r = rng(seed);
+  const paths = range(walkers).flatMap(w => {
+    let v = 0;
+    const out = [{w, t: 0, v: 0}];
+    for (let t = 1; t <= steps; t++) { v += r() < 0.5 ? 1 : -1; out.push({w, t, v}); }
+    return out;
+  });
+  const envelope = range(steps + 1).map(t => ({t, hi: 2 * Math.sqrt(t), lo: -2 * Math.sqrt(t)}));
+  // First-return times of 20,000 walks (capped at 10,000 steps).
+  const cap = 10000, returns = new Map();
+  let never = 0, byTwo = 0;
+  for (let k = 0; k < 20000; k++) {
+    let v = 0, t = 0;
+    do { v += r() < 0.5 ? 1 : -1; t++; } while (v !== 0 && t < cap);
+    if (v !== 0) never++; else { returns.set(t, (returns.get(t) || 0) + 1); if (t === 2) byTwo++; }
+  }
+  const bins = [];
+  for (let b = 1; 2 ** b <= cap; b++) {
+    const lo = 2 ** b, hi = 2 ** (b + 1);
+    let c = 0;
+    for (const [t, n] of returns) if (t >= lo && t < hi) c += n;
+    if (c) bins.push({t: Math.sqrt(lo * hi), p: c / 20000 / (lo / 2)});
+  }
+  return {paths, envelope, bins, never: never / 20000, byTwo: byTwo / 20000, cap};
+}
+
+Plot.plot({
+  ariaLabel: "Random Walk: sample paths",
+  ariaDescription: "Horizontal axis: step. Vertical axis: value of the walk. Each line is one random walk; the shaded band is plus or minus two times the square root of time. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Step t"},
+  y: {label: "Value V_t", grid: true},
+  marks: [
+    Plot.areaY(walk.envelope, {x: "t", y1: "lo", y2: "hi", fill: C.teal, fillOpacity: 0.12}),
+    Plot.ruleY([0], {stroke: "currentColor"}),
+    Plot.line(walk.paths, {x: "t", y: "v", z: "w", stroke: "w", strokeWidth: 1.4})
+  ],
+  color: {scheme: "tableau10"}
+})
+
+Plot.plot({
+  ariaLabel: "Random Walk: distribution of first-return times",
+  ariaDescription: "Log-log axes. Horizontal axis: steps until the walk first returns to zero. Vertical axis: probability per return opportunity. Orange points from 20,000 simulated walks fall close to the dashed line of slope minus three halves. The summary below the charts states the result in words.",
+  height: 230,
+  x: {type: "log", label: "Steps to first return to zero"},
+  y: {type: "log", label: "Probability per even step", grid: true},
+  marks: [
+    Plot.line([4, walk.cap].map(t => ({t, p: 1 / (2 * Math.sqrt(Math.PI)) * (t / 2) ** -1.5})), {x: "t", y: "p", stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.dot(walk.bins, {x: "t", y: "p", fill: C.orange, r: 5})
+  ]
+})
+
+{
+  const ends = walk.paths.filter(d => d.t === steps).map(d => d.v);
+  const inside = ends.filter(v => Math.abs(v) <= 2 * Math.sqrt(steps)).length;
+  return html`<div class="sim-readout">${md`After ${num(steps)} steps the walks end between ${Math.min(...ends)} and ${Math.max(...ends)}; the standard deviation of a walk's position is √${steps} ≈ **${fmt(Math.sqrt(steps), 1)}**, and ${inside} of the ${walkers} shown end inside ±2√t. Of 20,000 walks, **${pct(walk.byTwo, 1)}** returned to zero after exactly two steps, while **${pct(walk.never, 1)}** had still not returned after ${num(walk.cap)} steps: return times follow a power law, so very long excursions are not rare.`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Random walks: square-root spread and power-law return times.
+steps <- 500
+set.seed(27)
+
+paths <- replicate(8, cumsum(sample(c(-1, 1), steps, replace = TRUE)))
+cat(sprintf(
+  "sd after %d steps: theory %.1f, across 8 walks %.1f\n",
+  steps, sqrt(steps), sd(paths[steps, ])
+))
+
+first_return <- function(cap = 10000) {
+  v <- 0
+  for (t in 1:cap) {
+    v <- v + sample(c(-1, 1), 1)
+    if (v == 0) {
+      return(t)
+    }
+  }
+  NA
+}
+returns <- replicate(5000, first_return())
+cat(sprintf(
+  "Returned at step 2: %.1f%%; not back after 10000 steps: %.1f%%\n",
+  100 * mean(returns == 2, na.rm = TRUE) * mean(!is.na(returns)),
+  100 * mean(is.na(returns))
+))
+cat("2.5% value at risk over 9 periods of +/- 1000:", 2 * 1000 * sqrt(9), "\n")
+
+matplot(paths,
+  type = "l", lty = 1, xlab = "Step", ylab = "Value",
+  col = hcl.colors(8)
+)
+lines(2 * sqrt(1:steps), lty = 2)
+lines(-2 * sqrt(1:steps), lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Random walks look patterned: trends, reversals and plateaus all arise from pure chance.
+- The spread grows like $\sqrt t$, so risk over $N$ periods scales with $\sqrt N$, not $N$.
+- Return times to zero follow a power law: most excursions are short, a few are extraordinarily long.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Long-tailed life spans of firms and taxa, if their size rises and falls randomly; patterns traders see in random prices.
+- **Predict.** Value at risk and the odds of a gambler being ahead after many bets.
+- **Reason.** The efficient-markets argument: if prices reflect all available information, their changes are unpredictable, so prices follow a random walk.
+:::
+
+## Related models
+
+- [Bernoulli Urn Model](bernoulli-urn.qmd): the coin flips being summed.
+- [Normal Distribution and the Central Limit Theorem](normal-distribution.qmd): the walk's position is approximately normal with spread √t.
+- [Power Laws and Preferential Attachment](power-laws.qmd): another source of long tails.
+- [Polya Process](polya-process.qmd): an urn process where the past does matter.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 13, "Random Walks," pp. 155–161, and chapter 14, p. 169, for value at risk.
+- Paul Samuelson, "Proof That Properly Anticipated Prices Fluctuate Randomly," *Industrial Management Review* 6 (1964): 41–49.
+- Daniel Levinthal, "Random Walks and Organizational Mortality," *Administrative Science Quarterly* 36, no. 3 (1991): 397–420.

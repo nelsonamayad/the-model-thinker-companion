@@ -1,0 +1,78 @@
+# Brand definition for The Model Thinker Companion.
+# Spec: https://posit-dev.github.io/brand-yml/
+# Colors with light/dark values give the site an automatic dark-mode toggle.
+# Chart colors live in js/models.js (C); each passes 3:1 contrast on both
+# backgrounds.
+
+meta:
+  name:
+    short: The Model Thinker Companion
+    full: The Model Thinker Companion
+
+logo:
+  images:
+    mark:
+      path: assets/logo.svg
+      alt: "The Model Thinker Companion logo: three overlapping lenses over a small network"
+  small: mark
+  medium: mark
+
+color:
+  palette:
+    deepteal: "#0f6e74"
+    teal: "#148a91"
+    mint: "#7fd1d6"
+    orange: "#d95f02"
+    purple: "#7570b3"
+    green: "#1a9850"
+    gold: "#b8860b"
+    red: "#c0392b"
+    paper: "#fbfaf6"
+    ink: "#1d2430"
+    night: "#13161b"
+    fog: "#e4e7eb"
+  foreground:
+    light: ink
+    dark: fog
+  background:
+    light: paper
+    dark: night
+  primary:
+    light: deepteal
+    dark: mint
+  secondary:
+    light: "#5c6670"
+    dark: "#a7b0ba"
+  success: green
+  warning: gold
+  danger: red
+  info: teal
+  link:
+    light: deepteal
+    dark: mint
+
+typography:
+  fonts:
+    - family: IBM Plex Sans
+      source: google
+      weight: [400, 600]
+      style: [normal, italic]
+    - family: IBM Plex Serif
+      source: google
+      weight: [600]
+      style: [normal]
+    - family: IBM Plex Mono
+      source: google
+      weight: [400]
+      style: [normal]
+  base:
+    family: IBM Plex Sans
+    size: 17px
+    line-height: 1.6
+  headings:
+    family: IBM Plex Serif
+    weight: 600
+    line-height: 1.2
+  monospace:
+    family: IBM Plex Mono
+    size: 0.88em

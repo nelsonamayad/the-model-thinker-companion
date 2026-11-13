@@ -1,0 +1,193 @@
+---
+title: "Broadcast Model"
+date: 2026-11-13
+description: "Information from a single source reaches a fixed share of those who haven't heard yet each period, giving an r-shaped adoption curve whose first two points reveal the market's size."
+order: 21
+chapter: 11
+chapter-title: "Broadcast, Diffusion, and Contagion"
+pages: "132–134"
+family: "Networks and contagion"
+engine: "Equation-based"
+tool: "Observable JS (difference equation)"
+reference: "base R"
+uses: [Predict, Explain]
+categories: ["Networks and contagion", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#21** · *The Model Thinker*, chapter 11, "Broadcast, Diffusion, and Contagion", pp. 132–134.
+
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (difference equation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+When news spreads from one source (a government announcement, a television advertisement, a front-page story) everyone hears it from the source, not from each other. Each day, some fixed share of the people who haven't yet heard it hear it. So the number of new people reached is largest on the first day and shrinks every day after, because fewer people are left to reach. The cumulative curve rises steeply and flattens: an *r* shape.
+
+Because everyone eventually hears, the model has a useful by-product. The first two periods of sales or sign-ups pin down both the broadcast probability and the size of the relevant population, the people who could ever adopt. A firm that sells 20,000 units in its first week and 16,000 in its second can estimate that it will eventually sell about 100,000, before it has sold half of them.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A relevant population of $N_{\text{POP}}$ people. At time $t$, $I_t$ are informed and $S_t = N_{\text{POP}} - I_t$ are not; initially $I_0 = 0$ and $S_0 = N_{\text{POP}}$.
+
+**Equation.**
+
+$$
+I_{t+1} = I_t + P_{\text{broad}} \cdot S_t ,
+$$
+
+where $P_{\text{broad}}$ is the probability that an uninformed person hears from the source in a period. Equivalently, $S_t = N_{\text{POP}}(1 - P_{\text{broad}})^t$.
+
+**Fitting.** From the informed counts in the first two periods,
+
+$$
+P_{\text{broad}} = 1 - \frac{I_2 - I_1}{I_1}, \qquad N_{\text{POP}} = \frac{I_1}{P_{\text{broad}}} .
+$$
+
+**Result.** Everyone is eventually informed; adoption is fastest at the start (an *r*-shaped curve).
+:::
+
+## Interactive model
+
+Enter two periods of sales. The model infers the broadcast probability and the market size and projects the rest of the curve. With Page's numbers, 20,000 then 16,000 more, it predicts 100,000 buyers in total and 12,800 new sales in period three (Page rounds to 13,000).
+
+```{ojs}
+//| echo: false
+import {range, C, fmt, pct, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof first = Inputs.range([1000, 50000], {value: 20000, step: 1000, label: "Sales in period 1 (I₁)"})
+viewof second = Inputs.range([0, 50000], {value: 16000, step: 1000, label: "New sales in period 2"})
+```
+
+```{ojs}
+broadcast = {
+  const ratio = second / first;
+  const P = 1 - ratio, N = P > 0 ? first / P : NaN;
+  const ok = P > 0 && P <= 1;
+  const rows = ok ? range(16).map(t => ({t, I: N * (1 - (1 - P) ** t), newSales: t ? N * P * (1 - P) ** (t - 1) : 0})) : [];
+  return {P, N, ok, rows};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Broadcast Model: projected adoption",
+  ariaDescription: "Horizontal axis: period. Vertical axis: number of buyers. Teal bars are new buyers per period; the orange line is the cumulative total, approaching the estimated market size (dashed line). The first two bars are the data entered. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Period", type: "band"},
+  y: {label: "Buyers", grid: true, tickFormat: "~s"},
+  marks: broadcast.ok ? [
+    Plot.barY(broadcast.rows.slice(1), {x: "t", y: "newSales", fill: (d) => (d.t <= 2 ? C.orange : C.teal), fillOpacity: 0.85}),
+    Plot.line(broadcast.rows.slice(1), {x: "t", y: "I", stroke: C.purple, strokeWidth: 2.5, marker: "circle"}),
+    Plot.ruleY([broadcast.N], {stroke: "currentColor", strokeDasharray: "4 3"})
+  ] : [Plot.text(["Second-period sales must be lower than the first for the broadcast model to fit."], {frameAnchor: "middle", fill: "currentColor"})]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`${broadcast.ok ? `The data imply a broadcast probability of **${pct(broadcast.P, 1)}** per period and a relevant population of **${num(broadcast.N)}**. The model predicts **${num(broadcast.rows[3].newSales)}** new sales in period 3 and ${num(broadcast.rows[10].I)} in total by period 10. Two data points are thin evidence: if period 3 comes in near the prediction, confidence in the estimate should grow.` : "Second-period sales at or above the first period's mean adoption is not slowing down, so the broadcast model, in which it always slows, does not fit. Try the [diffusion](diffusion-model.qmd) or [Bass](bass-model.qmd) model."}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {range, C, fmt, pct, num} from "../js/models.js"
+
+viewof first = Inputs.range([1000, 50000], {value: 20000, step: 1000, label: "Sales in period 1 (I₁)"})
+viewof second = Inputs.range([0, 50000], {value: 16000, step: 1000, label: "New sales in period 2"})
+
+broadcast = {
+  const ratio = second / first;
+  const P = 1 - ratio, N = P > 0 ? first / P : NaN;
+  const ok = P > 0 && P <= 1;
+  const rows = ok ? range(16).map(t => ({t, I: N * (1 - (1 - P) ** t), newSales: t ? N * P * (1 - P) ** (t - 1) : 0})) : [];
+  return {P, N, ok, rows};
+}
+
+Plot.plot({
+  ariaLabel: "Broadcast Model: projected adoption",
+  ariaDescription: "Horizontal axis: period. Vertical axis: number of buyers. Teal bars are new buyers per period; the orange line is the cumulative total, approaching the estimated market size (dashed line). The first two bars are the data entered. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Period", type: "band"},
+  y: {label: "Buyers", grid: true, tickFormat: "~s"},
+  marks: broadcast.ok ? [
+    Plot.barY(broadcast.rows.slice(1), {x: "t", y: "newSales", fill: (d) => (d.t <= 2 ? C.orange : C.teal), fillOpacity: 0.85}),
+    Plot.line(broadcast.rows.slice(1), {x: "t", y: "I", stroke: C.purple, strokeWidth: 2.5, marker: "circle"}),
+    Plot.ruleY([broadcast.N], {stroke: "currentColor", strokeDasharray: "4 3"})
+  ] : [Plot.text(["Second-period sales must be lower than the first for the broadcast model to fit."], {frameAnchor: "middle", fill: "currentColor"})]
+})
+
+html`<div class="sim-readout">${md`${broadcast.ok ? `The data imply a broadcast probability of **${pct(broadcast.P, 1)}** per period and a relevant population of **${num(broadcast.N)}**. The model predicts **${num(broadcast.rows[3].newSales)}** new sales in period 3 and ${num(broadcast.rows[10].I)} in total by period 10. Two data points are thin evidence: if period 3 comes in near the prediction, confidence in the estimate should grow.` : "Second-period sales at or above the first period's mean adoption is not slowing down, so the broadcast model, in which it always slows, does not fit. Try the [diffusion](diffusion-model.qmd) or [Bass](bass-model.qmd) model."}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Broadcast model: fit the broadcast probability and market size from two
+# periods of sales, then project. Deterministic: no random numbers.
+first <- 20000 # sales in period 1 (I_1)
+second <- 16000 # new sales in period 2 (I_2 - I_1)
+
+p_broad <- 1 - second / first
+n_pop <- first / p_broad
+cat(sprintf("P_broad = %.2f, N_POP = %.0f\n", p_broad, n_pop))
+
+informed <- numeric(16) # informed[t + 1] is I_t
+for (t in 1:15) {
+  informed[t + 1] <- informed[t] + p_broad * (n_pop - informed[t])
+}
+new_sales <- diff(informed)
+cat("Predicted new sales in period 3:", round(new_sales[3]), "\n")
+
+barplot(new_sales,
+  names.arg = 1:15, col = c(rep("#d95f02", 2), rep("#148a91", 13)),
+  xlab = "Period", ylab = "New buyers"
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Broadcast spreading reaches a fixed share of the remaining population each period, producing an *r*-shaped curve.
+- Everyone in the relevant population eventually hears, so early data identify the population's size.
+- Decelerating sales from day one are the broadcast signature; accelerating sales point to word of mouth.
+:::
+
+## Uses
+
+::: uses
+- **Predict.** Estimate the eventual market for a product, or the reach of an announcement, from its first periods.
+- **Explain.** Why awareness of news events, product recalls or water contamination rises fastest at the start.
+:::
+
+## Related models
+
+- [Diffusion Model](diffusion-model.qmd): spreading person to person, giving an S-curve.
+- [The Bass Model](bass-model.qmd): broadcast and diffusion combined.
+- [Exponential Growth](exponential-growth.qmd): the uninformed population decays exponentially, with a half-life set by $P_{\text{broad}}$.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 11, "Broadcast, Diffusion, and Contagion," pp. 132–134.

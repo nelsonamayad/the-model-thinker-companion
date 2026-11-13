@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="The Model Thinker Companion logo">
+  <rect width="64" height="64" rx="14" fill="#0f6e74"/>
+  <g fill="none" stroke-width="3">
+    <circle cx="25" cy="26" r="13" stroke="#7fd1d6"/>
+    <circle cx="39" cy="26" r="13" stroke="#f2a65a"/>
+    <circle cx="32" cy="38" r="13" stroke="#ffffff" opacity="0.9"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="32" cy="30" r="3"/>
+  </g>
+  <g stroke="#ffffff" stroke-width="1.6" opacity="0.85">
+    <line x1="32" y1="30" x2="20" y2="51"/>
+    <line x1="32" y1="30" x2="44" y2="51"/>
+    <line x1="20" y1="51" x2="44" y2="51"/>
+  </g>
+  <circle cx="20" cy="51" r="2.4" fill="#7fd1d6"/>
+  <circle cx="44" cy="51" r="2.4" fill="#f2a65a"/>
+</svg>

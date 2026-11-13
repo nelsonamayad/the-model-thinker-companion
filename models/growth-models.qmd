@@ -1,0 +1,269 @@
+---
+title: "Simple and Solow Growth Models"
+date: 2026-11-13
+description: "Because each new machine adds less output than the last, investment alone drives an economy to a plateau; only technological innovation sustains growth."
+order: 13
+chapter: 8
+chapter-title: "Concavity and Convexity"
+pages: "99–105"
+family: "Linear and nonlinear models"
+engine: "Equation-based"
+tool: "Observable JS (difference equation)"
+reference: "base R"
+uses: [Explain, Predict, Act]
+categories: ["Linear and nonlinear models", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#13** · *The Model Thinker*, chapter 8, "Concavity and Convexity", pp. 99–105.
+
+Filed under [Linear and nonlinear models](../families/linear-nonlinear.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (difference equation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+An economy produces output with workers and machines (capital). It saves part of its output to build new machines, and some old machines wear out each year. Early on, when machines are scarce, each new one adds a lot of output, so investment outpaces depreciation and the economy grows fast. But output is a *concave* function of capital: each additional machine adds less than the one before. Eventually the investment the economy can afford only replaces the machines wearing out, and growth stops.
+
+That is Page's simple growth model, and it explains why poor countries that invest can grow quickly (they are catching up) and why the growth slows as they approach rich countries' levels, as Japan's did after the 1970s and China's has since 2010. Robert Solow's model adds technology, a multiplier on everything the economy produces. In it, sustained growth in output per worker comes only from improving technology, never from accumulating more of the same machines.
+
+## Formulation
+
+::: {.model-box}
+**Simple growth model.** With $M(t)$ machines, output $O(t)$, investment $I(t)$, consumption $C(t)$, savings rate $s$ and depreciation rate $d$:
+
+$$
+O(t) = 100\sqrt{M(t)}, \quad I(t) = s\,O(t), \quad O(t) = C(t) + I(t), \quad M(t+1) = M(t) + I(t) - d\,M(t).
+$$
+
+**Equilibrium.** Investment equals depreciation, $s \cdot 100\sqrt{M^*} = d M^*$, so
+
+$$
+M^* = \left(\frac{100\,s}{d}\right)^2, \qquad O^* = \frac{10{,}000\, s}{d}.
+$$
+
+**Solow growth model.** With labour $L$, capital $K$ and technology $A$, output is Cobb–Douglas,
+
+$$
+O = A\sqrt{L}\sqrt{K}, \qquad K(t+1) = K(t) + s\,O(t) - d\,K(t),
+$$
+
+and the long-run output is $O^* = A^2 L \dfrac{s}{d}$.
+
+**Result.** Capital accumulation alone produces concave growth that levels off. If technology grows, $O^*$ grows with $A^2$: innovation, not saving, sustains growth.
+:::
+
+The Cobb–Douglas production function $\text{Output} = \text{constant} \cdot L^a K^{1-a}$ has diminishing returns to each input separately but constant returns to scaling both; the square roots are the case $a = \tfrac12$ that Page uses.
+
+## Interactive model
+
+Both economies start with 100 workers and little capital and follow the Solow equations. In the first, technology stays fixed; in the second it improves at the chosen rate each year. The capital-only economy grows fast and then levels off at the equilibrium (dashed line); the innovating one keeps growing. Raise the savings rate: the plateau moves up, but it is still a plateau.
+
+```{ojs}
+//| echo: false
+import {iterate, C, fmt, pct, num} from "../js/models.js"
+```
+
+```{ojs}
+viewof s = Inputs.range([0.05, 0.5], {value: 0.2, step: 0.01, label: "Savings rate s"})
+viewof d = Inputs.range([0.02, 0.2], {value: 0.1, step: 0.01, label: "Depreciation rate d"})
+viewof g = Inputs.range([0, 0.04], {value: 0.015, step: 0.0025, label: "Technology growth per year"})
+viewof years = Inputs.range([20, 150], {value: 100, step: 5, label: "Years"})
+```
+
+```{ojs}
+solow = {
+  const L = 100, A0 = 1, K0 = 10;
+  const run = (gA) => iterate(({K, A}) => {
+    const O = A * Math.sqrt(L) * Math.sqrt(K);
+    return {K: K + s * O - d * K, A: A * (1 + gA)};
+  }, {K: K0, A: A0}, years).map(({K, A}, t) => ({t, K, A, O: A * Math.sqrt(L) * Math.sqrt(K)}));
+  const flat = run(0), innov = run(g);
+  const Ostar = A0 * A0 * L * s / d;
+  const withRate = rows => rows.map((d2, i) => ({...d2, growth: i ? d2.O / rows[i - 1].O - 1 : NaN}));
+  return {flat: withRate(flat), innov: withRate(innov), Ostar};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Simple and Solow Growth Models: output over time",
+  ariaDescription: "Horizontal axis: year. Vertical axis: output. The teal curve is an economy with fixed technology, which levels off at the dashed equilibrium; the orange curve has improving technology and keeps growing. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Year"},
+  y: {label: "Output O", grid: true},
+  color: {legend: true, domain: ["Capital only", "Capital and innovation"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([solow.Ostar], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(solow.flat, {x: "t", y: "O", stroke: () => "Capital only", strokeWidth: 2.5}),
+    Plot.line(solow.innov, {x: "t", y: "O", stroke: () => "Capital and innovation", strokeWidth: 2.5})
+  ]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Simple and Solow Growth Models: growth rate over time",
+  ariaDescription: "Horizontal axis: year. Vertical axis: annual growth rate of output. The capital-only economy's growth rate falls toward zero; the innovating economy's falls toward a positive floor. The summary below the charts states the result in words.",
+  height: 200,
+  x: {label: "Year"},
+  y: {label: "Growth rate of output", tickFormat: ".0%", grid: true},
+  color: {domain: ["Capital only", "Capital and innovation"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([0]),
+    Plot.line(solow.flat.slice(1), {x: "t", y: "growth", stroke: () => "Capital only", strokeWidth: 2}),
+    Plot.line(solow.innov.slice(1), {x: "t", y: "growth", stroke: () => "Capital and innovation", strokeWidth: 2})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const f = solow.flat, iv = solow.innov, T = years;
+  return html`<div class="sim-readout">${md`Without innovation, output grows **${pct(f[1].growth, 1)}** in the first year but only **${pct(f[T].growth, 2)}** in year ${T}, levelling off near the equilibrium O\* = A²L·s/d = **${num(solow.Ostar)}**. With technology improving ${pct(g, 2)} a year, output is **${num(iv[T].O)}** by year ${T} and still growing ${pct(iv[T].growth, 2)} a year (approaching twice the rate of technical progress, because O\* rises with A²).`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {iterate, C, fmt, pct, num} from "../js/models.js"
+
+viewof s = Inputs.range([0.05, 0.5], {value: 0.2, step: 0.01, label: "Savings rate s"})
+viewof d = Inputs.range([0.02, 0.2], {value: 0.1, step: 0.01, label: "Depreciation rate d"})
+viewof g = Inputs.range([0, 0.04], {value: 0.015, step: 0.0025, label: "Technology growth per year"})
+viewof years = Inputs.range([20, 150], {value: 100, step: 5, label: "Years"})
+
+solow = {
+  const L = 100, A0 = 1, K0 = 10;
+  const run = (gA) => iterate(({K, A}) => {
+    const O = A * Math.sqrt(L) * Math.sqrt(K);
+    return {K: K + s * O - d * K, A: A * (1 + gA)};
+  }, {K: K0, A: A0}, years).map(({K, A}, t) => ({t, K, A, O: A * Math.sqrt(L) * Math.sqrt(K)}));
+  const flat = run(0), innov = run(g);
+  const Ostar = A0 * A0 * L * s / d;
+  const withRate = rows => rows.map((d2, i) => ({...d2, growth: i ? d2.O / rows[i - 1].O - 1 : NaN}));
+  return {flat: withRate(flat), innov: withRate(innov), Ostar};
+}
+
+Plot.plot({
+  ariaLabel: "Simple and Solow Growth Models: output over time",
+  ariaDescription: "Horizontal axis: year. Vertical axis: output. The teal curve is an economy with fixed technology, which levels off at the dashed equilibrium; the orange curve has improving technology and keeps growing. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Year"},
+  y: {label: "Output O", grid: true},
+  color: {legend: true, domain: ["Capital only", "Capital and innovation"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([solow.Ostar], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(solow.flat, {x: "t", y: "O", stroke: () => "Capital only", strokeWidth: 2.5}),
+    Plot.line(solow.innov, {x: "t", y: "O", stroke: () => "Capital and innovation", strokeWidth: 2.5})
+  ]
+})
+
+Plot.plot({
+  ariaLabel: "Simple and Solow Growth Models: growth rate over time",
+  ariaDescription: "Horizontal axis: year. Vertical axis: annual growth rate of output. The capital-only economy's growth rate falls toward zero; the innovating economy's falls toward a positive floor. The summary below the charts states the result in words.",
+  height: 200,
+  x: {label: "Year"},
+  y: {label: "Growth rate of output", tickFormat: ".0%", grid: true},
+  color: {domain: ["Capital only", "Capital and innovation"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([0]),
+    Plot.line(solow.flat.slice(1), {x: "t", y: "growth", stroke: () => "Capital only", strokeWidth: 2}),
+    Plot.line(solow.innov.slice(1), {x: "t", y: "growth", stroke: () => "Capital and innovation", strokeWidth: 2})
+  ]
+})
+
+{
+  const f = solow.flat, iv = solow.innov, T = years;
+  return html`<div class="sim-readout">${md`Without innovation, output grows **${pct(f[1].growth, 1)}** in the first year but only **${pct(f[T].growth, 2)}** in year ${T}, levelling off near the equilibrium O\* = A²L·s/d = **${num(solow.Ostar)}**. With technology improving ${pct(g, 2)} a year, output is **${num(iv[T].O)}** by year ${T} and still growing ${pct(iv[T].growth, 2)} a year (approaching twice the rate of technical progress, because O\* rises with A²).`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Solow growth model: capital alone levels off; innovation sustains growth.
+# Deterministic: no random numbers.
+s <- 0.2 # savings rate
+d <- 0.1 # depreciation rate
+g <- 0.015 # annual technology growth (second economy)
+years <- 100
+labour <- 100
+
+run <- function(g_a) {
+  k <- 10
+  a <- 1
+  out <- numeric(years + 1)
+  for (t in 0:years) {
+    o <- a * sqrt(labour) * sqrt(k)
+    out[t + 1] <- o
+    k <- k + s * o - d * k
+    a <- a * (1 + g_a)
+  }
+  out
+}
+flat <- run(0)
+innov <- run(g)
+o_star <- labour * s / d # A = 1
+
+cat(sprintf("Equilibrium output O* = A^2 L s / d = %.0f\n", o_star))
+cat(sprintf(
+  "Year %d: capital only %.0f (growth %.2f%%), with innovation %.0f\n",
+  years, flat[years + 1], 100 * (flat[years + 1] / flat[years] - 1),
+  innov[years + 1]
+))
+
+plot(0:years, innov,
+  type = "l", lwd = 2, col = "#d95f02",
+  xlab = "Year", ylab = "Output"
+)
+lines(0:years, flat, lwd = 2, col = "#148a91")
+abline(h = o_star, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- With diminishing returns to capital, saving and investing produce growth that slows and stops at an equilibrium.
+- Higher savings raise the equilibrium level of output, not its long-run growth rate.
+- Long-run growth requires innovation: better technology raises the output from every worker and machine.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Fast catch-up growth in postwar Japan and in China, and its slowdown as they approached rich-country incomes.
+- **Predict.** Expect growth rates of fast-growing economies to fall, rather than extrapolating them.
+- **Act.** Policies for long-run growth should target innovation and the institutions behind it, not only investment.
+:::
+
+## Related models
+
+- [Exponential Growth](exponential-growth.qmd): the convex counterpart, and the rule of 72 that makes 10% growth for decades implausible.
+- [Rational-Actor Model](rational-actor.qmd): the same Cobb–Douglas form, used as a utility function.
+- [Lyapunov Functions](lyapunov-functions.qmd): another way to show that a process must come to rest.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 8, "Concavity and Convexity," pp. 99–105.
+- Robert M. Solow, "A Contribution to the Theory of Economic Growth," *Quarterly Journal of Economics* 70, no. 1 (1956): 65–94.
+- Daron Acemoglu and James Robinson, *Why Nations Fail: The Origins of Power, Prosperity, and Poverty* (Crown, 2012).

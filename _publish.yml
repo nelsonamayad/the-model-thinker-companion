@@ -1,0 +1,4 @@
+- source: project
+  netlify:
+    - id: 81ef47c9-c07c-42f7-9bbe-1a3d0ed2bd4d
+      url: https://the-model-thinker-companion.netlify.app

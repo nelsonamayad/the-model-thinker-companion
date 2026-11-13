@@ -1,0 +1,450 @@
+---
+title: "Schelling's Segregation Model"
+date: 2026-11-13
+description: "Agents who only mind being a small minority among their neighbours still sort themselves into strongly segregated neighbourhoods."
+order: 36
+chapter: 19
+chapter-title: "Threshold Models with Feedbacks"
+pages: "216–220"
+family: "Processes and dynamics"
+engine: "Agent-based"
+tool: "NetLogo 6.4 + nlrx; JavaScript replay"
+reference: "NetLogo 6.4 model, nlrx experiment"
+uses: [Explain, Communicate, Explore]
+categories: ["Processes and dynamics", "Agent-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#36** · *The Model Thinker*, chapter 19, "Threshold Models with Feedbacks", pp. 216–220.
+
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+Picture a city where nobody wants to live in a neighbourhood made up entirely of the other group, but everyone is perfectly happy to be in a mixed one, even as a minority. Thomas Schelling asked what such mild preferences add up to. His answer, worked out first with coins on a checkerboard, is that they add up to far more segregation than anyone asked for.
+
+The mechanism is a feedback loop. A random mix always leaves a few people with too few neighbours like them. When they move, they leave their old neighbourhood with fewer people of their type and push their new one toward their own type, which makes someone else uncomfortable. Each move is reasonable, and the cascade of moves produces neighbourhoods far more uniform than any individual threshold. Page pairs the model with Schelling's simpler *party model*, the same rule with two rooms instead of a grid.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** An $M \times M$ grid (here $40 \times 40$, wrapped at the edges) with a fraction $\rho$ of the cells occupied. Each agent $i$ has a type $\theta_i \in \{A, B\}$, equally likely, and a tolerance threshold $T_i$. Write $n_i$ for the number of agents on $i$'s eight neighbouring cells and $s_i$ for the number of those who share $i$'s type.
+
+**Rule.** Agent $i$ is content if
+
+$$
+n_i = 0 \quad\text{or}\quad \frac{s_i}{n_i} \ge T_i .
+$$
+
+Each period, every agent who is not content moves to a randomly chosen empty cell (one at a time, in random order). The process stops when everyone is content.
+
+**Result.** Segregation, measured as the average share of same-type neighbours
+
+$$
+S = \frac{\sum_i s_i}{\sum_i n_i},
+$$
+
+ends far above the thresholds that produce it. Agents who are content as a 30% minority end in neighbourhoods about three-quarters alike. When thresholds are too demanding, no arrangement satisfies everyone and agents keep moving.
+:::
+
+A random arrangement gives $S \approx 50\%$, because each neighbour is equally likely to be of either type. The gap between $S$ and $T$ is the model's point: macro-level segregation is not evidence of macro-level preferences for it. Heterogeneous thresholds (the spread control below, our addition to the grid version) make the first cascades more likely, as Page notes for the party model.
+
+## Interactive model
+
+One run of the model, replayed in your browser. Press **Play** to watch agents move, or drag the step slider. With the default threshold of 30%, every agent would accept being outnumbered more than two to one, yet the city ends up strongly segregated. Raise the threshold past about 75% and the grid never settles.
+
+```{ojs}
+//| echo: false
+import {rng, torus8, drawGrid, player, C, pct, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof threshold = Inputs.range([0, 90], {value: 30, step: 5, label: "Threshold T (%)"})
+viewof spread = Inputs.range([0, 30], {value: 0, step: 5, label: "Threshold spread (± %)"})
+viewof density = Inputs.range([50, 95], {value: 80, step: 5, label: "Occupied cells ρ (%)"})
+viewof seed = Inputs.range([1, 500], {value: 7, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+schelling = {
+  const r = rng(seed), n = 40, N = n * n, nb = torus8(n), maxT = 150;
+  const grid = new Int8Array(N).fill(-1), tol = new Float64Array(N);
+  for (let i = 0; i < N; i++)
+    if (r() * 100 < density) {
+      grid[i] = r() < 0.5 ? 0 : 1;
+      tol[i] = threshold - spread + 2 * spread * r();
+    }
+  // Who is content, and the segregation index S.
+  const evaluate = () => {
+    const content = new Uint8Array(N);
+    let same = 0, total = 0, unhappy = 0, agents = 0;
+    for (let i = 0; i < N; i++) {
+      if (grid[i] < 0) continue;
+      agents++;
+      let s = 0, t = 0;
+      for (let k = 0; k < 8; k++) {
+        const j = nb[8 * i + k];
+        if (grid[j] >= 0) { t++; if (grid[j] === grid[i]) s++; }
+      }
+      same += s; total += t;
+      content[i] = t === 0 || 100 * s >= tol[i] * t ? 1 : 0;
+      if (!content[i]) unhappy++;
+    }
+    return {content, S: total ? same / total : 0, unhappy: unhappy / agents};
+  };
+  let e = evaluate();
+  const frames = [grid.slice()], stats = [{t: 0, S: e.S, unhappy: e.unhappy}];
+  for (let t = 1; t <= maxT && e.unhappy > 0; t++) {
+    const movers = [], empty = [];
+    for (let i = 0; i < N; i++) {
+      if (grid[i] < 0) empty.push(i);
+      else if (!e.content[i]) movers.push(i);
+    }
+    for (const i of r.shuffle(movers)) {
+      const k = Math.floor(r() * empty.length), j = empty[k];
+      grid[j] = grid[i]; tol[j] = tol[i]; grid[i] = -1; empty[k] = i;
+    }
+    e = evaluate();
+    frames.push(grid.slice());
+    stats.push({t, S: e.S, unhappy: e.unhappy});
+  }
+  return {n, frames, stats, settled: e.unhappy === 0};
+}
+```
+
+```{ojs}
+viewof step = player(schelling.frames.length - 1, {label: "Period", delay: 150})
+```
+
+```{ojs}
+drawGrid(schelling.frames[step], schelling.n, [C.teal, C.orange], {
+  size: 440,
+  ariaLabel: "Schelling's Segregation Model: the grid",
+  ariaDescription: "A 40 by 40 grid. Teal and orange squares are agents of the two types; blank squares are empty. The summary below the charts states the result in words."
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Schelling's Segregation Model: segregation over time",
+  ariaDescription: "Horizontal axis: period. Vertical axis: average share of same-type neighbours (teal line) and share of agents who want to move (orange line). The dashed line marks the threshold. The summary below the charts states the result in words.",
+  height: 230,
+  x: {label: "Period"},
+  y: {label: "Share", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Same-type neighbours (S)", "Agents who want to move"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([threshold / 100], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(schelling.stats, {x: "t", y: "S", stroke: () => "Same-type neighbours (S)", strokeWidth: 2}),
+    Plot.line(schelling.stats, {x: "t", y: "unhappy", stroke: () => "Agents who want to move", strokeWidth: 2}),
+    Plot.ruleX([step], {stroke: "currentColor", strokeOpacity: 0.4})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const s0 = schelling.stats[0], sT = schelling.stats[schelling.stats.length - 1], now = schelling.stats[step];
+  return html`<div class="sim-readout">${md`At period ${step}, **${pct(now.S)}** of the average agent's neighbours share its type, and ${pct(now.unhappy)} of agents want to move. The run started at ${pct(s0.S)} (a random mix) and ${schelling.settled ? `settled after **${schelling.stats.length - 1} periods at ${pct(sT.S)}**, although each agent only required ${threshold}%${spread ? ` (± ${spread}%)` : ""}` : `**had not settled after ${schelling.stats.length - 1} periods**: with thresholds this demanding, ${pct(sT.unhappy)} of agents still want to move`}.`}</div>`;
+}
+```
+
+### NetLogo experiment
+
+The same model in NetLogo, run by nlrx at ten thresholds with eight random seeds each (density 80%, no spread). Each dot is a run's final segregation; the line is the average, and the dashed line marks a city where segregation equals what agents ask for.
+
+```{ojs}
+//| echo: false
+nlRuns = FileAttachment("../data/schelling-segregation.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => ({
+  S: d3.mean(v, d => d.percent_similar) / 100,
+  settled: v.filter(d => d.percent_unhappy === 0).length / v.length,
+  periods: d3.mean(v, d => d.step)
+}), d => d.threshold).map(([threshold, s]) => ({threshold, ...s})).sort((a, b) => a.threshold - b.threshold)
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Schelling's Segregation Model: NetLogo experiment",
+  ariaDescription: "Horizontal axis: tolerance threshold. Vertical axis: final share of same-type neighbours. Gray dots are individual NetLogo runs, the teal line their average, the dashed diagonal marks segregation equal to the threshold, and the vertical line marks the threshold chosen above. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Threshold T (%)", domain: [0, 85]},
+  y: {label: "Final same-type neighbours (%)", domain: [0, 100], grid: true},
+  marks: [
+    Plot.line([[0, 0], [85, 85]], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6}),
+    Plot.dot(nlRuns, {x: "threshold", y: "percent_similar", fill: C.gray, r: 3, fillOpacity: 0.7}),
+    Plot.line(nlMeans, {x: "threshold", y: d => 100 * d.S, stroke: C.teal, strokeWidth: 2.5, marker: "circle"}),
+    Plot.ruleX([threshold], {stroke: C.orange, strokeWidth: 1.5})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const near = nlMeans.reduce((b, d) => Math.abs(d.threshold - threshold) < Math.abs(b.threshold - threshold) ? d : b);
+  const tipping = nlMeans.find(d => d.settled < 1);
+  return html`<div class="sim-readout">${md`In NetLogo, agents with a ${near.threshold}% threshold${near.threshold !== threshold ? ` (the experiment's closest value to yours)` : ""} ended in neighbourhoods **${pct(near.S)}** alike on average, and ${near.settled === 1 ? `every run settled, after ${fmt(near.periods, 0)} periods on average` : `only ${pct(near.settled)} of runs settled within 300 periods`}. ${tipping ? `From a threshold of ${tipping.threshold}%, some runs never settle: no arrangement satisfies everyone.` : ""}`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **NetLogo** model is the reference implementation, and the **nlrx** script runs the experiment whose results are charted above (NetLogo 6.4, nlrx 0.4). The **Observable JS** replays the same rules in your browser, with its own random numbers.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, torus8, drawGrid, player, C, pct, fmt} from "../js/models.js"
+
+viewof threshold = Inputs.range([0, 90], {value: 30, step: 5, label: "Threshold T (%)"})
+viewof spread = Inputs.range([0, 30], {value: 0, step: 5, label: "Threshold spread (± %)"})
+viewof density = Inputs.range([50, 95], {value: 80, step: 5, label: "Occupied cells ρ (%)"})
+viewof seed = Inputs.range([1, 500], {value: 7, step: 1, label: "Random seed"})
+
+schelling = {
+  const r = rng(seed), n = 40, N = n * n, nb = torus8(n), maxT = 150;
+  const grid = new Int8Array(N).fill(-1), tol = new Float64Array(N);
+  for (let i = 0; i < N; i++)
+    if (r() * 100 < density) {
+      grid[i] = r() < 0.5 ? 0 : 1;
+      tol[i] = threshold - spread + 2 * spread * r();
+    }
+  // Who is content, and the segregation index S.
+  const evaluate = () => {
+    const content = new Uint8Array(N);
+    let same = 0, total = 0, unhappy = 0, agents = 0;
+    for (let i = 0; i < N; i++) {
+      if (grid[i] < 0) continue;
+      agents++;
+      let s = 0, t = 0;
+      for (let k = 0; k < 8; k++) {
+        const j = nb[8 * i + k];
+        if (grid[j] >= 0) { t++; if (grid[j] === grid[i]) s++; }
+      }
+      same += s; total += t;
+      content[i] = t === 0 || 100 * s >= tol[i] * t ? 1 : 0;
+      if (!content[i]) unhappy++;
+    }
+    return {content, S: total ? same / total : 0, unhappy: unhappy / agents};
+  };
+  let e = evaluate();
+  const frames = [grid.slice()], stats = [{t: 0, S: e.S, unhappy: e.unhappy}];
+  for (let t = 1; t <= maxT && e.unhappy > 0; t++) {
+    const movers = [], empty = [];
+    for (let i = 0; i < N; i++) {
+      if (grid[i] < 0) empty.push(i);
+      else if (!e.content[i]) movers.push(i);
+    }
+    for (const i of r.shuffle(movers)) {
+      const k = Math.floor(r() * empty.length), j = empty[k];
+      grid[j] = grid[i]; tol[j] = tol[i]; grid[i] = -1; empty[k] = i;
+    }
+    e = evaluate();
+    frames.push(grid.slice());
+    stats.push({t, S: e.S, unhappy: e.unhappy});
+  }
+  return {n, frames, stats, settled: e.unhappy === 0};
+}
+
+viewof step = player(schelling.frames.length - 1, {label: "Period", delay: 150})
+
+drawGrid(schelling.frames[step], schelling.n, [C.teal, C.orange], {
+  size: 440,
+  ariaLabel: "Schelling's Segregation Model: the grid",
+  ariaDescription: "A 40 by 40 grid. Teal and orange squares are agents of the two types; blank squares are empty. The summary below the charts states the result in words."
+})
+
+Plot.plot({
+  ariaLabel: "Schelling's Segregation Model: segregation over time",
+  ariaDescription: "Horizontal axis: period. Vertical axis: average share of same-type neighbours (teal line) and share of agents who want to move (orange line). The dashed line marks the threshold. The summary below the charts states the result in words.",
+  height: 230,
+  x: {label: "Period"},
+  y: {label: "Share", domain: [0, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Same-type neighbours (S)", "Agents who want to move"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([threshold / 100], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(schelling.stats, {x: "t", y: "S", stroke: () => "Same-type neighbours (S)", strokeWidth: 2}),
+    Plot.line(schelling.stats, {x: "t", y: "unhappy", stroke: () => "Agents who want to move", strokeWidth: 2}),
+    Plot.ruleX([step], {stroke: "currentColor", strokeOpacity: 0.4})
+  ]
+})
+
+{
+  const s0 = schelling.stats[0], sT = schelling.stats[schelling.stats.length - 1], now = schelling.stats[step];
+  return html`<div class="sim-readout">${md`At period ${step}, **${pct(now.S)}** of the average agent's neighbours share its type, and ${pct(now.unhappy)} of agents want to move. The run started at ${pct(s0.S)} (a random mix) and ${schelling.settled ? `settled after **${schelling.stats.length - 1} periods at ${pct(sT.S)}**, although each agent only required ${threshold}%${spread ? ` (± ${spread}%)` : ""}` : `**had not settled after ${schelling.stats.length - 1} periods**: with thresholds this demanding, ${pct(sT.unhappy)} of agents still want to move`}.`}</div>`;
+}
+
+nlRuns = FileAttachment("../data/schelling-segregation.csv").csv({typed: true})
+nlMeans = d3.rollups(nlRuns, v => ({
+  S: d3.mean(v, d => d.percent_similar) / 100,
+  settled: v.filter(d => d.percent_unhappy === 0).length / v.length,
+  periods: d3.mean(v, d => d.step)
+}), d => d.threshold).map(([threshold, s]) => ({threshold, ...s})).sort((a, b) => a.threshold - b.threshold)
+
+Plot.plot({
+  ariaLabel: "Schelling's Segregation Model: NetLogo experiment",
+  ariaDescription: "Horizontal axis: tolerance threshold. Vertical axis: final share of same-type neighbours. Gray dots are individual NetLogo runs, the teal line their average, the dashed diagonal marks segregation equal to the threshold, and the vertical line marks the threshold chosen above. The summary below the chart states the result in words.",
+  height: 300,
+  x: {label: "Threshold T (%)", domain: [0, 85]},
+  y: {label: "Final same-type neighbours (%)", domain: [0, 100], grid: true},
+  marks: [
+    Plot.line([[0, 0], [85, 85]], {stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.6}),
+    Plot.dot(nlRuns, {x: "threshold", y: "percent_similar", fill: C.gray, r: 3, fillOpacity: 0.7}),
+    Plot.line(nlMeans, {x: "threshold", y: d => 100 * d.S, stroke: C.teal, strokeWidth: 2.5, marker: "circle"}),
+    Plot.ruleX([threshold], {stroke: C.orange, strokeWidth: 1.5})
+  ]
+})
+
+{
+  const near = nlMeans.reduce((b, d) => Math.abs(d.threshold - threshold) < Math.abs(b.threshold - threshold) ? d : b);
+  const tipping = nlMeans.find(d => d.settled < 1);
+  return html`<div class="sim-readout">${md`In NetLogo, agents with a ${near.threshold}% threshold${near.threshold !== threshold ? ` (the experiment's closest value to yours)` : ""} ended in neighbourhoods **${pct(near.S)}** alike on average, and ${near.settled === 1 ? `every run settled, after ${fmt(near.periods, 0)} periods on average` : `only ${pct(near.settled)} of runs settled within 300 periods`}. ${tipping ? `From a threshold of ${tipping.threshold}%, some runs never settle: no arrangement satisfies everyone.` : ""}`}</div>`;
+}
+```
+
+## NetLogo {.unlisted}
+
+```{.netlogo}
+; Schelling's segregation model (The Model Thinker, chapter 19).
+; The Model Thinker Companion: reference implementation, run with nlrx by
+; abm/schelling-segregation.R. The page replays the same rules in JavaScript.
+;
+; Agents of two types live on a wrapped grid with some empty cells. An agent
+; is content if at least its threshold percent of the agents on its eight
+; neighbouring cells share its type (an agent with no neighbours is content).
+; Thresholds are `threshold` plus a uniform draw in [-spread, +spread].
+; Each tick, every discontented agent moves to a random empty cell, one at a
+; time in random order. The run stops when everyone is content.
+
+globals [
+  percent-similar   ; average share of same-type neighbours, in percent
+  percent-unhappy   ; share of agents who want to move, in percent
+]
+
+turtles-own [
+  kind              ; 0 or 1
+  my-threshold      ; this agent's threshold, in percent
+  similar-nearby
+  total-nearby
+  happy?
+]
+
+to setup
+  clear-all
+  ask patches [
+    if random-float 100 < density [
+      sprout 1 [
+        set kind random 2
+        set my-threshold threshold - spread + random-float (2 * spread)
+        set shape "square"
+        set color ifelse-value (kind = 0) [ 84 ] [ 25 ]
+      ]
+    ]
+  ]
+  update-agents
+  reset-ticks
+end
+
+to go
+  if all? turtles [ happy? ] [ stop ]
+  ask turtles with [ not happy? ] [
+    move-to one-of patches with [ not any? turtles-here ]
+  ]
+  update-agents
+  tick
+end
+
+to update-agents
+  ask turtles [
+    let nearby turtles-on neighbors
+    set total-nearby count nearby
+    set similar-nearby count nearby with [ kind = [ kind ] of myself ]
+    set happy? (total-nearby = 0) or
+      (100 * similar-nearby >= my-threshold * total-nearby)
+  ]
+  set percent-similar 100 * sum [ similar-nearby ] of turtles
+    / max list 1 sum [ total-nearby ] of turtles
+  set percent-unhappy 100 * count turtles with [ not happy? ]
+    / max list 1 count turtles
+end
+```
+
+## nlrx (R) {.unlisted}
+
+```{.r}
+# Schelling's segregation model: how segregated does the grid end up, and how
+# long does it take, as agents' tolerance threshold rises?
+# NetLogo model: abm/schelling-segregation.nlogo. Output:
+# data/schelling-segregation.csv (one row per threshold and seed).
+source("abm/_nlrx.R")
+
+nl <- nl_model("schelling-segregation")
+nl@experiment <- experiment(
+  expname = "threshold_sweep",
+  outpath = tempdir(),
+  repetition = 1,
+  tickmetrics = "false", # measure once, when the run stops
+  idsetup = "setup",
+  idgo = "go",
+  runtime = 300, # cap; runs stop earlier when everyone is content
+  metrics = c("percent-similar", "percent-unhappy"),
+  variables = list(
+    "threshold" = list(values = c(10, 20, 25, 30, 40, 50, 60, 70, 75, 80))
+  ),
+  constants = list("density" = 80, "spread" = 0)
+)
+set.seed(19) # makes nlrx draw the same NetLogo seeds every time
+nl@simdesign <- simdesign_ff(nl, nseeds = 8)
+
+results <- run_experiment(nl)
+save_results(results, "schelling-segregation",
+  keep = c(
+    "threshold", "random_seed", "step", "percent_similar",
+    "percent_unhappy"
+  )
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Mild individual preferences can produce extreme aggregate segregation; the aggregate pattern is not a readout of individual attitudes.
+- The mechanism is local: each agent sees only eight neighbours, and each move changes the neighbourhoods the mover leaves and joins.
+- Above some threshold no stable arrangement exists, and agents keep moving indefinitely.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Why residential, school or lunch-table segregation can coexist with stated tolerance and rising intermarriage.
+- **Communicate.** A vivid demonstration that micro motives and macro behaviour can diverge, useful wherever people infer individual intent from aggregate outcomes.
+- **Explore.** Change the neighbourhood size, add moving costs or more types, or let thresholds vary, and see which conclusions survive.
+:::
+
+## Related models
+
+- [Granovetter's Riot Model](riot-model.qmd): the same threshold logic without space; diversity of thresholds drives cascades there too.
+- [Local Majority Model](local-majority.qmd): neighbours imitate rather than move, and the grid freezes into patches.
+- [Random Walk](random-walk.qmd): in the two-room party version, the count of one type in a room is a random walk that eventually crosses a tipping threshold.
+- [Lyapunov Functions](lyapunov-functions.qmd): a way to ask whether a process like this must stop.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 19, "Threshold Models with Feedbacks," pp. 216–220.
+- Thomas Schelling, *Micromotives and Macrobehavior* (New York: W. W. Norton, 1978).

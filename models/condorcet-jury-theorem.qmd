@@ -1,0 +1,220 @@
+---
+title: "Condorcet Jury Theorem"
+date: 2026-11-13
+description: "A majority of independent classifiers, each better than a coin flip, is more accurate than any one of them, and nearly always right when there are many."
+order: 1
+chapter: 3
+chapter-title: "The Science of Many Models"
+pages: "28–29"
+family: "Many models and prediction"
+engine: "Equation-based"
+tool: "Observable JS (exact binomial sums)"
+reference: "base R"
+uses: [Reason, Design, Predict]
+categories: ["Many models and prediction", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#1** · *The Model Thinker*, chapter 3, "The Science of Many Models", pp. 28–29.
+
+Filed under [Many models and prediction](../families/many-models.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (exact binomial sums) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+A jury must decide whether a defendant is guilty. Each juror sees the evidence and gets it right a bit more often than not. The Marquis de Condorcet showed in 1785 that a majority vote of such jurors is more reliable than any single juror, and that with enough of them the majority is almost never wrong.
+
+Page uses the theorem as the first argument for many-model thinking. Replace jurors with models: if each model classifies a case correctly more than half the time, and their mistakes are independent, then letting the models vote beats relying on the best of them. The catch is in the word *independent*. Models built from the same data, the same assumptions or the same habits of mind make the same mistakes, and voting cannot cancel shared mistakes.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** An odd number $N$ of classifiers (people or models) each label an unknown state of the world as true or false. Each is correct with probability $p > \tfrac12$, independently of the others.
+
+**Equation.** The number of correct votes is binomial, so the majority is correct with probability
+
+$$
+P_{\text{maj}}(N, p) = \sum_{k=(N+1)/2}^{N} \binom{N}{k} p^k (1-p)^{N-k}.
+$$
+
+**Result.** $P_{\text{maj}}(N, p) > p$ for $N \ge 3$, and $P_{\text{maj}}(N, p) \to 1$ as $N \to \infty$.
+:::
+
+**Correlated classifiers (our extension).** Suppose each classifier, with probability $\rho$, copies a single shared signal that is itself correct with probability $p$, and otherwise forms its own independent judgment. Conditioning on the shared signal,
+
+$$
+P_{\text{maj}} = p \cdot P_{\text{maj}}\big(N, \rho + (1-\rho)p\big) + (1-p) \cdot P_{\text{maj}}\big(N, (1-\rho)p\big),
+$$
+
+so as $N$ grows the accuracy tends to $p$ (plus $1-p$ if $(1-\rho)p > \tfrac12$), not to 1. Correlation caps what a crowd can know.
+
+## Interactive model
+
+The teal line shows the theorem: majority accuracy climbs toward 100% as independent classifiers are added. The orange line adds correlation: with the default 30% chance of following a shared signal, accuracy stalls near the accuracy of that signal. Set the correlation to zero and the two lines coincide.
+
+```{ojs}
+//| echo: false
+import {dbinom, C, pct, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof p = Inputs.range([0.5, 0.9], {value: 0.6, step: 0.01, label: "Accuracy of each classifier p"})
+viewof nMax = Inputs.range([3, 201], {value: 101, step: 2, label: "Largest group N"})
+viewof rho = Inputs.range([0, 0.9], {value: 0.3, step: 0.05, label: "Correlation ρ (shared signal)"})
+```
+
+```{ojs}
+condorcet = {
+  const maj = (n, q) => { let s = 0; for (let k = (n + 1) / 2; k <= n; k++) s += dbinom(k, n, q); return s; };
+  const rows = [];
+  for (let n = 1; n <= nMax; n += 2) {
+    rows.push({n, kind: "Independent", acc: maj(n, p)});
+    rows.push({n, kind: "Correlated", acc: p * maj(n, rho + (1 - rho) * p) + (1 - p) * maj(n, (1 - rho) * p)});
+  }
+  const limit = p + ((1 - rho) * p > 0.5 ? 1 - p : 0);
+  return {rows, limit};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Condorcet Jury Theorem: majority accuracy by group size",
+  ariaDescription: "Horizontal axis: number of classifiers. Vertical axis: probability that the majority is correct, for independent classifiers (teal) and correlated ones (orange). The dashed line is the accuracy of one classifier. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Number of classifiers N"},
+  y: {label: "Majority correct", domain: [0.4, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Independent", "Correlated"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([p], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(condorcet.rows, {x: "n", y: "acc", stroke: "kind", strokeWidth: 2.5})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+{
+  const last = condorcet.rows.slice(-2), ind = last.find(d => d.kind === "Independent"), cor = last.find(d => d.kind === "Correlated");
+  const at11 = condorcet.rows.find(d => d.n === Math.min(11, nMax) && d.kind === "Independent");
+  return html`<div class="sim-readout">${md`One classifier is right **${pct(p)}** of the time. A majority of ${at11.n} independent classifiers is right **${pct(at11.acc, 1)}** of the time, and a majority of ${nMax} is right **${pct(ind.acc, 1)}** of the time. ${rho > 0 ? `With correlation ρ = ${fmt(rho, 2)}, a majority of ${nMax} is right only **${pct(cor.acc, 1)}** of the time, and as the group grows it tends to ${pct(condorcet.limit, 1)}, not to 100%.` : "With no correlation, the two lines are the same."}`}</div>`;
+}
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {dbinom, C, pct, fmt} from "../js/models.js"
+
+viewof p = Inputs.range([0.5, 0.9], {value: 0.6, step: 0.01, label: "Accuracy of each classifier p"})
+viewof nMax = Inputs.range([3, 201], {value: 101, step: 2, label: "Largest group N"})
+viewof rho = Inputs.range([0, 0.9], {value: 0.3, step: 0.05, label: "Correlation ρ (shared signal)"})
+
+condorcet = {
+  const maj = (n, q) => { let s = 0; for (let k = (n + 1) / 2; k <= n; k++) s += dbinom(k, n, q); return s; };
+  const rows = [];
+  for (let n = 1; n <= nMax; n += 2) {
+    rows.push({n, kind: "Independent", acc: maj(n, p)});
+    rows.push({n, kind: "Correlated", acc: p * maj(n, rho + (1 - rho) * p) + (1 - p) * maj(n, (1 - rho) * p)});
+  }
+  const limit = p + ((1 - rho) * p > 0.5 ? 1 - p : 0);
+  return {rows, limit};
+}
+
+Plot.plot({
+  ariaLabel: "Condorcet Jury Theorem: majority accuracy by group size",
+  ariaDescription: "Horizontal axis: number of classifiers. Vertical axis: probability that the majority is correct, for independent classifiers (teal) and correlated ones (orange). The dashed line is the accuracy of one classifier. The summary below the chart states the result in words.",
+  height: 280,
+  x: {label: "Number of classifiers N"},
+  y: {label: "Majority correct", domain: [0.4, 1], tickFormat: "%", grid: true},
+  color: {legend: true, domain: ["Independent", "Correlated"], range: [C.teal, C.orange]},
+  marks: [
+    Plot.ruleY([p], {stroke: "currentColor", strokeDasharray: "4 3"}),
+    Plot.line(condorcet.rows, {x: "n", y: "acc", stroke: "kind", strokeWidth: 2.5})
+  ]
+})
+
+{
+  const last = condorcet.rows.slice(-2), ind = last.find(d => d.kind === "Independent"), cor = last.find(d => d.kind === "Correlated");
+  const at11 = condorcet.rows.find(d => d.n === Math.min(11, nMax) && d.kind === "Independent");
+  return html`<div class="sim-readout">${md`One classifier is right **${pct(p)}** of the time. A majority of ${at11.n} independent classifiers is right **${pct(at11.acc, 1)}** of the time, and a majority of ${nMax} is right **${pct(ind.acc, 1)}** of the time. ${rho > 0 ? `With correlation ρ = ${fmt(rho, 2)}, a majority of ${nMax} is right only **${pct(cor.acc, 1)}** of the time, and as the group grows it tends to ${pct(condorcet.limit, 1)}, not to 100%.` : "With no correlation, the two lines are the same."}`}</div>`;
+}
+```
+
+## R {.unlisted}
+
+```{.r}
+# Condorcet jury theorem: accuracy of a majority vote.
+# Deterministic: exact binomial sums, no random numbers.
+p <- 0.6 # accuracy of each classifier
+n_max <- 101 # largest (odd) group
+rho <- 0.3 # chance of copying one shared signal (our extension)
+
+maj <- function(n, q) {
+  sum(dbinom(((n + 1) / 2):n, n, q))
+}
+sizes <- seq(1, n_max, by = 2)
+independent <- sapply(sizes, maj, q = p)
+correlated <- sapply(sizes, function(n) {
+  p * maj(n, rho + (1 - rho) * p) + (1 - p) * maj(n, (1 - rho) * p)
+})
+
+cat(sprintf("One classifier: %.0f%% correct\n", 100 * p))
+cat(sprintf(
+  "Majority of %d independent: %.1f%%; correlated: %.1f%%\n",
+  n_max, 100 * tail(independent, 1), 100 * tail(correlated, 1)
+))
+
+plot(sizes, independent,
+  type = "l", lwd = 2, col = "#148a91",
+  ylim = c(0.4, 1), xlab = "Number of classifiers N",
+  ylab = "Majority correct"
+)
+lines(sizes, correlated, lwd = 2, col = "#d95f02")
+abline(h = p, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Aggregating independent, better-than-chance judgments produces accuracy no single judge has.
+- The gain comes from independence: errors that are not shared cancel in the vote.
+- Correlated errors put a ceiling on collective accuracy, however large the group.
+:::
+
+## Uses
+
+::: uses
+- **Reason.** Why juries, committees and ensembles of classifiers can outperform their best member.
+- **Design.** Build ensembles (and teams) from models that err for different reasons, not from many copies of the same approach.
+- **Predict.** Combine several classifiers of spam, fraud or credit risk by majority vote.
+:::
+
+## Related models
+
+- [Diversity Prediction Theorem](diversity-prediction-theorem.qmd): the same logic for numerical forecasts, where diversity exactly offsets error.
+- [Categorization Models](categorization-models.qmd): why diverse models make different mistakes in the first place.
+- [Bernoulli Urn Model](bernoulli-urn.qmd): the binomial count of correct votes is a Bernoulli urn.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 3, "The Science of Many Models," pp. 28–29.
+- Marquis de Condorcet, *Essai sur l'application de l'analyse à la probabilité des décisions rendues à la pluralité des voix* (Paris, 1785).
+- Scott E. Page, *The Difference: How the Power of Diversity Creates Better Groups, Teams, Schools, and Societies* (Princeton University Press, 2007).

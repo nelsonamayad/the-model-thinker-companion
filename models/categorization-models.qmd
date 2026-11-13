@@ -1,0 +1,294 @@
+---
+title: "Categorization Models"
+date: 2026-11-13
+description: "A model that sorts things into boxes and values each box makes two kinds of error: lumping unlike things together, and misjudging each box's value."
+order: 3
+chapter: 3
+chapter-title: "The Science of Many Models"
+pages: "30–36"
+family: "Many models and prediction"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Predict, Explain, Reason]
+categories: ["Many models and prediction", "Equation-based"]
+verified: true
+source-note: "We weight the valuation error by category size, which the book's box leaves implicit."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#3** · *The Model Thinker*, chapter 3, "The Science of Many Models", pp. 30–36.
+
+Filed under [Many models and prediction](../families/many-models.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book. We weight the valuation error by category size, which the book's box leaves implicit.
+:::
+
+## The idea
+
+Much of our thinking is categorization: we sort households, patients, customers or countries into boxes by their attributes, and then treat everything in a box alike. A grocery chain might group households by income and predict each group's spending from last month's average. A categorization model makes this precise, and it shows exactly where its errors come from.
+
+There are two sources. **Categorization error** comes from putting unlike things in the same box: the households in a box don't all spend the same. **Valuation error** comes from misjudging a box's value: we estimate each box's average from limited data. Finer categories shrink the first and inflate the second, because each box then has less data behind its estimate. This is the granularity question, and it is also why different people's categorizations make different mistakes, the raw material of many-model thinking.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A set $X$ of objects, each with attributes and a value $V(x)$. A categorization model $M$ partitions $X$ into categories $S_1, \dots, S_n$ by attribute, and assigns a valuation $M_i$ to category $S_i$, so that $M(x) = M_i$ for $x \in S_i$. Let $\bar V_i$ be the average value in $S_i$, $|S_i|$ its size, and $\bar V$ the overall average.
+
+**Equations.** Model error decomposes as
+
+$$
+\underbrace{\sum_{x \in X} \big(M(x) - V(x)\big)^2}_{\text{model error}}
+= \underbrace{\sum_{i=1}^{n} \sum_{x \in S_i} \big(V(x) - \bar V_i\big)^2}_{\text{categorization error}}
++ \underbrace{\sum_{i=1}^{n} |S_i| \big(M_i - \bar V_i\big)^2}_{\text{valuation error}}
+$$
+
+and the share of variation the model explains is
+
+$$
+R^2 = 1 - \frac{\sum_{x} (M(x) - V(x))^2}{\sum_{x} (V(x) - \bar V)^2}.
+$$
+
+**Result.** More categories reduce categorization error; when valuations are estimated from data, more categories also mean less data per category and so more valuation error. The best granularity balances the two (a bias–variance trade-off).
+:::
+
+The book writes the valuation term as $\sum_i (M_i - \bar V_i)^2$; the weight $|S_i|$ is needed for the identity to hold when categories have different sizes.
+
+## Interactive model
+
+Three hundred households differ in an attribute (say, income, scaled from 0 to 1), and this month's spending depends on it plus household-specific noise. The model sorts households into equal-width income categories and values each category at its average spending *last* month. Move the number of categories: the right-hand chart shows categorization error falling, valuation error rising, and their sum, the error on this month's data, lowest at an intermediate granularity.
+
+```{ojs}
+//| echo: false
+import {rng, range, mean, C, fmt, pct} from "../js/models.js"
+```
+
+```{ojs}
+viewof k = Inputs.range([1, 60], {value: 6, step: 1, label: "Number of categories n"})
+viewof noise = Inputs.range([20, 250], {value: 120, step: 10, label: "Month-to-month noise (sd, $)"})
+viewof seed = Inputs.range([1, 500], {value: 3, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+households = {
+  const r = rng(seed), H = 300;
+  const mu = x => 400 + 300 * x + 150 * Math.sin(3 * Math.PI * x);
+  return range(H).map(i => {
+    const x = r(), m = mu(x);
+    return {i, x, mu: m, last: m + r.normal(0, noise), now: m + r.normal(0, noise)};
+  });
+}
+```
+
+```{ojs}
+decompose = (n) => {
+  const cat = x => Math.min(n - 1, Math.floor(x * n));
+  const groups = range(n).map(() => ({last: [], now: []}));
+  for (const h of households) { groups[cat(h.x)].last.push(h.last); groups[cat(h.x)].now.push(h.now); }
+  const overallLast = mean(households.map(h => h.last));
+  const Mi = groups.map(g => g.last.length ? mean(g.last) : overallLast);
+  const Vbar = groups.map(g => g.now.length ? mean(g.now) : 0);
+  let catErr = 0, valErr = 0, total = 0;
+  groups.forEach((g, i) => {
+    for (const v of g.now) catErr += (v - Vbar[i]) ** 2;
+    valErr += g.now.length * (Mi[i] - Vbar[i]) ** 2;
+  });
+  const vMean = mean(households.map(h => h.now));
+  for (const h of households) total += (h.now - vMean) ** 2;
+  return {n, catErr, valErr, modelErr: catErr + valErr, r2: 1 - (catErr + valErr) / total, Mi};
+}
+```
+
+```{ojs}
+curve = range(60).map(i => decompose(i + 1))
+current = curve[k - 1]
+best = curve.reduce((b, d) => (d.modelErr < b.modelErr ? d : b))
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Categorization Models: households and the model",
+  ariaDescription: "Horizontal axis: household attribute from 0 to 1. Vertical axis: this month's spending. Gray dots are households; the teal steps are the model's valuation of each category. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Attribute (income, scaled)", domain: [0, 1]},
+  y: {label: "Spending this month ($)", grid: true},
+  marks: [
+    Plot.dot(households, {x: "x", y: "now", fill: C.gray, r: 2.5, fillOpacity: 0.7}),
+    Plot.line(current.Mi.flatMap((m, i) => [{x: i / k, m}, {x: (i + 1) / k, m}]), {x: "x", y: "m", stroke: C.teal, strokeWidth: 2.5})
+  ]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Categorization Models: error decomposition by number of categories",
+  ariaDescription: "Horizontal axis: number of categories. Vertical axis: squared error, in millions. Lines show categorization error (purple), valuation error (orange) and their sum, the model error (teal). The vertical line marks the chosen number of categories. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Number of categories n"},
+  y: {label: "Squared error (millions)", grid: true},
+  color: {legend: true, domain: ["Categorization error", "Valuation error", "Model error"], range: [C.purple, C.orange, C.teal]},
+  marks: [
+    Plot.line(curve, {x: "n", y: d => d.catErr / 1e6, stroke: () => "Categorization error", strokeWidth: 2}),
+    Plot.line(curve, {x: "n", y: d => d.valErr / 1e6, stroke: () => "Valuation error", strokeWidth: 2}),
+    Plot.line(curve, {x: "n", y: d => d.modelErr / 1e6, stroke: () => "Model error", strokeWidth: 2.5}),
+    Plot.ruleX([k], {stroke: "currentColor", strokeDasharray: "4 3"})
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`With **${k}** categor${k === 1 ? "y" : "ies"}, categorization error is ${fmt(current.catErr / 1e6, 2)} million and valuation error ${fmt(current.valErr / 1e6, 2)} million; their sum is the model error, and the model explains **${pct(current.r2)}** of this month's variation (R²). The lowest model error comes with **${best.n} categories** (R² = ${pct(best.r2)}). ${k > best.n * 2 ? "Here the categories are too fine: each one's valuation rests on too few households, so last month's noise is mistaken for signal." : k < best.n / 2 ? "Here the categories are too coarse: they lump together households that spend very differently." : "This is close to the best granularity for this much noise."}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, range, mean, C, fmt, pct} from "../js/models.js"
+
+viewof k = Inputs.range([1, 60], {value: 6, step: 1, label: "Number of categories n"})
+viewof noise = Inputs.range([20, 250], {value: 120, step: 10, label: "Month-to-month noise (sd, $)"})
+viewof seed = Inputs.range([1, 500], {value: 3, step: 1, label: "Random seed"})
+
+households = {
+  const r = rng(seed), H = 300;
+  const mu = x => 400 + 300 * x + 150 * Math.sin(3 * Math.PI * x);
+  return range(H).map(i => {
+    const x = r(), m = mu(x);
+    return {i, x, mu: m, last: m + r.normal(0, noise), now: m + r.normal(0, noise)};
+  });
+}
+
+decompose = (n) => {
+  const cat = x => Math.min(n - 1, Math.floor(x * n));
+  const groups = range(n).map(() => ({last: [], now: []}));
+  for (const h of households) { groups[cat(h.x)].last.push(h.last); groups[cat(h.x)].now.push(h.now); }
+  const overallLast = mean(households.map(h => h.last));
+  const Mi = groups.map(g => g.last.length ? mean(g.last) : overallLast);
+  const Vbar = groups.map(g => g.now.length ? mean(g.now) : 0);
+  let catErr = 0, valErr = 0, total = 0;
+  groups.forEach((g, i) => {
+    for (const v of g.now) catErr += (v - Vbar[i]) ** 2;
+    valErr += g.now.length * (Mi[i] - Vbar[i]) ** 2;
+  });
+  const vMean = mean(households.map(h => h.now));
+  for (const h of households) total += (h.now - vMean) ** 2;
+  return {n, catErr, valErr, modelErr: catErr + valErr, r2: 1 - (catErr + valErr) / total, Mi};
+}
+
+curve = range(60).map(i => decompose(i + 1))
+current = curve[k - 1]
+best = curve.reduce((b, d) => (d.modelErr < b.modelErr ? d : b))
+
+Plot.plot({
+  ariaLabel: "Categorization Models: households and the model",
+  ariaDescription: "Horizontal axis: household attribute from 0 to 1. Vertical axis: this month's spending. Gray dots are households; the teal steps are the model's valuation of each category. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Attribute (income, scaled)", domain: [0, 1]},
+  y: {label: "Spending this month ($)", grid: true},
+  marks: [
+    Plot.dot(households, {x: "x", y: "now", fill: C.gray, r: 2.5, fillOpacity: 0.7}),
+    Plot.line(current.Mi.flatMap((m, i) => [{x: i / k, m}, {x: (i + 1) / k, m}]), {x: "x", y: "m", stroke: C.teal, strokeWidth: 2.5})
+  ]
+})
+
+Plot.plot({
+  ariaLabel: "Categorization Models: error decomposition by number of categories",
+  ariaDescription: "Horizontal axis: number of categories. Vertical axis: squared error, in millions. Lines show categorization error (purple), valuation error (orange) and their sum, the model error (teal). The vertical line marks the chosen number of categories. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Number of categories n"},
+  y: {label: "Squared error (millions)", grid: true},
+  color: {legend: true, domain: ["Categorization error", "Valuation error", "Model error"], range: [C.purple, C.orange, C.teal]},
+  marks: [
+    Plot.line(curve, {x: "n", y: d => d.catErr / 1e6, stroke: () => "Categorization error", strokeWidth: 2}),
+    Plot.line(curve, {x: "n", y: d => d.valErr / 1e6, stroke: () => "Valuation error", strokeWidth: 2}),
+    Plot.line(curve, {x: "n", y: d => d.modelErr / 1e6, stroke: () => "Model error", strokeWidth: 2.5}),
+    Plot.ruleX([k], {stroke: "currentColor", strokeDasharray: "4 3"})
+  ]
+})
+
+html`<div class="sim-readout">${md`With **${k}** categor${k === 1 ? "y" : "ies"}, categorization error is ${fmt(current.catErr / 1e6, 2)} million and valuation error ${fmt(current.valErr / 1e6, 2)} million; their sum is the model error, and the model explains **${pct(current.r2)}** of this month's variation (R²). The lowest model error comes with **${best.n} categories** (R² = ${pct(best.r2)}). ${k > best.n * 2 ? "Here the categories are too fine: each one's valuation rests on too few households, so last month's noise is mistaken for signal." : k < best.n / 2 ? "Here the categories are too coarse: they lump together households that spend very differently." : "This is close to the best granularity for this much noise."}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Categorization models: model error = categorization + valuation error.
+n_cat <- 6 # number of equal-width categories
+noise <- 120 # month-to-month noise in spending (sd)
+households <- 300
+set.seed(3)
+
+x <- runif(households)
+mu <- 400 + 300 * x + 150 * sin(3 * pi * x)
+last_month <- mu + rnorm(households, 0, noise) # used to value categories
+this_month <- mu + rnorm(households, 0, noise) # what we predict
+
+decompose <- function(n) {
+  cat_id <- pmin(n, floor(x * n) + 1)
+  m_i <- tapply(last_month, factor(cat_id, levels = 1:n), mean)
+  m_i[is.na(m_i)] <- mean(last_month)
+  v_bar <- ave(this_month, cat_id)
+  cat_err <- sum((this_month - v_bar)^2)
+  val_err <- sum((m_i[cat_id] - v_bar)^2)
+  total <- sum((this_month - mean(this_month))^2)
+  c(cat_err = cat_err, val_err = val_err, r2 = 1 - (cat_err + val_err) / total)
+}
+
+res <- t(sapply(1:60, decompose))
+model_err <- res[, "cat_err"] + res[, "val_err"]
+cat(sprintf(
+  "%d categories: R2 = %.2f; best is %d categories (R2 = %.2f)\n",
+  n_cat, res[n_cat, "r2"], which.min(model_err),
+  res[which.min(model_err), "r2"]
+))
+
+matplot(1:60, cbind(res[, 1:2], model_err) / 1e6,
+  type = "l", lty = 1, lwd = 2, col = c("#7570b3", "#d95f02", "#148a91"),
+  xlab = "Number of categories", ylab = "Squared error (millions)"
+)
+abline(v = n_cat, lty = 2)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- A categorization model's error splits exactly into categorization error (within-box variation) and valuation error (misjudged box values).
+- Finer categories cut the first and, when valuations are estimated from data, raise the second: more data justifies more categories.
+- Different categorizations err in different places, which is why combining them helps.
+:::
+
+## Uses
+
+::: uses
+- **Predict.** Choose how finely to segment customers, patients or risks for the data you have.
+- **Explain.** Why experts with different mental categories reach different forecasts from the same facts.
+- **Reason.** Understand overfitting: a box for every object explains all the variation in sample and predicts badly out of it.
+:::
+
+## Related models
+
+- [Diversity Prediction Theorem](diversity-prediction-theorem.qmd): diverse categorizations produce diverse predictions, which average well.
+- [Linear Models](linear-models.qmd): the alternative to boxes, a straight line through the attribute; $R^2$ means the same thing for both.
+- [Normal Distribution](normal-distribution.qmd): the square-root rule behind why bigger categories have more accurate averages.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 3, "The Science of Many Models," pp. 30–36.
+- Lu Hong and Scott E. Page, "Interpreted and Generated Signals," *Journal of Economic Theory* 144 (2009): 2174–2196.
+- Leo Breiman, "Bagging Predictors," *Machine Learning* 24, no. 2 (1996): 123–140.

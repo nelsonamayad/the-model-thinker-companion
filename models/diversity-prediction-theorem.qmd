@@ -1,0 +1,246 @@
+---
+title: "Diversity Prediction Theorem"
+date: 2026-11-13
+description: "The error of an average forecast equals the average error of the forecasts minus their diversity."
+order: 2
+chapter: 3
+chapter-title: "The Science of Many Models"
+pages: "29–30"
+family: "Many models and prediction"
+engine: "Equation-based"
+tool: "Observable JS (simulation)"
+reference: "base R"
+uses: [Reason, Predict, Design]
+categories: ["Many models and prediction", "Equation-based"]
+verified: true
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#2** · *The Model Thinker*, chapter 3, "The Science of Many Models", pp. 29–30.
+
+Filed under [Many models and prediction](../families/many-models.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book.
+:::
+
+## The idea
+
+When several models (or people) each forecast a number, such as next quarter's sales, the vote share of a candidate or the weight of an ox, we can average their forecasts. The diversity prediction theorem says exactly how good that average is. Its error is the average error of the individual forecasts, minus how much the forecasts disagree with each other.
+
+This is an identity, not an approximation, and it holds for any set of numbers. Two consequences follow. The average can never be worse than the typical forecast, because diversity cannot be negative. And a crowd of forecasters is accurate when either they are individually accurate or they are diverse, and best when both. Diversity cannot fix errors everyone shares, though: if all the models lean the same way, they cancel nothing.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** $N$ models predict a value $V$. Model $i$ predicts $M_i$, and the many-model (average) prediction is $\bar M = \frac1N \sum_{i=1}^N M_i$.
+
+**Equation.**
+
+$$
+\underbrace{(\bar M - V)^2}_{\text{many-model error}}
+= \underbrace{\frac1N \sum_{i=1}^{N} (M_i - V)^2}_{\text{average-model error}}
+- \underbrace{\frac1N \sum_{i=1}^{N} (M_i - \bar M)^2}_{\text{diversity of predictions}}
+$$
+
+**Result.** The average prediction is at least as accurate as the average model, by exactly the diversity of the predictions. Diversity is the variance of the predictions around their mean.
+:::
+
+To see why, write $M_i - V = (M_i - \bar M) + (\bar M - V)$, square, and average over $i$: the cross term vanishes because the deviations $M_i - \bar M$ sum to zero.
+
+## Interactive model
+
+Each dot is one model's prediction of a true value of 100. Each model's error is a shared bias, common to all models, plus its own independent error. The bars check the identity: the crowd's squared error equals the average squared error minus the diversity. Raise the shared bias to see the one kind of error diversity cannot remove.
+
+```{ojs}
+//| echo: false
+import {rng, mean, range, C, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof nModels = Inputs.range([2, 50], {value: 12, step: 1, label: "Number of models N"})
+viewof spread = Inputs.range([0, 30], {value: 12, step: 1, label: "Individual error (sd)"})
+viewof bias = Inputs.range([-15, 15], {value: 3, step: 1, label: "Shared bias"})
+viewof seed = Inputs.range([1, 500], {value: 11, step: 1, label: "Random seed"})
+```
+
+```{ojs}
+dpt = {
+  const r = rng(seed), V = 100;
+  const M = range(nModels).map(i => ({i, m: V + bias + r.normal(0, spread)}));
+  const Mbar = mean(M.map(d => d.m));
+  const crowd = (Mbar - V) ** 2;
+  const avgErr = mean(M.map(d => (d.m - V) ** 2));
+  const diversity = mean(M.map(d => (d.m - Mbar) ** 2));
+  const beaten = M.filter(d => (d.m - V) ** 2 < crowd).length;
+  return {V, M, Mbar, crowd, avgErr, diversity, beaten};
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Diversity Prediction Theorem: the predictions",
+  ariaDescription: "Horizontal axis: predicted value. Gray dots are individual model predictions; the solid line is the true value and the teal line is the average prediction. The summary below the charts states the result in words.",
+  height: 120,
+  x: {label: "Prediction", domain: [Math.min(50, ...dpt.M.map(d => d.m)), Math.max(150, ...dpt.M.map(d => d.m))]},
+  y: {axis: null},
+  marks: [
+    Plot.dotX(dpt.M, Plot.dodgeY({x: "m", fill: C.gray, r: 5, anchor: "middle"})),
+    Plot.ruleX([dpt.V], {stroke: "currentColor", strokeWidth: 2}),
+    Plot.ruleX([dpt.Mbar], {stroke: C.teal, strokeWidth: 3}),
+    Plot.text([dpt.V], {x: d => d, text: () => "truth", frameAnchor: "top", dy: -2, dx: 18, fill: "currentColor"}),
+    Plot.text([dpt.Mbar], {x: d => d, text: () => "average", frameAnchor: "bottom", dy: 2, dx: 24, fill: C.teal})
+  ]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Diversity Prediction Theorem: the identity",
+  ariaDescription: "Three horizontal bars: average-model squared error, diversity of predictions, and the many-model squared error, which equals the first minus the second. The summary below the charts states the result in words.",
+  height: 150,
+  marginLeft: 170,
+  x: {label: "Squared error", grid: true},
+  y: {label: null, domain: ["Average-model error", "Diversity", "Many-model error"]},
+  marks: [
+    Plot.barX([
+      {k: "Average-model error", v: dpt.avgErr},
+      {k: "Diversity", v: dpt.diversity},
+      {k: "Many-model error", v: dpt.crowd}
+    ], {y: "k", x: "v", fill: (d, i) => [C.gray, C.orange, C.teal][i]}),
+    Plot.ruleX([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`The average prediction is **${fmt(dpt.Mbar, 1)}** for a true value of 100, a squared error of **${fmt(dpt.crowd, 1)}**. That is the average model's squared error, ${fmt(dpt.avgErr, 1)}, minus the diversity of the predictions, ${fmt(dpt.diversity, 1)} (check: ${fmt(dpt.avgErr, 1)} − ${fmt(dpt.diversity, 1)} = ${fmt(dpt.avgErr - dpt.diversity, 1)}). ${dpt.beaten === 0 ? "None" : `Only ${dpt.beaten}`} of the ${nModels} models beat the average.${Math.abs(bias) >= 5 ? ` Most of what remains is the shared bias of ${bias}: diversity cannot cancel it.` : ""}`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {rng, mean, range, C, fmt} from "../js/models.js"
+
+viewof nModels = Inputs.range([2, 50], {value: 12, step: 1, label: "Number of models N"})
+viewof spread = Inputs.range([0, 30], {value: 12, step: 1, label: "Individual error (sd)"})
+viewof bias = Inputs.range([-15, 15], {value: 3, step: 1, label: "Shared bias"})
+viewof seed = Inputs.range([1, 500], {value: 11, step: 1, label: "Random seed"})
+
+dpt = {
+  const r = rng(seed), V = 100;
+  const M = range(nModels).map(i => ({i, m: V + bias + r.normal(0, spread)}));
+  const Mbar = mean(M.map(d => d.m));
+  const crowd = (Mbar - V) ** 2;
+  const avgErr = mean(M.map(d => (d.m - V) ** 2));
+  const diversity = mean(M.map(d => (d.m - Mbar) ** 2));
+  const beaten = M.filter(d => (d.m - V) ** 2 < crowd).length;
+  return {V, M, Mbar, crowd, avgErr, diversity, beaten};
+}
+
+Plot.plot({
+  ariaLabel: "Diversity Prediction Theorem: the predictions",
+  ariaDescription: "Horizontal axis: predicted value. Gray dots are individual model predictions; the solid line is the true value and the teal line is the average prediction. The summary below the charts states the result in words.",
+  height: 120,
+  x: {label: "Prediction", domain: [Math.min(50, ...dpt.M.map(d => d.m)), Math.max(150, ...dpt.M.map(d => d.m))]},
+  y: {axis: null},
+  marks: [
+    Plot.dotX(dpt.M, Plot.dodgeY({x: "m", fill: C.gray, r: 5, anchor: "middle"})),
+    Plot.ruleX([dpt.V], {stroke: "currentColor", strokeWidth: 2}),
+    Plot.ruleX([dpt.Mbar], {stroke: C.teal, strokeWidth: 3}),
+    Plot.text([dpt.V], {x: d => d, text: () => "truth", frameAnchor: "top", dy: -2, dx: 18, fill: "currentColor"}),
+    Plot.text([dpt.Mbar], {x: d => d, text: () => "average", frameAnchor: "bottom", dy: 2, dx: 24, fill: C.teal})
+  ]
+})
+
+Plot.plot({
+  ariaLabel: "Diversity Prediction Theorem: the identity",
+  ariaDescription: "Three horizontal bars: average-model squared error, diversity of predictions, and the many-model squared error, which equals the first minus the second. The summary below the charts states the result in words.",
+  height: 150,
+  marginLeft: 170,
+  x: {label: "Squared error", grid: true},
+  y: {label: null, domain: ["Average-model error", "Diversity", "Many-model error"]},
+  marks: [
+    Plot.barX([
+      {k: "Average-model error", v: dpt.avgErr},
+      {k: "Diversity", v: dpt.diversity},
+      {k: "Many-model error", v: dpt.crowd}
+    ], {y: "k", x: "v", fill: (d, i) => [C.gray, C.orange, C.teal][i]}),
+    Plot.ruleX([0])
+  ]
+})
+
+html`<div class="sim-readout">${md`The average prediction is **${fmt(dpt.Mbar, 1)}** for a true value of 100, a squared error of **${fmt(dpt.crowd, 1)}**. That is the average model's squared error, ${fmt(dpt.avgErr, 1)}, minus the diversity of the predictions, ${fmt(dpt.diversity, 1)} (check: ${fmt(dpt.avgErr, 1)} − ${fmt(dpt.diversity, 1)} = ${fmt(dpt.avgErr - dpt.diversity, 1)}). ${dpt.beaten === 0 ? "None" : `Only ${dpt.beaten}`} of the ${nModels} models beat the average.${Math.abs(bias) >= 5 ? ` Most of what remains is the shared bias of ${bias}: diversity cannot cancel it.` : ""}`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Diversity prediction theorem: crowd error = average error - diversity.
+n_models <- 12
+spread <- 12 # sd of each model's own error
+bias <- 3 # error shared by every model
+truth <- 100
+set.seed(11)
+
+m <- truth + bias + rnorm(n_models, 0, spread)
+m_bar <- mean(m)
+crowd <- (m_bar - truth)^2
+avg_err <- mean((m - truth)^2)
+diversity <- mean((m - m_bar)^2)
+
+cat(sprintf("Average prediction: %.1f (truth %d)\n", m_bar, truth))
+cat(sprintf(
+  "Crowd error %.1f = average error %.1f - diversity %.1f\n",
+  crowd, avg_err, diversity
+))
+cat("Models that beat the average:", sum((m - truth)^2 < crowd), "\n")
+
+barplot(c(avg_err, diversity, crowd),
+  names.arg = c("Average error", "Diversity", "Crowd error"),
+  col = c("grey60", "#d95f02", "#148a91"), ylab = "Squared error"
+)
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- Crowd error = average error − diversity, exactly, for any set of predictions.
+- Diversity is as valuable as individual accuracy: a crowd of mediocre but different models can beat a crowd of good, similar ones.
+- Errors that all models share are untouched by averaging.
+:::
+
+## Uses
+
+::: uses
+- **Reason.** Why averaging forecasts (polls, economists' projections, ensemble weather models) beats picking one.
+- **Predict.** Build ensembles whose members disagree for good reasons, and measure diversity as part of their quality.
+- **Design.** Staff forecasting teams with people who use different models, not just the individually best performers.
+:::
+
+## Related models
+
+- [Condorcet Jury Theorem](condorcet-jury-theorem.qmd): the same many-model logic for yes-or-no classifications.
+- [Categorization Models](categorization-models.qmd): diverse categorizations are a source of diverse predictions.
+- [Linear Models](linear-models.qmd): regressions on different variables are one way to produce diverse forecasts.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 3, "The Science of Many Models," pp. 29–30.
+- Scott E. Page, *The Difference: How the Power of Diversity Creates Better Groups, Teams, Schools, and Societies* (Princeton University Press, 2007).
+- Lu Hong and Scott E. Page, "Interpreted and Generated Signals," *Journal of Economic Theory* 144 (2009): 2174–2196.

@@ -1,0 +1,255 @@
+---
+title: "Prospect Theory"
+date: 2026-11-13
+description: "People value gains and losses relative to a reference point, dislike losses more than they like gains, and overweight small probabilities, so the same choice framed two ways gets two answers."
+order: 5
+chapter: 4
+chapter-title: "Modeling Human Actors"
+pages: "50–53"
+family: "Modeling people"
+engine: "Equation-based"
+tool: "Observable JS (closed form)"
+reference: "base R"
+uses: [Explain, Predict, Design]
+categories: ["Modeling people", "Equation-based"]
+verified: true
+source-note: "The value and weighting functions and their parameters are the standard ones from Tversky and Kahneman (1992), not from the book, which presents the framing example."
+---
+
+::: {.callout-note appearance="minimal" .book-source}
+Model **#5** · *The Model Thinker*, chapter 4, "Modeling Human Actors", pp. 50–53.
+
+Filed under [Modeling people](../families/modeling-people.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+
+Source check: ✓ The formulation was checked against the book. The value and weighting functions and their parameters are the standard ones from Tversky and Kahneman (1992), not from the book, which presents the framing example.
+:::
+
+## The idea
+
+Psychologists have catalogued many ways people depart from the rational-actor model. Prospect theory, developed by Daniel Kahneman and Amos Tversky, organizes several of them into a model of choice under risk. People judge outcomes as gains or losses relative to a reference point, not as final wealth. They are risk-averse for gains and risk-seeking for losses. Losses loom larger than equal gains. And they treat probabilities nonlinearly, overweighting rare events.
+
+Page illustrates it with a framing experiment. Offered a sure \$400 or a coin flip for \$1,000, most people take the sure thing. Handed \$1,000 and offered a sure loss of \$600 or a coin flip between losing nothing and losing \$1,000, most people gamble. The two choices are identical in final money, so a consistent rational actor answers both the same way. Prospect theory predicts the reversal.
+
+## Formulation
+
+::: {.model-box}
+**Setup.** A prospect pays $x_j$ (a gain or loss relative to the reference point) with probability $p_j$.
+
+**Equations.** Its value is
+
+$$
+U = \sum_j w(p_j)\, v(x_j),
+\qquad
+v(x) = \begin{cases} x^{\alpha} & x \ge 0 \\ -\lambda (-x)^{\beta} & x < 0 \end{cases},
+\qquad
+w(p) = \frac{p^{\gamma}}{\big(p^{\gamma} + (1-p)^{\gamma}\big)^{1/\gamma}} .
+$$
+
+$\alpha, \beta < 1$ make the value function concave for gains and convex for losses; $\lambda > 1$ is loss aversion; $\gamma < 1$ overweights small probabilities and underweights large ones.
+
+**Result.** With typical parameters ($\alpha = \beta = 0.88$, $\lambda = 2.25$, $\gamma = 0.61$), people prefer a sure gain to a gamble with a higher expected value, and a gamble to a sure loss: framing the same choice as gains or as losses reverses it.
+:::
+
+The book presents the experiment and the qualitative findings; the functional forms and parameter values above are Tversky and Kahneman's 1992 estimates, which we use to make the model computable.
+
+## Interactive model
+
+The left chart is the value function: steeper for losses than for gains, and curved toward zero on both sides. Below it, each frame of Page's experiment is scored. Set loss aversion to 1 and the curvature to 1 and the reversal disappears; the decision-maker becomes an expected-value maximizer who gambles in both frames.
+
+```{ojs}
+//| echo: false
+import {seq, C, fmt} from "../js/models.js"
+```
+
+```{ojs}
+viewof alpha = Inputs.range([0.3, 1], {value: 0.88, step: 0.01, label: "Curvature α = β"})
+viewof lambda = Inputs.range([1, 4], {value: 2.25, step: 0.05, label: "Loss aversion λ"})
+viewof gamma = Inputs.range([0.3, 1], {value: 0.61, step: 0.01, label: "Probability weighting γ"})
+viewof sure = Inputs.range([200, 600], {value: 400, step: 10, label: "Sure gain ($)"})
+```
+
+```{ojs}
+pt = {
+  const v = x => (x >= 0 ? x ** alpha : -lambda * (-x) ** alpha);
+  const w = p => p ** gamma / (p ** gamma + (1 - p) ** gamma) ** (1 / gamma);
+  const gainSure = v(sure), gainGamble = w(0.5) * v(1000);
+  const lossSure = v(-(1000 - sure)), lossGamble = w(0.5) * v(-1000);
+  return {
+    v, w,
+    curve: seq(-1000, 1000, 201).map(x => ({x, v: v(x)})),
+    frames: [
+      {frame: "Gain frame", option: `Sure $${sure}`, value: gainSure},
+      {frame: "Gain frame", option: "50% of $1,000", value: gainGamble},
+      {frame: "Loss frame", option: `Sure loss of $${1000 - sure}`, value: lossSure},
+      {frame: "Loss frame", option: "50% loss of $1,000", value: lossGamble}
+    ],
+    gainPick: gainSure > gainGamble ? "sure" : "gamble",
+    lossPick: lossSure > lossGamble ? "sure" : "gamble"
+  };
+}
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Prospect Theory: value function",
+  ariaDescription: "Horizontal axis: gain or loss in dollars relative to the reference point. Vertical axis: subjective value. The teal curve is the prospect-theory value function; the dashed line is a value equal to money. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Outcome relative to reference point ($)"},
+  y: {label: "Value v(x)", grid: true},
+  marks: [
+    Plot.ruleX([0]), Plot.ruleY([0]),
+    Plot.line(pt.curve, {x: "x", y: d => d.x * pt.v(1000) / 1000, stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.5}),
+    Plot.line(pt.curve, {x: "x", y: "v", stroke: C.teal, strokeWidth: 2.5})
+  ]
+})
+```
+
+```{ojs}
+Plot.plot({
+  ariaLabel: "Prospect Theory: the two frames",
+  ariaDescription: "Horizontal bars: the prospect-theory value of each option in the gain frame and in the loss frame. In each frame the option with the higher value is chosen. The summary below the charts states the result in words.",
+  height: 170,
+  marginLeft: 170,
+  x: {label: "Prospect value", grid: true},
+  y: {label: null, domain: pt.frames.map(d => d.option)},
+  fy: {label: null},
+  marks: [
+    Plot.barX(pt.frames, {y: "option", x: "value", fy: "frame", fill: d => (d.option.includes("50%") ? C.orange : C.teal)}),
+    Plot.ruleX([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+html`<div class="sim-readout">${md`In the gain frame the decision-maker **takes the ${pt.gainPick === "sure" ? `sure $${sure}` : "gamble"}**; in the loss frame, holding $1,000, they **take the ${pt.lossPick === "sure" ? `sure loss of $${1000 - sure}` : "gamble"}**. The two frames offer the same final amounts (a sure $${sure} or a 50–50 chance of $0 or $1,000). ${pt.gainPick !== pt.lossPick ? "**Framing reverses the choice**, as Kahneman and Tversky found in experiments." : "With these parameters the choice is consistent across frames."} Probability weighting turns a 50% chance into a weight of ${fmt(pt.w(0.5), 2)}.`}</div>`
+```
+
+<!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
+
+<details class="code-fold model-code">
+<summary>Show model code</summary>
+
+The **Observable JS** runs on this page. The **R** version is the reference implementation (base R): same model and defaults, with the controls as variables at the top.
+
+::: {.panel-tabset group="model-language"}
+
+## Observable JS {.unlisted}
+
+```{.js}
+import {seq, C, fmt} from "../js/models.js"
+
+viewof alpha = Inputs.range([0.3, 1], {value: 0.88, step: 0.01, label: "Curvature α = β"})
+viewof lambda = Inputs.range([1, 4], {value: 2.25, step: 0.05, label: "Loss aversion λ"})
+viewof gamma = Inputs.range([0.3, 1], {value: 0.61, step: 0.01, label: "Probability weighting γ"})
+viewof sure = Inputs.range([200, 600], {value: 400, step: 10, label: "Sure gain ($)"})
+
+pt = {
+  const v = x => (x >= 0 ? x ** alpha : -lambda * (-x) ** alpha);
+  const w = p => p ** gamma / (p ** gamma + (1 - p) ** gamma) ** (1 / gamma);
+  const gainSure = v(sure), gainGamble = w(0.5) * v(1000);
+  const lossSure = v(-(1000 - sure)), lossGamble = w(0.5) * v(-1000);
+  return {
+    v, w,
+    curve: seq(-1000, 1000, 201).map(x => ({x, v: v(x)})),
+    frames: [
+      {frame: "Gain frame", option: `Sure $${sure}`, value: gainSure},
+      {frame: "Gain frame", option: "50% of $1,000", value: gainGamble},
+      {frame: "Loss frame", option: `Sure loss of $${1000 - sure}`, value: lossSure},
+      {frame: "Loss frame", option: "50% loss of $1,000", value: lossGamble}
+    ],
+    gainPick: gainSure > gainGamble ? "sure" : "gamble",
+    lossPick: lossSure > lossGamble ? "sure" : "gamble"
+  };
+}
+
+Plot.plot({
+  ariaLabel: "Prospect Theory: value function",
+  ariaDescription: "Horizontal axis: gain or loss in dollars relative to the reference point. Vertical axis: subjective value. The teal curve is the prospect-theory value function; the dashed line is a value equal to money. The summary below the charts states the result in words.",
+  height: 260,
+  x: {label: "Outcome relative to reference point ($)"},
+  y: {label: "Value v(x)", grid: true},
+  marks: [
+    Plot.ruleX([0]), Plot.ruleY([0]),
+    Plot.line(pt.curve, {x: "x", y: d => d.x * pt.v(1000) / 1000, stroke: "currentColor", strokeDasharray: "4 3", strokeOpacity: 0.5}),
+    Plot.line(pt.curve, {x: "x", y: "v", stroke: C.teal, strokeWidth: 2.5})
+  ]
+})
+
+Plot.plot({
+  ariaLabel: "Prospect Theory: the two frames",
+  ariaDescription: "Horizontal bars: the prospect-theory value of each option in the gain frame and in the loss frame. In each frame the option with the higher value is chosen. The summary below the charts states the result in words.",
+  height: 170,
+  marginLeft: 170,
+  x: {label: "Prospect value", grid: true},
+  y: {label: null, domain: pt.frames.map(d => d.option)},
+  fy: {label: null},
+  marks: [
+    Plot.barX(pt.frames, {y: "option", x: "value", fy: "frame", fill: d => (d.option.includes("50%") ? C.orange : C.teal)}),
+    Plot.ruleX([0])
+  ]
+})
+
+html`<div class="sim-readout">${md`In the gain frame the decision-maker **takes the ${pt.gainPick === "sure" ? `sure $${sure}` : "gamble"}**; in the loss frame, holding $1,000, they **take the ${pt.lossPick === "sure" ? `sure loss of $${1000 - sure}` : "gamble"}**. The two frames offer the same final amounts (a sure $${sure} or a 50–50 chance of $0 or $1,000). ${pt.gainPick !== pt.lossPick ? "**Framing reverses the choice**, as Kahneman and Tversky found in experiments." : "With these parameters the choice is consistent across frames."} Probability weighting turns a 50% chance into a weight of ${fmt(pt.w(0.5), 2)}.`}</div>`
+```
+
+## R {.unlisted}
+
+```{.r}
+# Prospect theory: the gain and loss frames of the same choice.
+# Deterministic: no random numbers.
+alpha <- 0.88 # curvature for gains and losses
+lambda <- 2.25 # loss aversion
+gamma <- 0.61 # probability weighting
+sure <- 400 # sure gain in the gain frame
+
+v <- function(x) ifelse(x >= 0, abs(x)^alpha, -lambda * abs(x)^alpha)
+w <- function(p) p^gamma / (p^gamma + (1 - p)^gamma)^(1 / gamma)
+
+gain <- c(sure = v(sure), gamble = w(0.5) * v(1000))
+loss <- c(sure = v(-(1000 - sure)), gamble = w(0.5) * v(-1000))
+cat("Gain frame values:", round(gain, 1), "-> choose", names(which.max(gain)))
+cat("\nLoss frame values:", round(loss, 1), "-> choose", names(which.max(loss)))
+cat("\n")
+
+x <- seq(-1000, 1000, length.out = 401)
+plot(x, v(x),
+  type = "l", lwd = 2, col = "#148a91",
+  xlab = "Outcome relative to reference point", ylab = "Value v(x)"
+)
+abline(h = 0, v = 0, col = "grey60")
+```
+
+:::
+
+</details>
+
+<!-- End of generated model code. -->
+
+## Takeaways
+
+::: takeaways
+- People evaluate outcomes as gains and losses from a reference point, so the description of a choice can change the choice.
+- Losses weigh about twice as much as equal gains, which makes people risk-seeking to avoid a sure loss.
+- A model of systematic biases is still a model: it makes precise, testable predictions that the rational-actor model does not.
+:::
+
+## Uses
+
+::: uses
+- **Explain.** Why investors hold losing stocks too long, why insurance against rare events sells, and why people buy lottery tickets.
+- **Predict.** Anticipate how framing (a discount versus a surcharge, survival versus mortality rates) shifts choices.
+- **Design.** Default options, opt-out pension plans and the wording of policy choices, which take reference points into account.
+:::
+
+## Related models
+
+- [Rational-Actor Model](rational-actor.qmd): the benchmark prospect theory departs from.
+- [The El Farol Model](el-farol.qmd): a third way to model people, as followers of adaptive rules.
+- [Lognormal Distribution](lognormal-distribution.qmd): gains and losses in percentage terms, the other natural reference.
+
+## Sources
+
+- Scott E. Page, *The Model Thinker* (Basic Books, 2018), chapter 4, "Modeling Human Actors," pp. 50–53.
+- Daniel Kahneman and Amos Tversky, "Prospect Theory: An Analysis of Decisions Under Risk," *Econometrica* 47, no. 2 (1979): 263–291.
+- Amos Tversky and Daniel Kahneman, "Advances in Prospect Theory: Cumulative Representation of Uncertainty," *Journal of Risk and Uncertainty* 5 (1992): 297–323.
