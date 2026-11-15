@@ -23,7 +23,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build_site import FAMILY, ENGINES, USES, CODE_START, parse_front, read  # noqa: E402
+from build_site import FAMILY, ENGINES, USES, CODE_START, ojs_cells, parse_front, read  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECTIONS = ["## The idea", "## Formulation", "## Interactive model", "## Takeaways", "## Uses",
@@ -67,6 +67,20 @@ def check(path, slugs):
             problems.append("a drawGrid call has no ariaLabel")
     if "sim-readout" not in body:
         problems.append("no readout (sim-readout)")
+    ojs = ojs_cells(body)
+    if re.search(r"\]\([^)]+\.qmd\)", ojs):
+        problems.append("OJS cell links to .qmd (use .html inside runtime md`...` templates)")
+    if re.search(r"\bscheme\s*:", ojs):
+        problems.append("OJS Plot uses built-in color scheme instead of palette C from js/models.js")
+    imp_m = re.search(r'import\s*\{([^}]+)\}\s*from\s*"\.\./js/models\.js"', ojs)
+    if imp_m:
+        ojs_without_imp = ojs.replace(imp_m.group(0), "")
+        for sym in imp_m.group(1).split(","):
+            local_name = sym.strip().split(" as ")[-1].strip()
+            if local_name and not re.search(rf"\b{re.escape(local_name)}\b", ojs_without_imp):
+                problems.append(f"unused import '{local_name}' from ../js/models.js")
+    if ojs and f"```{{.js}}\n{ojs}\n```" not in body:
+        problems.append("generated Observable JS code tab is out of sync: run scripts/build_site.py")
     rel = body.split("\n## Related models\n", 1)[-1].split("\n## ", 1)[0]
     for target in re.findall(r"\]\(([a-z0-9-]+)\.qmd", rel):
         if target not in slugs:

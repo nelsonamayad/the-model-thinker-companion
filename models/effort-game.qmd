@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#42** · *The Model Thinker*, chapter 21, "Game Theory Models Times Three", pp. 247–249.
 
-Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form and best-response iteration) · Reference implementation: base R.
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form and best-response iteration) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Design, Predict, Explain.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -59,7 +59,7 @@ The chart plots equilibrium effort per contestant and in total as the number of 
 
 ```{ojs}
 //| echo: false
-import {rng, range, C, fmt, num, pct} from "../js/models.js"
+import {rng, range, C, num, pct} from "../js/models.js"
 ```
 
 ```{ojs}
@@ -115,7 +115,7 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, C, fmt, num, pct} from "../js/models.js"
+import {rng, range, C, num, pct} from "../js/models.js"
 
 viewof M = Inputs.range([100, 10000], {value: 1000, step: 100, label: "Prize M ($)"})
 viewof N = Inputs.range([2, 50], {value: 5, step: 1, label: "Contestants N"})

@@ -19,7 +19,7 @@ source-note: "The tournament with noise and the ecological dynamics are our illu
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#43** · *The Model Thinker*, chapter 22, "Models of Cooperation", pp. 253–262.
 
-Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (tournament and replicator dynamics) · Reference implementation: base R.
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (tournament and replicator dynamics) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Design, Act.
 
 Source check: ✓ The formulation was checked against the book. The tournament with noise and the ecological dynamics are our illustration of strategies the chapter discusses.
 :::
@@ -118,7 +118,7 @@ tournament = {
     const avg = fit.reduce((s, f, i) => s + f * x[i], 0);
     x = x.map((v, i) => (v * fit[i]) / avg);
   }
-  return {scores, history, final: names.map((n, i) => ({name: n, share: x[i]})), threshold: (T - R) / (T - P)};
+  return {scores, history, final: names.map((n, i) => ({name: n, share: x[i]})), validPD: T > R && R > P && P > S && 2 * R > T + S, threshold: T > P ? (T - R) / (T - P) : NaN};
 }
 ```
 
@@ -144,7 +144,7 @@ Plot.plot({
   height: 240,
   x: {label: "Generation"},
   y: {label: "Share of population", domain: [0, 1], tickFormat: "%", grid: true},
-  color: {legend: true, scheme: "tableau10"},
+  color: {legend: true, range: [C.teal, C.orange, C.purple, C.blue, C.green, C.amber]},
   marks: [Plot.line(tournament.history, {x: "gen", y: "share", stroke: "name", strokeWidth: 2})]
 })
 ```
@@ -154,7 +154,10 @@ Plot.plot({
 {
   const best = tournament.scores.slice().sort((a, b) => b.score - a.score)[0];
   const top = tournament.final.slice().sort((a, b) => b.share - a.share);
-  return html`<div class="sim-readout">${md`Grim Trigger sustains cooperation when δ ≥ (T − R)/(T − P) = **${fmt(tournament.threshold, 2)}**; here δ = ${delta}, so cooperation ${delta >= tournament.threshold ? "**can** be sustained" : "**cannot** be sustained"}. In the tournament, **${best.name}** scores best (${fmt(best.score, 2)} per round). After 60 generations of evolution, the population is ${top.slice(0, 2).map(d => `${pct(d.share)} ${d.name}`).join(" and ")}. ${noise > 0 ? "With mistakes, Tit for Tat pairs fall into echoing retaliations, while Win-Stay, Lose-Shift recovers quickly." : "Without mistakes, the reciprocal strategies cooperate with each other and are not exploited."}`}</div>`;
+  const grimText = tournament.validPD
+    ? `Grim Trigger sustains cooperation when δ ≥ (T − R)/(T − P) = **${fmt(tournament.threshold, 2)}**; here δ = ${delta}, so cooperation ${delta >= tournament.threshold ? "**can** be sustained" : "**cannot** be sustained"}.`
+    : `These payoffs do not satisfy the Prisoners' Dilemma ordering (T > R > P > S with 2R > T + S), so the Grim Trigger threshold does not apply.`;
+  return html`<div class="sim-readout">${md`${grimText} In the tournament, **${best.name}** scores best (${fmt(best.score, 2)} per round). After 60 generations of evolution, the population is ${top.slice(0, 2).map(d => `${pct(d.share)} ${d.name}`).join(" and ")}. ${noise > 0 ? "With mistakes, Tit for Tat pairs fall into echoing retaliations, while Win-Stay, Lose-Shift recovers quickly." : "Without mistakes, the reciprocal strategies cooperate with each other and are not exploited."}`}</div>`;
 }
 ```
 
@@ -226,7 +229,7 @@ tournament = {
     const avg = fit.reduce((s, f, i) => s + f * x[i], 0);
     x = x.map((v, i) => (v * fit[i]) / avg);
   }
-  return {scores, history, final: names.map((n, i) => ({name: n, share: x[i]})), threshold: (T - R) / (T - P)};
+  return {scores, history, final: names.map((n, i) => ({name: n, share: x[i]})), validPD: T > R && R > P && P > S && 2 * R > T + S, threshold: T > P ? (T - R) / (T - P) : NaN};
 }
 
 Plot.plot({
@@ -248,14 +251,17 @@ Plot.plot({
   height: 240,
   x: {label: "Generation"},
   y: {label: "Share of population", domain: [0, 1], tickFormat: "%", grid: true},
-  color: {legend: true, scheme: "tableau10"},
+  color: {legend: true, range: [C.teal, C.orange, C.purple, C.blue, C.green, C.amber]},
   marks: [Plot.line(tournament.history, {x: "gen", y: "share", stroke: "name", strokeWidth: 2})]
 })
 
 {
   const best = tournament.scores.slice().sort((a, b) => b.score - a.score)[0];
   const top = tournament.final.slice().sort((a, b) => b.share - a.share);
-  return html`<div class="sim-readout">${md`Grim Trigger sustains cooperation when δ ≥ (T − R)/(T − P) = **${fmt(tournament.threshold, 2)}**; here δ = ${delta}, so cooperation ${delta >= tournament.threshold ? "**can** be sustained" : "**cannot** be sustained"}. In the tournament, **${best.name}** scores best (${fmt(best.score, 2)} per round). After 60 generations of evolution, the population is ${top.slice(0, 2).map(d => `${pct(d.share)} ${d.name}`).join(" and ")}. ${noise > 0 ? "With mistakes, Tit for Tat pairs fall into echoing retaliations, while Win-Stay, Lose-Shift recovers quickly." : "Without mistakes, the reciprocal strategies cooperate with each other and are not exploited."}`}</div>`;
+  const grimText = tournament.validPD
+    ? `Grim Trigger sustains cooperation when δ ≥ (T − R)/(T − P) = **${fmt(tournament.threshold, 2)}**; here δ = ${delta}, so cooperation ${delta >= tournament.threshold ? "**can** be sustained" : "**cannot** be sustained"}.`
+    : `These payoffs do not satisfy the Prisoners' Dilemma ordering (T > R > P > S with 2R > T + S), so the Grim Trigger threshold does not apply.`;
+  return html`<div class="sim-readout">${md`${grimText} In the tournament, **${best.name}** scores best (${fmt(best.score, 2)} per round). After 60 generations of evolution, the population is ${top.slice(0, 2).map(d => `${pct(d.share)} ${d.name}`).join(" and ")}. ${noise > 0 ? "With mistakes, Tit for Tat pairs fall into echoing retaliations, while Win-Stay, Lose-Shift recovers quickly." : "Without mistakes, the reciprocal strategies cooperate with each other and are not exploited."}`}</div>`;
 }
 ```
 

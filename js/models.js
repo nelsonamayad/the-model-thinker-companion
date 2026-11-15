@@ -551,6 +551,16 @@ export function player(max, { value = max, label = "Step", delay = 120, step = 1
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "mt-play";
+  const prevBtn = document.createElement("button");
+  prevBtn.type = "button";
+  prevBtn.className = "mt-step";
+  prevBtn.textContent = "‹";
+  prevBtn.setAttribute("aria-label", `Previous ${label.toLowerCase()}`);
+  const nextBtn = document.createElement("button");
+  nextBtn.type = "button";
+  nextBtn.className = "mt-step";
+  nextBtn.textContent = "›";
+  nextBtn.setAttribute("aria-label", `Next ${label.toLowerCase()}`);
   const lab = document.createElement("label");
   const span = document.createElement("span");
   span.textContent = label;
@@ -559,16 +569,19 @@ export function player(max, { value = max, label = "Step", delay = 120, step = 1
   input.setAttribute("aria-label", label);
   const out = document.createElement("output");
   lab.append(span, input, out);
-  form.append(btn, lab);
+  form.append(btn, prevBtn, nextBtn, lab);
   let timer = null;
   const show = (playing) => {
     btn.textContent = playing ? "❚❚ Pause" : "▶ Play";
     btn.setAttribute("aria-label", playing ? "Pause" : "Play");
   };
   const set = (v) => {
-    form.value = v;
-    input.value = v;
-    out.value = v;
+    const clamped = Math.max(0, Math.min(max, v));
+    form.value = clamped;
+    input.value = clamped;
+    out.value = clamped;
+    prevBtn.disabled = clamped <= 0;
+    nextBtn.disabled = clamped >= max;
     form.dispatchEvent(new Event("input", { bubbles: true }));
   };
   const stop = () => {
@@ -580,6 +593,14 @@ export function player(max, { value = max, label = "Step", delay = 120, step = 1
     e.stopPropagation();
     stop();
     set(+input.value);
+  });
+  prevBtn.addEventListener("click", () => {
+    stop();
+    set(form.value - step);
+  });
+  nextBtn.addEventListener("click", () => {
+    stop();
+    set(form.value + step);
   });
   btn.addEventListener("click", () => {
     if (timer) return stop();
@@ -593,6 +614,8 @@ export function player(max, { value = max, label = "Step", delay = 120, step = 1
   form.addEventListener("submit", (e) => e.preventDefault());
   form.value = value;
   out.value = value;
+  prevBtn.disabled = value <= 0;
+  nextBtn.disabled = value >= max;
   show(false);
   return form;
 }

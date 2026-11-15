@@ -19,7 +19,7 @@ source-note: "Thompson sampling and epsilon-greedy are standard strategies we ad
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#54** · *The Model Thinker*, chapter 27, "Multi-Armed Bandit Problems", pp. 319–326.
 
-Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Act, Design, Predict.
 
 Source check: ✓ The formulation was checked against the book. Thompson sampling and epsilon-greedy are standard strategies we add for comparison; the book discusses sample-then-greedy and the Gittins index.
 :::
@@ -52,14 +52,14 @@ Three sales pitches with unknown success rates (the best at 55%). Three strategi
 
 ```{ojs}
 //| echo: false
-import {rng, range, mean, C, fmt, pct} from "../js/models.js"
+import {rng, range, debounce, C, fmt, pct} from "../js/models.js"
 ```
 
 ```{ojs}
-viewof gapP = Inputs.range([0.01, 0.3], {value: 0.05, step: 0.01, label: "Gap between best and second pitch"})
-viewof M = Inputs.range([5, 200], {value: 30, step: 5, label: "Sample-then-greedy: trials per pitch M"})
-viewof eps = Inputs.range([0.01, 0.5], {value: 0.1, step: 0.01, label: "ε-greedy: exploration rate ε"})
-viewof seed = Inputs.range([1, 500], {value: 54, step: 1, label: "Random seed"})
+viewof gapP = debounce(Inputs.range([0.01, 0.3], {value: 0.05, step: 0.01, label: "Gap between best and second pitch"}))
+viewof M = debounce(Inputs.range([5, 200], {value: 30, step: 5, label: "Sample-then-greedy: trials per pitch M"}))
+viewof eps = debounce(Inputs.range([0.01, 0.5], {value: 0.1, step: 0.01, label: "ε-greedy: exploration rate ε"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 54, step: 1, label: "Random seed"}))
 ```
 
 ```{ojs}
@@ -126,12 +126,12 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, mean, C, fmt, pct} from "../js/models.js"
+import {rng, range, debounce, C, fmt, pct} from "../js/models.js"
 
-viewof gapP = Inputs.range([0.01, 0.3], {value: 0.05, step: 0.01, label: "Gap between best and second pitch"})
-viewof M = Inputs.range([5, 200], {value: 30, step: 5, label: "Sample-then-greedy: trials per pitch M"})
-viewof eps = Inputs.range([0.01, 0.5], {value: 0.1, step: 0.01, label: "ε-greedy: exploration rate ε"})
-viewof seed = Inputs.range([1, 500], {value: 54, step: 1, label: "Random seed"})
+viewof gapP = debounce(Inputs.range([0.01, 0.3], {value: 0.05, step: 0.01, label: "Gap between best and second pitch"}))
+viewof M = debounce(Inputs.range([5, 200], {value: 30, step: 5, label: "Sample-then-greedy: trials per pitch M"}))
+viewof eps = debounce(Inputs.range([0.01, 0.5], {value: 0.1, step: 0.01, label: "ε-greedy: exploration rate ε"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 54, step: 1, label: "Random seed"}))
 
 bandit = {
   const r = rng(seed), T = 1000, reps = 200;

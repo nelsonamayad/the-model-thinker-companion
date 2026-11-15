@@ -5,13 +5,15 @@ author:
   - name: Nelson Amaya D
     url: https://github.com/nelsonamayad
   - name: Claude Opus 5.5
+  - name: Codex
+  - name: Gemini
 sidebar: false
 toc: true
 ---
 
 ## What is this?
 
-**The Model Thinker Companion** is a study aid built around Scott E. Page's *The Model Thinker: What You Need to Know to Make Data Work for You* (Basic Books, 2018; expanded edition, 2021), created by [Nelson Amaya D](https://github.com/nelsonamayad) and Claude Opus 5.5.
+**The Model Thinker Companion** is a study aid built around Scott E. Page's *The Model Thinker: What You Need to Know to Make Data Work for You* (Basic Books, 2018; expanded edition, 2021), created by [Nelson Amaya D](https://github.com/nelsonamayad) with Claude Opus 5.5, Codex and Gemini.
 
 ::: {.callout-warning title="Not affiliated with Scott E. Page or Basic Books"}
 This is an independent project. It is not affiliated with, endorsed by or reviewed by Scott E. Page or Basic Books. The models are Page's selection; the explanations, the formulations as typeset here and the simulations are ours, and so are any mistakes in them. Apart from the cover shown on the home page to identify the book, nothing on this site reproduces the book's text or figures. Please read the book: it has the context, the examples and the many-model arguments that a page per model cannot carry.
@@ -35,13 +37,60 @@ If a page gets something wrong, or claims more than the book supports, please sa
 
 ## How this site was built
 
-The site was built in November 2026 by [Nelson Amaya D](https://github.com/nelsonamayad) working with Claude Opus 5.5, an AI model made by Anthropic, through Anthropic's coding agent, Claude Code. Nelson chose what to build and set its direction: an homage modelled on his Gelman Lexicon Explorer, one page per model with its formulation and an interactive application, and the rule that each model be built with the tool that suits it, NetLogo with nlrx for the agent-based ones. Claude drafted the text and the code. The work went in five stages.
+The site was built in November 2026 by [Nelson Amaya D](https://github.com/nelsonamayad) working alongside three AI models and their coding environments: **Claude Opus 5.5** (in Anthropic's Claude Code), **Codex** (in OpenAI Codex), and **Gemini** (in Google Antigravity). Nelson chose what to build and how it should be organized, set the editorial rules, and reviewed the results; the three models drafted, audited, and refined the prose, simulations, and tooling in a rotating loop.
 
-1. **Inventory.** Claude read the models defined in the book's boxed sidebars and listed one entry per model, in book order. Boxes that define variants of the same model share an entry (the rule of 72 goes with exponential growth, for example), and boxes that are applications or essays get none. That gave 55 entries in nine families.
-2. **Infrastructure.** The Quarto site, the shared JavaScript helpers and the build and check scripts, adapted from the Gelman project.
+```{=html}
+<figure class="model-loop" aria-label="How Nelson and three AI coding tools build, review, and improve the site">
+  <div class="model-loop-lead">
+    <div class="model-node model-human">
+      <span class="model-badge"><i class="bi bi-person-workspace" aria-hidden="true"></i> Direction &amp; editorial judgment</span>
+      <strong>Nelson Amaya D</strong>
+      <span>Chooses scope, structure, and conventions; adjudicates reviews; checks model fidelity.</span>
+    </div>
+  </div>
+  <div class="model-loop-arrow" aria-hidden="true">↓ directs &amp; reviews ↑</div>
+  <div class="model-loop-grid" role="list">
+    <div class="model-node model-claude" role="listitem">
+      <span class="model-badge"><i class="bi bi-hammer" aria-hidden="true"></i> Claude Code</span>
+      <strong>Claude Opus 5.5</strong>
+      <span>Drafted the 55 formulations, explanations, and Observable JS applications, the R and NetLogo/nlrx implementations, and the site generators.</span>
+    </div>
+    <div class="model-node model-codex" role="listitem">
+      <span class="model-badge"><i class="bi bi-search-heart" aria-hidden="true"></i> OpenAI Codex</span>
+      <strong>Codex</strong>
+      <span>Refined the REDCAPE framework and brand assets, built the Playwright slider-sweep checker, and tuned simulation responsiveness.</span>
+    </div>
+    <div class="model-node model-gemini" role="listitem">
+      <span class="model-badge"><i class="bi bi-mortarboard" aria-hidden="true"></i> Google Antigravity</span>
+      <strong>Gemini</strong>
+      <span>Audited all 55 models for mathematical edge cases, performance, and contrast, added step controls, and expanded the automated checks.</span>
+    </div>
+  </div>
+  <div class="model-loop-gate">
+    <span><i class="bi bi-check2-circle" aria-hidden="true"></i> <strong>Automated gates on every change:</strong></span>
+    <span><code>check_models.py</code> (structure, palette, links)</span>
+    <span>·</span>
+    <span><code>run_r.py</code> (R reference scripts)</span>
+    <span>·</span>
+    <span><code>check_pages.py</code> (headless Chrome)</span>
+    <span>·</span>
+    <span><code>check_interactions.mjs</code> (slider sweeps)</span>
+  </div>
+</figure>
+```
+
+The work went in six stages:
+
+1. **Inventory.** Starting from the models defined in the book's boxed sidebars, we listed one entry per model, in book order. Boxes that define variants of the same model share an entry (the rule of 72 goes with exponential growth, for example), and boxes that are applications or essays get none. That gave 55 entries in nine families.
+2. **Infrastructure.** The Quarto site, the shared JavaScript helpers (`js/models.js`) and the build and check scripts, adapted from the Gelman project.
 3. **Tooling for agent-based models.** NetLogo 6.4 was installed, and nlrx was connected to NetLogo's headless launcher. Each agent-based model was written as a NetLogo model and run as an nlrx experiment across parameter values and random seeds.
 4. **Entries, in batches, in book order.** Each formulation was checked against the book's box and text. Each page was rendered and loaded in a headless browser, and the text under each chart was read against the numbers; each R version was run. Where the book's box and its worked example disagree, or a printed number is off, the page follows the version that is internally consistent and says so in its source check: the riot model's joining rule, the ping-pong model's state equation, the six-degrees counts from four steps on, the two-park congestion total, and the book's SIR box, which returns recovered people to the susceptible pool.
-5. **Site-wide checks.** Static checks on every entry, every R script run, a full render, every page loaded in headless Chrome, and screenshots of representative pages.
+5. **Cross-model reviews.** Independent reviews of the full site checked every model's formulation, slider boundaries, readout logic, chart contrast, and interactive responsiveness. They caught and fixed parameter-ordering edge cases, broken runtime links, low-contrast color ramps, and heavy simulations that needed debouncing, and added automated slider-sweep and static checks so the same class of mistake cannot return.
+6. **Site-wide checks.** Static checks on every entry, every R script run, a full render, every page loaded in headless Chrome, and automated interaction sweeps across every control.
+
+::: {.callout-note title="How the site gets better: a cross-model review loop"}
+No model grades its own work. One AI model reviews the whole site: every entry against the book, every simulation's code and boundary settings, the links, the accessibility and contrast of the charts, and the interactive controls. Another model, working with Nelson, fixes what the review found and extends the automated checks so the same class of mistake cannot return. Nothing is corrected silently.
+:::
 
 ## Credits
 

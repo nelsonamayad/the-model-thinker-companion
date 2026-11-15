@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#11** · *The Model Thinker*, chapter 7, "Linear Models", pp. 83–91.
 
-Filed under [Linear and nonlinear models](../families/linear-nonlinear.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (least squares) · Reference implementation: R with stats::lm.
+Filed under [Linear and nonlinear models](../families/linear-nonlinear.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (least squares) · Reference implementation: R with stats::lm · [REDCAPE uses](../many-models.qmd#sec-redcape): Predict, Explain, Act.
 
 Source check: ✓ The formulation was checked against the book.
 :::

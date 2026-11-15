@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#45** · *The Model Thinker*, chapter 23, "Collective Action Problems", pp. 269–275.
 
-Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Design, Act.
 
 Source check: ✓ The formulation was checked against the book.
 :::

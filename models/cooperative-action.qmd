@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#44** · *The Model Thinker*, chapter 22, "Models of Cooperation", pp. 262–266.
 
-Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment.
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Reason, Design.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -53,13 +53,13 @@ One run on a random network of 300 nodes, replayed in your browser. One node in 
 
 ```{ojs}
 //| echo: false
-import {rng, range, graphRandom, edgesOf, layoutForce, player, C, pct} from "../js/models.js"
+import {rng, range, graphRandom, edgesOf, layoutForce, player, debounce, C, pct} from "../js/models.js"
 ```
 
 ```{ojs}
-viewof ratio = Inputs.range([1, 10], {value: 4, step: 0.5, label: "Benefit-cost ratio B/C"})
-viewof degree = Inputs.range([2, 12], {value: 4, step: 1, label: "Average degree"})
-viewof seed = Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"})
+viewof ratio = debounce(Inputs.range([1, 10], {value: 4, step: 0.5, label: "Benefit-cost ratio B/C"}))
+viewof degree = debounce(Inputs.range([2, 12], {value: 4, step: 1, label: "Average degree"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"}))
 ```
 
 ```{ojs}
@@ -156,11 +156,11 @@ The **NetLogo** model is the reference implementation, and the **nlrx** script r
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, graphRandom, edgesOf, layoutForce, player, C, pct} from "../js/models.js"
+import {rng, range, graphRandom, edgesOf, layoutForce, player, debounce, C, pct} from "../js/models.js"
 
-viewof ratio = Inputs.range([1, 10], {value: 4, step: 0.5, label: "Benefit-cost ratio B/C"})
-viewof degree = Inputs.range([2, 12], {value: 4, step: 1, label: "Average degree"})
-viewof seed = Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"})
+viewof ratio = debounce(Inputs.range([1, 10], {value: 4, step: 0.5, label: "Benefit-cost ratio B/C"}))
+viewof degree = debounce(Inputs.range([2, 12], {value: 4, step: 1, label: "Average degree"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"}))
 
 coop = {
   const r = rng(seed), n = 300;

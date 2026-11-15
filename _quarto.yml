@@ -8,7 +8,8 @@ project:
   resources:
     - js/models.js
     - data/
-    - assets/
+    - assets/*.jpg
+    - assets/*.svg
 
 website:
   title: "The Model Thinker Companion"

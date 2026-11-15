@@ -19,7 +19,7 @@ source-note: "The box states the joining rule with a strict inequality; the book
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#35** · *The Model Thinker*, chapter 19, "Threshold Models with Feedbacks", pp. 213–216.
 
-Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment.
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Predict, Act.
 
 Source check: ✓ The formulation was checked against the book. The box states the joining rule with a strict inequality; the book's worked examples use 'at most', which we follow.
 :::

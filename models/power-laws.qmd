@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#9** · *The Model Thinker*, chapter 6, "Power-Law Distributions: Long Tails", pp. 69–74.
 
-Filed under [Distributions](../families/distributions.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (stochastic process) · Reference implementation: base R.
+Filed under [Distributions](../families/distributions.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (stochastic process) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Predict, Reason.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -57,13 +57,13 @@ The chart plots the size of every entity against its rank, on logarithmic axes. 
 
 ```{ojs}
 //| echo: false
-import {rng, range, lm, C, fmt, pct, num} from "../js/models.js"
+import {rng, range, lm, debounce, C, fmt, pct, num} from "../js/models.js"
 ```
 
 ```{ojs}
-viewof arrivals = Inputs.range([2000, 50000], {value: 20000, step: 1000, label: "Arrivals"})
-viewof p = Inputs.range([0.005, 0.3], {value: 0.05, step: 0.005, label: "Chance of founding a new entity p"})
-viewof seed = Inputs.range([1, 500], {value: 9, step: 1, label: "Random seed"})
+viewof arrivals = debounce(Inputs.range([2000, 50000], {value: 20000, step: 1000, label: "Arrivals"}))
+viewof p = debounce(Inputs.range([0.005, 0.3], {value: 0.05, step: 0.005, label: "Chance of founding a new entity p"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 9, step: 1, label: "Random seed"}))
 ```
 
 ```{ojs}
@@ -120,11 +120,11 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, lm, C, fmt, pct, num} from "../js/models.js"
+import {rng, range, lm, debounce, C, fmt, pct, num} from "../js/models.js"
 
-viewof arrivals = Inputs.range([2000, 50000], {value: 20000, step: 1000, label: "Arrivals"})
-viewof p = Inputs.range([0.005, 0.3], {value: 0.05, step: 0.005, label: "Chance of founding a new entity p"})
-viewof seed = Inputs.range([1, 500], {value: 9, step: 1, label: "Random seed"})
+viewof arrivals = debounce(Inputs.range([2000, 50000], {value: 20000, step: 1000, label: "Arrivals"}))
+viewof p = debounce(Inputs.range([0.005, 0.3], {value: 0.05, step: 0.005, label: "Chance of founding a new entity p"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 9, step: 1, label: "Random seed"}))
 
 pa = {
   const r = rng(seed);

@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#15** · *The Model Thinker*, chapter 9, "Models of Value and Power", pp. 112–114.
 
-Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (exact, all orderings) · Reference implementation: base R.
+Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (exact, all orderings) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Design, Reason, Explain.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -49,7 +49,7 @@ Choose an example, or choose *Custom* and type the members' votes and the quota.
 
 ```{ojs}
 //| echo: false
-import {C, pct, fmt} from "../js/models.js"
+import {C, pct} from "../js/models.js"
 ```
 
 ```{ojs}
@@ -88,7 +88,7 @@ voting = {
   };
   walk();
   const total = spec.w.reduce((a, b) => a + b, 0);
-  return {...spec, total, rows: spec.names.map((name, i) => ({name, votes: spec.w[i] / total, power: piv[i] / count}))};
+  return {...spec, total, rows: spec.names.map((name, i) => ({name, votes: total > 0 ? spec.w[i] / total : 0, power: count > 0 ? piv[i] / count : 0}))};
 }
 ```
 
@@ -112,6 +112,9 @@ Plot.plot({
 ```{ojs}
 //| echo: false
 {
+  if (voting.total === 0 || voting.q > voting.total) {
+    return html`<div class="sim-readout">${md`The quota (${voting.q}) exceeds the total votes available (${voting.total}), so **no coalition can ever pass a measure** and every member has **0%** voting power. Lower the custom quota to at most ${voting.total}.`}</div>`;
+  }
   const zero = voting.rows.filter(d => d.power === 0 && d.votes > 0);
   const lines = voting.rows.map(d => `${d.name}: ${pct(d.votes, 1)} of votes, **${pct(d.power, 1)}** of power`).join("; ");
   return html`<div class="sim-readout">${md`With a quota of ${voting.q} out of ${voting.total} votes: ${lines}. ${zero.length ? `**${zero.map(d => d.name).join(", ")}** ${zero.length > 1 ? "have" : "has"} votes but no power: ${zero.length > 1 ? "their" : "its"} votes are never pivotal.` : "Power and vote shares diverge whenever some coalitions can win without particular members."}`}</div>`;
@@ -130,7 +133,7 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {C, pct, fmt} from "../js/models.js"
+import {C, pct} from "../js/models.js"
 
 viewof preset = Inputs.radio(["Four parties, 101 seats", "Nassau County Board, 1960s", "Custom"], {value: "Four parties, 101 seats", label: "Example"})
 
@@ -163,7 +166,7 @@ voting = {
   };
   walk();
   const total = spec.w.reduce((a, b) => a + b, 0);
-  return {...spec, total, rows: spec.names.map((name, i) => ({name, votes: spec.w[i] / total, power: piv[i] / count}))};
+  return {...spec, total, rows: spec.names.map((name, i) => ({name, votes: total > 0 ? spec.w[i] / total : 0, power: count > 0 ? piv[i] / count : 0}))};
 }
 
 Plot.plot({
@@ -182,6 +185,9 @@ Plot.plot({
 })
 
 {
+  if (voting.total === 0 || voting.q > voting.total) {
+    return html`<div class="sim-readout">${md`The quota (${voting.q}) exceeds the total votes available (${voting.total}), so **no coalition can ever pass a measure** and every member has **0%** voting power. Lower the custom quota to at most ${voting.total}.`}</div>`;
+  }
   const zero = voting.rows.filter(d => d.power === 0 && d.votes > 0);
   const lines = voting.rows.map(d => `${d.name}: ${pct(d.votes, 1)} of votes, **${pct(d.power, 1)}** of power`).join("; ");
   return html`<div class="sim-readout">${md`With a quota of ${voting.q} out of ${voting.total} votes: ${lines}. ${zero.length ? `**${zero.map(d => d.name).join(", ")}** ${zero.length > 1 ? "have" : "has"} votes but no power: ${zero.length > 1 ? "their" : "its"} votes are never pivotal.` : "Power and vote shares diverge whenever some coalitions can win without particular members."}`}</div>`;

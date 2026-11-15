@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#27** · *The Model Thinker*, chapter 13, "Random Walks", pp. 155–161.
 
-Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Predict, Reason.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -104,7 +104,7 @@ Plot.plot({
     Plot.ruleY([0], {stroke: "currentColor"}),
     Plot.line(walk.paths, {x: "t", y: "v", z: "w", stroke: "w", strokeWidth: 1.4})
   ],
-  color: {scheme: "tableau10"}
+  color: {range: [C.teal, C.orange, C.purple, C.blue, C.green, C.amber, C.red, C.slate]}
 })
 ```
 
@@ -187,7 +187,7 @@ Plot.plot({
     Plot.ruleY([0], {stroke: "currentColor"}),
     Plot.line(walk.paths, {x: "t", y: "v", z: "w", stroke: "w", strokeWidth: 1.4})
   ],
-  color: {scheme: "tableau10"}
+  color: {range: [C.teal, C.orange, C.purple, C.blue, C.green, C.amber, C.red, C.slate]}
 })
 
 Plot.plot({

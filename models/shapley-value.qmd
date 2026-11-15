@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#14** · *The Model Thinker*, chapter 9, "Models of Value and Power", pp. 107–112.
 
-Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (exact, all orderings) · Reference implementation: base R.
+Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (exact, all orderings) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Design, Reason, Explain.
 
 Source check: ✓ The formulation was checked against the book.
 :::

@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#17** · *The Model Thinker*, chapter 10, "Network Models", pp. 122–124.
 
-Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (stochastic process) · Reference implementation: R (igraph for statistics).
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (stochastic process) · Reference implementation: R (igraph for statistics) · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Reason, Predict.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -85,11 +85,11 @@ formation = {
 ```{ojs}
 Plot.plot({
   ariaLabel: "Quality and Degree Network Formation: arrival time against final degree",
-  ariaDescription: "Horizontal axis: arrival order of each node. Vertical axis: its final degree, on a log scale. Dots are coloured by quality from light (low) to dark (high). The summary below the chart states the result in words.",
+  ariaDescription: "Horizontal axis: arrival order of each node. Vertical axis: its final degree, on a log scale. Dots are coloured by quality from slate (low) through teal and orange to red (high). The summary below the chart states the result in words.",
   height: 300,
   x: {label: "Arrival order"},
   y: {label: "Final degree", type: "log", grid: true},
-  color: {type: "log", scheme: "viridis", label: "Quality", legend: true},
+  color: {type: "log", range: [C.slate, C.teal, C.orange, C.red], label: "Quality", legend: true},
   marks: [
     Plot.dot(formation.nodes, {x: "arrival", y: "degree", fill: "quality", r: 3.5, stroke: "currentColor", strokeWidth: 0.2})
   ]
@@ -144,11 +144,11 @@ formation = {
 
 Plot.plot({
   ariaLabel: "Quality and Degree Network Formation: arrival time against final degree",
-  ariaDescription: "Horizontal axis: arrival order of each node. Vertical axis: its final degree, on a log scale. Dots are coloured by quality from light (low) to dark (high). The summary below the chart states the result in words.",
+  ariaDescription: "Horizontal axis: arrival order of each node. Vertical axis: its final degree, on a log scale. Dots are coloured by quality from slate (low) through teal and orange to red (high). The summary below the chart states the result in words.",
   height: 300,
   x: {label: "Arrival order"},
   y: {label: "Final degree", type: "log", grid: true},
-  color: {type: "log", scheme: "viridis", label: "Quality", legend: true},
+  color: {type: "log", range: [C.slate, C.teal, C.orange, C.red], label: "Quality", legend: true},
   marks: [
     Plot.dot(formation.nodes, {x: "arrival", y: "degree", fill: "quality", r: 3.5, stroke: "currentColor", strokeWidth: 0.2})
   ]

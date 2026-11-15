@@ -158,6 +158,8 @@ def load_entries():
 def callout(e):
     m = e["meta"]
     fam = FAMILY[m["family"]]
+    uses = m.get("uses", [])
+    uses_part = f' · [REDCAPE uses](../many-models.qmd#sec-redcape): {", ".join(uses)}' if uses else ""
     lines = [
         '::: {.callout-note appearance="minimal" .book-source}',
         f'Model **#{m["order"]}** · *The Model Thinker*, chapter {m["chapter"]}, '
@@ -165,7 +167,7 @@ def callout(e):
         "",
         f'Filed under [{m["family"]}](../families/{fam[1]}.qmd) · '
         f'[{m["engine"]}]({ENGINES[m["engine"]]}) · Runs as: {m["tool"]} · '
-        f'Reference implementation: {m["reference"]}.',
+        f'Reference implementation: {m["reference"]}{uses_part}.',
         "",
     ]
     if str(m["verified"]).lower() == "true":

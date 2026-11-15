@@ -19,7 +19,7 @@ source-note: "The book's boxed equation and its worked example differ; we follow
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#37** · *The Model Thinker*, chapter 19, "Threshold Models with Feedbacks", pp. 220–223.
 
-Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Design, Reason.
 
 Source check: ✓ The formulation was checked against the book. The book's boxed equation and its worked example differ; we follow the worked example, in which the state is the average of the latest total action and the previous state.
 :::

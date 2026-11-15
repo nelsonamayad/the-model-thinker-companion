@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#10** · *The Model Thinker*, chapter 6, "Power-Law Distributions: Long Tails", pp. 74–75.
 
-Filed under [Distributions](../families/distributions.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment.
+Filed under [Distributions](../families/distributions.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Reason, Act.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -50,12 +50,12 @@ One run, replayed in your browser: green squares are trees, and orange squares a
 
 ```{ojs}
 //| echo: false
-import {rng, mean, grid4, drawGrid, player, C, fmt, pct, num} from "../js/models.js"
+import {rng, mean, grid4, drawGrid, player, debounce, C, pct, num} from "../js/models.js"
 ```
 
 ```{ojs}
-viewof g = Inputs.range([0.9, 0.999], {value: 0.99, step: 0.001, label: "Growth probability g"})
-viewof seed = Inputs.range([1, 500], {value: 10, step: 1, label: "Random seed"})
+viewof g = debounce(Inputs.range([0.9, 0.999], {value: 0.99, step: 0.001, label: "Growth probability g"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 10, step: 1, label: "Random seed"}))
 ```
 
 ```{ojs}
@@ -169,7 +169,7 @@ Plot.plot({
   height: 300,
   x: {type: "log", label: "Fire size (trees burned)"},
   y: {type: "log", label: "Frequency per unit size", grid: true},
-  color: {type: "ordinal", legend: true, label: "g", scheme: "YlOrRd"},
+  color: {type: "ordinal", legend: true, label: "g", range: [C.slate, C.blue, C.teal, C.amber, C.orange, C.red]},
   marks: [
     Plot.line(nlDist, {x: "size", y: "freq", stroke: d => String(d.g), strokeWidth: 2}),
     Plot.dot(nlDist, {x: "size", y: "freq", fill: d => String(d.g), r: 3})
@@ -197,10 +197,10 @@ The **NetLogo** model is the reference implementation, and the **nlrx** script r
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, mean, grid4, drawGrid, player, C, fmt, pct, num} from "../js/models.js"
+import {rng, mean, grid4, drawGrid, player, debounce, C, pct, num} from "../js/models.js"
 
-viewof g = Inputs.range([0.9, 0.999], {value: 0.99, step: 0.001, label: "Growth probability g"})
-viewof seed = Inputs.range([1, 500], {value: 10, step: 1, label: "Random seed"})
+viewof g = debounce(Inputs.range([0.9, 0.999], {value: 0.99, step: 0.001, label: "Growth probability g"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 10, step: 1, label: "Random seed"}))
 
 forest = {
   const r = rng(seed), n = 60, N = n * n, nb = grid4(n), sweeps = 200, burnIn = 50;
@@ -292,7 +292,7 @@ Plot.plot({
   height: 300,
   x: {type: "log", label: "Fire size (trees burned)"},
   y: {type: "log", label: "Frequency per unit size", grid: true},
-  color: {type: "ordinal", legend: true, label: "g", scheme: "YlOrRd"},
+  color: {type: "ordinal", legend: true, label: "g", range: [C.slate, C.blue, C.teal, C.amber, C.orange, C.red]},
   marks: [
     Plot.line(nlDist, {x: "size", y: "freq", stroke: d => String(d.g), strokeWidth: 2}),
     Plot.dot(nlDist, {x: "size", y: "freq", fill: d => String(d.g), r: 3})

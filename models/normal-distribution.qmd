@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#7** · *The Model Thinker*, chapter 5, "Normal Distributions: The Bell Curve", pp. 59–66.
 
-Filed under [Distributions](../families/distributions.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+Filed under [Distributions](../families/distributions.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Predict, Design.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -59,7 +59,7 @@ Each simulation adds up $N$ draws from the chosen distribution, 4,000 times, and
 
 ```{ojs}
 //| echo: false
-import {rng, range, mean, sd, dnorm, seq, C, fmt, pct} from "../js/models.js"
+import {rng, range, sd, dnorm, seq, C, fmt, pct} from "../js/models.js"
 ```
 
 ```{ojs}
@@ -126,7 +126,7 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, mean, sd, dnorm, seq, C, fmt, pct} from "../js/models.js"
+import {rng, range, sd, dnorm, seq, C, fmt, pct} from "../js/models.js"
 
 viewof shape = Inputs.radio(["Uniform", "Exponential (skewed)", "Coin with p = 0.1 (lumpy)", "Power law, a = 2.5 (infinite variance)"], {value: "Exponential (skewed)", label: "Each draw comes from"})
 viewof N = Inputs.range([1, 100], {value: 20, step: 1, label: "Draws added up N"})

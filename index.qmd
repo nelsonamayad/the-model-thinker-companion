@@ -25,11 +25,27 @@ listing:
 
 :::: {.hero-wrap}
 ::: {.hero}
-In *The Model Thinker* (2018), Scott E. Page is like a greatest hits album for social science. It collects almost 30 models, and describes even very complicated topics, like mechanism design, in an intuitive and clear way. 
+*The Model Thinker* (2018) by Scott E. Page is like a greatest hits album for social science. It collects dozens of models, describing their use in a clear and intuitive way. 
 
-I always felt this book missed using digital tools to visualize and play around with the models, so I built this site to fill the gap. It extends each model's **formulation** (the assumptions, variables and equations, with an **interactive application** you can run in your browser.
+I always felt this book missed using digital tools to visualize and play around with the models, so I built this site to fill the gap. It extends each model's **formulation** (the assumptions, variables and equations) with an **interactive application** you can run in your browser.
 
 Each model is built with the tool that suits it. Equation-based models are computed live as you move the sliders. **Agent-based models** are written in [NetLogo](https://ccl.northwestern.edu/netlogo/) and run as designed experiments with [nlrx](https://docs.ropensci.org/nlrx/); their pages chart those results and replay the same rules so you can watch a run unfold.
+
+The companion uses the same framework throughout; see @sec-redcape.
+
+## What models are for {#sec-redcape}
+
+In Chapter 2, Page organizes the uses of models with **REDCAPE**. He calls the mnemonic a “not-so-subtle reminder” that many-model thinking gives us superpowers (*The Model Thinker*, expanded ed., ch. 2, p. 13). On this site, the **Uses** section of every model page links the model to one or more of these purposes:
+
+- **Reason** — state conditions clearly and derive their logical consequences, including what is possible or impossible.
+- **Explain** — offer explanations of observed phenomena that can be tested against evidence.
+- **Design** — choose features of institutions, policies, products, or rules.
+- **Communicate** — express knowledge and shared understanding precisely.
+- **Act** — inform policy choices and strategic decisions.
+- **Predict** — make numerical or categorical estimates about unknown or future outcomes.
+- **Explore** — test possibilities and hypotheticals that cannot readily be tried in the world.
+
+For fuller context and examples, see [the REDCAPE guide](many-models.qmd#sec-redcape).
 
 [Many-model thinking](many-models.qmd){.btn .btn-primary .me-2} [Agent-based models](agent-based.qmd){.btn .btn-outline-primary .me-2} [Random model](random.qmd){.btn .btn-outline-primary .me-2} [About this site](about.qmd){.btn .btn-link}
 

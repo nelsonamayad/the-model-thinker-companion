@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#53** · *The Model Thinker*, chapter 26, "Learning Models", pp. 312–316.
 
-Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation and difference equation) · Reference implementation: base R.
+Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation and difference equation) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Reason, Predict.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -53,7 +53,7 @@ Twenty players start with the chosen share generous. The teal line follows a pop
 
 ```{ojs}
 //| echo: false
-import {rng, range, mean, C, pct} from "../js/models.js"
+import {rng, range, C, pct} from "../js/models.js"
 ```
 
 ```{ojs}
@@ -121,7 +121,7 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, mean, C, pct} from "../js/models.js"
+import {rng, range, C, pct} from "../js/models.js"
 
 viewof start = Inputs.range([0.05, 0.95], {value: 0.5, step: 0.05, label: "Initial share generous"})
 viewof periods = Inputs.range([50, 500], {value: 300, step: 50, label: "Periods"})

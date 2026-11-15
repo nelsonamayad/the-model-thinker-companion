@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#31** · *The Model Thinker*, chapter 15, "Local Interaction Models", pp. 176–179.
 
-Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment.
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Agent-based](../agent-based.qmd) · Runs as: NetLogo 6.4 + nlrx; JavaScript replay · Reference implementation: NetLogo 6.4 model, nlrx experiment · [REDCAPE uses](../many-models.qmd#sec-redcape): Explore, Explain, Reason.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -144,7 +144,7 @@ Plot.plot({
   height: 300,
   x: {label: "Generation"},
   y: {label: "Share alive", type: "log", grid: true, tickFormat: ".1%"},
-  color: {type: "ordinal", scheme: "viridis", label: "Initial density (%)", legend: true},
+  color: {type: "ordinal", range: [C.slate, C.blue, C.teal, C.green, C.amber, C.orange, C.red], label: "Initial density (%)", legend: true},
   marks: [Plot.line(nlMeans.filter(d => d.density > 0), {x: "step", y: "density", stroke: d => String(d.d0), strokeWidth: 2})]
 })
 ```
@@ -245,7 +245,7 @@ Plot.plot({
   height: 300,
   x: {label: "Generation"},
   y: {label: "Share alive", type: "log", grid: true, tickFormat: ".1%"},
-  color: {type: "ordinal", scheme: "viridis", label: "Initial density (%)", legend: true},
+  color: {type: "ordinal", range: [C.slate, C.blue, C.teal, C.green, C.amber, C.orange, C.red], label: "Initial density (%)", legend: true},
   marks: [Plot.line(nlMeans.filter(d => d.density > 0), {x: "step", y: "density", stroke: d => String(d.d0), strokeWidth: 2})]
 })
 

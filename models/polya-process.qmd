@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#28** · *The Model Thinker*, chapter 14, "Path Dependence", pp. 163–166.
 
-Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+Filed under [Processes and dynamics](../families/processes-dynamics.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Reason, Act.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -91,7 +91,7 @@ Plot.plot({
   x: {label: "Draws"},
   y: {label: "Share white", domain: [0, 1], tickFormat: "%", grid: true},
   marks: [Plot.line(polya.paths, {x: "t", y: "share", z: "k", stroke: "k", strokeWidth: 1.5})],
-  color: {scheme: "tableau10"}
+  color: {range: [C.teal, C.orange, C.purple, C.blue, C.green, C.amber, C.red, C.slate]}
 })
 ```
 
@@ -162,7 +162,7 @@ Plot.plot({
   x: {label: "Draws"},
   y: {label: "Share white", domain: [0, 1], tickFormat: "%", grid: true},
   marks: [Plot.line(polya.paths, {x: "t", y: "share", z: "k", stroke: "k", strokeWidth: 1.5})],
-  color: {scheme: "tableau10"}
+  color: {range: [C.teal, C.orange, C.purple, C.blue, C.green, C.amber, C.red, C.slate]}
 })
 
 Plot.plot({

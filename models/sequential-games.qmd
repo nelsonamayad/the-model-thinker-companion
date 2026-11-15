@@ -19,7 +19,7 @@ source-note: "The chain-store reputation calculation is a toy extension of our o
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#41** · *The Model Thinker*, chapter 21, "Game Theory Models Times Three", pp. 246–247.
 
-Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (backward induction) · Reference implementation: base R.
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (backward induction) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Reason, Act, Predict.
 
 Source check: ✓ The formulation was checked against the book. The chain-store reputation calculation is a toy extension of our own.
 :::

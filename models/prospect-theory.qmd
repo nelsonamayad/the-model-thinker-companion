@@ -19,7 +19,7 @@ source-note: "The value and weighting functions and their parameters are the sta
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#5** · *The Model Thinker*, chapter 4, "Modeling Human Actors", pp. 50–53.
 
-Filed under [Modeling people](../families/modeling-people.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+Filed under [Modeling people](../families/modeling-people.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Predict, Design.
 
 Source check: ✓ The formulation was checked against the book. The value and weighting functions and their parameters are the standard ones from Tversky and Kahneman (1992), not from the book, which presents the framing example.
 :::

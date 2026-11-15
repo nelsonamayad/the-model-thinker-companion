@@ -19,7 +19,7 @@ source-note: "Our counts from four steps on are lower than the book's (15.36 mil
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#19** · *The Model Thinker*, chapter 10, "Network Models", pp. 125–127.
 
-Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (counting recursion) · Reference implementation: base R.
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (counting recursion) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Reason, Explain, Communicate.
 
 Source check: ✓ The formulation was checked against the book. Our counts from four steps on are lower than the book's (15.36 million rather than 17.36 million at four steps); we show the exact values of the recursion.
 :::

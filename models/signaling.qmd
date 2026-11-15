@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#50** · *The Model Thinker*, chapter 25, "Signaling Models", pp. 297–304.
 
-Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+Filed under [Value and power](../families/value-power.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Design, Predict.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -62,20 +62,23 @@ import {range, C as palette, fmt, num} from "../js/models.js"
 viewof S = Inputs.range([5, 95], {value: 20, step: 5, label: "Strong types S (of 100)"})
 viewof B = Inputs.range([100, 5000], {value: 1000, step: 100, label: "Benefit B"})
 viewof cs = Inputs.range([0, 60], {value: 10, step: 1, label: "Strong types' cost c"})
-viewof cw = Inputs.range([0, 100], {value: 30, step: 1, label: "Weak types' cost C"})
+viewof cw = Inputs.range([1, 100], {value: 30, step: 1, label: "Weak types' cost C"})
 ```
 
 ```{ojs}
 signal = {
-  const N = 100, W = N - S;
+  const N = 100, W = N - S, validOrder = cs < cw;
   let outcome, signalers, weakSignal = 0;
-  if (cw < B / N) { outcome = "Pooling"; signalers = N; weakSignal = W; }
+  if (!validOrder) {
+    if (cs < B / N) { outcome = "Pooling"; signalers = N; weakSignal = W; }
+    else { outcome = "Reversed costs"; signalers = 0; }
+  } else if (cw < B / N) { outcome = "Pooling"; signalers = N; weakSignal = W; }
   else if (B / (S + 1) < cw) {
     if (cs < B / S) { outcome = "Separating"; signalers = S; } else { outcome = "No signaling"; signalers = 0; }
-  } else { weakSignal = Math.floor(B / cw - S); outcome = "Partial pooling"; signalers = S + weakSignal; }
+  } else { weakSignal = Math.max(0, Math.min(W, Math.floor(B / cw - S))); outcome = "Partial pooling"; signalers = S + weakSignal; }
   const share = range(N).map(i => ({n: i + 1, share: B / (i + 1)}));
-  const M = B / (S * Math.max(cw, 1e-9)), fullSep = cw * W >= cs * N;
-  return {N, W, outcome, signalers, weakSignal, share, M, fullSep};
+  const M = B / (S * cw), fullSep = cw * W >= cs * N;
+  return {N, W, validOrder, outcome, signalers, weakSignal, share, M, fullSep};
 }
 ```
 
@@ -98,7 +101,7 @@ Plot.plot({
 
 ```{ojs}
 //| echo: false
-html`<div class="sim-readout">${md`With ${S} strong and ${signal.W} weak types, a benefit of ${num(B)}, and costs ${cs} (strong) and ${cw} (weak), the equilibrium is **${signal.outcome.toLowerCase()}**: ${signal.outcome === "Pooling" ? `everyone signals, since even with all 100 signaling each gets ${fmt(B / 100, 1)} > ${cw}. The signal reveals nothing.` : signal.outcome === "Separating" ? `only the ${S} strong types signal, each receiving ${fmt(B / S, 1)}; a weak type joining would get ${fmt(B / (S + 1), 1)} < ${cw}. The signal reveals type perfectly.` : signal.outcome === "Partial pooling" ? `the ${S} strong types and **${signal.weakSignal} weak types** signal, until a signaler's share falls to the weak types' cost. The signal is informative but noisy.` : "no type finds the signal worth its cost."} With a continuous signal, a signal of size **${fmt(signal.M, 1)}** would separate the strong types, and ${signal.fullSep ? "they would all prefer to separate (CW ≥ cN)." : "but they would rather pool (CW < cN), so some strong types do not separate."}`}</div>`
+html`<div class="sim-readout">${md`${!signal.validOrder ? `Here the strong types' cost (c = ${cs}) is at least the weak types' cost (C = ${cw}), violating the signaling condition c < C: weak types can match any signal at equal or lower cost, so **no signal can separate the strong types**${signal.outcome === "Pooling" ? ` (everyone pools since ${fmt(B / 100, 1)} > ${cs})` : ""}.` : `With ${S} strong and ${signal.W} weak types, a benefit of ${num(B)}, and costs ${cs} (strong) and ${cw} (weak), the equilibrium is **${signal.outcome.toLowerCase()}**: ${signal.outcome === "Pooling" ? `everyone signals, since even with all 100 signaling each gets ${fmt(B / 100, 1)} > ${cw}. The signal reveals nothing.` : signal.outcome === "Separating" ? `only the ${S} strong types signal, each receiving ${fmt(B / S, 1)}; a weak type joining would get ${fmt(B / (S + 1), 1)} < ${cw}. The signal reveals type perfectly.` : signal.outcome === "Partial pooling" ? `the ${S} strong types and **${signal.weakSignal} weak types** signal, until a signaler's share falls to the weak types' cost. The signal is informative but noisy.` : "no type finds the signal worth its cost."} With a continuous signal, a signal of size **${fmt(signal.M, 1)}** would separate the strong types, ${signal.fullSep ? "and they would all prefer to separate (CW ≥ cN)." : "but they would rather pool (CW < cN), so some strong types do not separate."}`}`}</div>`
 ```
 
 <!-- Model code: generated by scripts/build_site.py from the cells above. Don't edit. -->
@@ -118,18 +121,21 @@ import {range, C as palette, fmt, num} from "../js/models.js"
 viewof S = Inputs.range([5, 95], {value: 20, step: 5, label: "Strong types S (of 100)"})
 viewof B = Inputs.range([100, 5000], {value: 1000, step: 100, label: "Benefit B"})
 viewof cs = Inputs.range([0, 60], {value: 10, step: 1, label: "Strong types' cost c"})
-viewof cw = Inputs.range([0, 100], {value: 30, step: 1, label: "Weak types' cost C"})
+viewof cw = Inputs.range([1, 100], {value: 30, step: 1, label: "Weak types' cost C"})
 
 signal = {
-  const N = 100, W = N - S;
+  const N = 100, W = N - S, validOrder = cs < cw;
   let outcome, signalers, weakSignal = 0;
-  if (cw < B / N) { outcome = "Pooling"; signalers = N; weakSignal = W; }
+  if (!validOrder) {
+    if (cs < B / N) { outcome = "Pooling"; signalers = N; weakSignal = W; }
+    else { outcome = "Reversed costs"; signalers = 0; }
+  } else if (cw < B / N) { outcome = "Pooling"; signalers = N; weakSignal = W; }
   else if (B / (S + 1) < cw) {
     if (cs < B / S) { outcome = "Separating"; signalers = S; } else { outcome = "No signaling"; signalers = 0; }
-  } else { weakSignal = Math.floor(B / cw - S); outcome = "Partial pooling"; signalers = S + weakSignal; }
+  } else { weakSignal = Math.max(0, Math.min(W, Math.floor(B / cw - S))); outcome = "Partial pooling"; signalers = S + weakSignal; }
   const share = range(N).map(i => ({n: i + 1, share: B / (i + 1)}));
-  const M = B / (S * Math.max(cw, 1e-9)), fullSep = cw * W >= cs * N;
-  return {N, W, outcome, signalers, weakSignal, share, M, fullSep};
+  const M = B / (S * cw), fullSep = cw * W >= cs * N;
+  return {N, W, validOrder, outcome, signalers, weakSignal, share, M, fullSep};
 }
 
 Plot.plot({
@@ -147,7 +153,7 @@ Plot.plot({
   ]
 })
 
-html`<div class="sim-readout">${md`With ${S} strong and ${signal.W} weak types, a benefit of ${num(B)}, and costs ${cs} (strong) and ${cw} (weak), the equilibrium is **${signal.outcome.toLowerCase()}**: ${signal.outcome === "Pooling" ? `everyone signals, since even with all 100 signaling each gets ${fmt(B / 100, 1)} > ${cw}. The signal reveals nothing.` : signal.outcome === "Separating" ? `only the ${S} strong types signal, each receiving ${fmt(B / S, 1)}; a weak type joining would get ${fmt(B / (S + 1), 1)} < ${cw}. The signal reveals type perfectly.` : signal.outcome === "Partial pooling" ? `the ${S} strong types and **${signal.weakSignal} weak types** signal, until a signaler's share falls to the weak types' cost. The signal is informative but noisy.` : "no type finds the signal worth its cost."} With a continuous signal, a signal of size **${fmt(signal.M, 1)}** would separate the strong types, and ${signal.fullSep ? "they would all prefer to separate (CW ≥ cN)." : "but they would rather pool (CW < cN), so some strong types do not separate."}`}</div>`
+html`<div class="sim-readout">${md`${!signal.validOrder ? `Here the strong types' cost (c = ${cs}) is at least the weak types' cost (C = ${cw}), violating the signaling condition c < C: weak types can match any signal at equal or lower cost, so **no signal can separate the strong types**${signal.outcome === "Pooling" ? ` (everyone pools since ${fmt(B / 100, 1)} > ${cs})` : ""}.` : `With ${S} strong and ${signal.W} weak types, a benefit of ${num(B)}, and costs ${cs} (strong) and ${cw} (weak), the equilibrium is **${signal.outcome.toLowerCase()}**: ${signal.outcome === "Pooling" ? `everyone signals, since even with all 100 signaling each gets ${fmt(B / 100, 1)} > ${cw}. The signal reveals nothing.` : signal.outcome === "Separating" ? `only the ${S} strong types signal, each receiving ${fmt(B / S, 1)}; a weak type joining would get ${fmt(B / (S + 1), 1)} < ${cw}. The signal reveals type perfectly.` : signal.outcome === "Partial pooling" ? `the ${S} strong types and **${signal.weakSignal} weak types** signal, until a signaler's share falls to the weak types' cost. The signal is informative but noisy.` : "no type finds the signal worth its cost."} With a continuous signal, a signal of size **${fmt(signal.M, 1)}** would separate the strong types, ${signal.fullSep ? "and they would all prefer to separate (CW ≥ cN)." : "but they would rather pool (CW < cN), so some strong types do not separate."}`}`}</div>`
 ```
 
 ## R {.unlisted}

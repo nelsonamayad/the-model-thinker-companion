@@ -11,7 +11,7 @@ Page's central claim is that no single model is right about anything complex. A 
 
 So the book does two things at once. It teaches a toolbox of core models, and it teaches the habit of applying several of them to the same question: what Page calls *one-to-many* (one model, many applications) and *many-to-one* (many models, one question). The last chapter of the paperback edition does this for the opioid epidemic, COVID-19 and inequality.
 
-## The seven uses of models
+## The seven uses of models {#sec-redcape}
 
 Page lists seven things models are for, with the mnemonic **REDCAPE**. Every entry on this site has a **Uses** section tagged with them.
 

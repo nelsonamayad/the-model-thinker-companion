@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#16** · *The Model Thinker*, chapter 10, "Network Models", pp. 117–122.
 
-Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (network generators and statistics) · Reference implementation: R with igraph.
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (network generators and statistics) · Reference implementation: R with igraph · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Reason, Communicate.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -52,14 +52,14 @@ Pick a structure. The drawing shows one network of 60 nodes, sized by degree. On
 
 ```{ojs}
 //| echo: false
-import {rng, range, mean, sd, graphRandom, graphSmallWorld, graphPrefAttach, graphStar, graphStats, edgesOf, layoutForce, layoutCircle, C, fmt} from "../js/models.js"
+import {rng, range, mean, sd, graphRandom, graphSmallWorld, graphPrefAttach, graphStar, graphStats, edgesOf, layoutForce, layoutCircle, debounce, C, fmt} from "../js/models.js"
 ```
 
 ```{ojs}
 viewof structure = Inputs.select(["Small world", "Random", "Geographic (ring)", "Preferential attachment", "Hub and spoke"], {value: "Small world", label: "Structure"})
-viewof k = Inputs.range([2, 8], {value: 4, step: 2, label: "Mean degree (approx.)"})
-viewof beta = Inputs.range([0, 1], {value: 0.1, step: 0.02, label: "Rewiring (small world)"})
-viewof seed = Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"})
+viewof k = debounce(Inputs.range([2, 8], {value: 4, step: 2, label: "Mean degree (approx.)"}))
+viewof beta = debounce(Inputs.range([0, 1], {value: 0.1, step: 0.02, label: "Rewiring (small world)"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"}))
 ```
 
 ```{ojs}
@@ -153,12 +153,12 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, mean, sd, graphRandom, graphSmallWorld, graphPrefAttach, graphStar, graphStats, edgesOf, layoutForce, layoutCircle, C, fmt} from "../js/models.js"
+import {rng, range, mean, sd, graphRandom, graphSmallWorld, graphPrefAttach, graphStar, graphStats, edgesOf, layoutForce, layoutCircle, debounce, C, fmt} from "../js/models.js"
 
 viewof structure = Inputs.select(["Small world", "Random", "Geographic (ring)", "Preferential attachment", "Hub and spoke"], {value: "Small world", label: "Structure"})
-viewof k = Inputs.range([2, 8], {value: 4, step: 2, label: "Mean degree (approx.)"})
-viewof beta = Inputs.range([0, 1], {value: 0.1, step: 0.02, label: "Rewiring (small world)"})
-viewof seed = Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"})
+viewof k = debounce(Inputs.range([2, 8], {value: 4, step: 2, label: "Mean degree (approx.)"}))
+viewof beta = debounce(Inputs.range([0, 1], {value: 0.1, step: 0.02, label: "Rewiring (small world)"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 16, step: 1, label: "Random seed"}))
 
 net = {
   const r = rng(seed), n = 60;

@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#51** · *The Model Thinker*, chapter 26, "Learning Models", pp. 305–309.
 
-Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Predict, Design.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -59,7 +59,7 @@ Two hundred learners each face the same alternatives. The default is Page's panc
 
 ```{ojs}
 //| echo: false
-import {rng, range, mean, C, pct, fmt} from "../js/models.js"
+import {rng, range, C, pct} from "../js/models.js"
 ```
 
 ```{ojs}
@@ -125,7 +125,7 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, mean, C, pct, fmt} from "../js/models.js"
+import {rng, range, C, pct} from "../js/models.js"
 
 viewof nAlt = Inputs.range([2, 8], {value: 2, step: 1, label: "Alternatives"})
 viewof gap = Inputs.range([1, 20], {value: 10, step: 1, label: "Reward gap between best and next"})

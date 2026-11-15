@@ -19,7 +19,7 @@ source-note: "The penalty-kick payoffs are illustrative numbers of our own, not 
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#40** · *The Model Thinker*, chapter 21, "Game Theory Models Times Three", pp. 243–246.
 
-Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+Filed under [Games and cooperation](../families/games-cooperation.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Act, Reason, Predict.
 
 Source check: ✓ The formulation was checked against the book. The penalty-kick payoffs are illustrative numbers of our own, not data from the book.
 :::

@@ -173,7 +173,8 @@ themselves.
 ## Credits and license
 
 Built by [Nelson Amaya D](https://github.com/nelsonamayad) with Claude Opus 5.5
-(Anthropic) through Claude Code. The About page on the site describes how.
+(Claude Code), Codex (OpenAI Codex) and Gemini (Google Antigravity). The About
+page on the site describes how.
 Modelled on the sibling project, the
 [Andrew Gelman Statistical Lexicon Explorer](https://github.com/nelsonamayad/gelman-lexicon-explorer).
 

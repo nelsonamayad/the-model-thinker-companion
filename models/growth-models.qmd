@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#13** · *The Model Thinker*, chapter 8, "Concavity and Convexity", pp. 99–105.
 
-Filed under [Linear and nonlinear models](../families/linear-nonlinear.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (difference equation) · Reference implementation: base R.
+Filed under [Linear and nonlinear models](../families/linear-nonlinear.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (difference equation) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Predict, Act.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -63,7 +63,7 @@ Both economies start with 100 workers and little capital and follow the Solow eq
 
 ```{ojs}
 //| echo: false
-import {iterate, C, fmt, pct, num} from "../js/models.js"
+import {iterate, C, pct, num} from "../js/models.js"
 ```
 
 ```{ojs}
@@ -139,7 +139,7 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {iterate, C, fmt, pct, num} from "../js/models.js"
+import {iterate, C, pct, num} from "../js/models.js"
 
 viewof s = Inputs.range([0.05, 0.5], {value: 0.2, step: 0.01, label: "Savings rate s"})
 viewof d = Inputs.range([0.02, 0.2], {value: 0.1, step: 0.01, label: "Depreciation rate d"})

@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#12** · *The Model Thinker*, chapter 8, "Concavity and Convexity", pp. 95–99.
 
-Filed under [Linear and nonlinear models](../families/linear-nonlinear.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R.
+Filed under [Linear and nonlinear models](../families/linear-nonlinear.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (closed form) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Predict, Reason, Communicate.
 
 Source check: ✓ The formulation was checked against the book.
 :::

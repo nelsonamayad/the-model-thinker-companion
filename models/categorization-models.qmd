@@ -19,7 +19,7 @@ source-note: "We weight the valuation error by category size, which the book's b
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#3** · *The Model Thinker*, chapter 3, "The Science of Many Models", pp. 30–36.
 
-Filed under [Many models and prediction](../families/many-models.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+Filed under [Many models and prediction](../families/many-models.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Predict, Explain, Reason.
 
 Source check: ✓ The formulation was checked against the book. We weight the valuation error by category size, which the book's box leaves implicit.
 :::

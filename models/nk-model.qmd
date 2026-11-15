@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#55** · *The Model Thinker*, chapter 28, "Rugged-Landscape Models", pp. 327–337.
 
-Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (exhaustive landscape and hill climbing) · Reference implementation: base R.
+Filed under [Learning and search](../families/learning-search.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (exhaustive landscape and hill climbing) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explore, Explain, Design.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -53,13 +53,13 @@ The page builds a whole landscape (all $2^N$ strings), counts its local peaks, a
 
 ```{ojs}
 //| echo: false
-import {rng, range, mean, C, pct, fmt, num} from "../js/models.js"
+import {rng, range, mean, debounce, C, pct, fmt, num} from "../js/models.js"
 ```
 
 ```{ojs}
-viewof N = Inputs.range([6, 14], {value: 12, step: 1, label: "Bits N"})
-viewof K = Inputs.range([0, 13], {value: 3, step: 1, label: "Interactions K (at most N − 1)"})
-viewof seed = Inputs.range([1, 500], {value: 55, step: 1, label: "Random seed"})
+viewof N = debounce(Inputs.range([6, 14], {value: 12, step: 1, label: "Bits N"}))
+viewof K = debounce(Inputs.range([0, 13], {value: 3, step: 1, label: "Interactions K (at most N − 1)"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 55, step: 1, label: "Random seed"}))
 ```
 
 ```{ojs}
@@ -130,11 +130,11 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, mean, C, pct, fmt, num} from "../js/models.js"
+import {rng, range, mean, debounce, C, pct, fmt, num} from "../js/models.js"
 
-viewof N = Inputs.range([6, 14], {value: 12, step: 1, label: "Bits N"})
-viewof K = Inputs.range([0, 13], {value: 3, step: 1, label: "Interactions K (at most N − 1)"})
-viewof seed = Inputs.range([1, 500], {value: 55, step: 1, label: "Random seed"})
+viewof N = debounce(Inputs.range([6, 14], {value: 12, step: 1, label: "Bits N"}))
+viewof K = debounce(Inputs.range([0, 13], {value: 3, step: 1, label: "Interactions K (at most N − 1)"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 55, step: 1, label: "Random seed"}))
 
 nk = {
   const r = rng(seed), k = Math.min(K, N - 1), S = 2 ** N;

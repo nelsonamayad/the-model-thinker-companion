@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#20** · *The Model Thinker*, chapter 10, "Network Models", pp. 127–128.
 
-Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (network simulation) · Reference implementation: R with igraph.
+Filed under [Networks and contagion](../families/networks-contagion.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (network simulation) · Reference implementation: R with igraph · [REDCAPE uses](../many-models.qmd#sec-redcape): Design, Act, Explain.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -43,12 +43,12 @@ Each curve shows the giant component as nodes are removed from a network of 500 
 
 ```{ojs}
 //| echo: false
-import {rng, range, mean, graphRandom, graphPrefAttach, graphSmallWorld, components, C, pct, fmt} from "../js/models.js"
+import {rng, range, mean, graphRandom, graphPrefAttach, graphSmallWorld, components, debounce, C, pct} from "../js/models.js"
 ```
 
 ```{ojs}
 viewof kind = Inputs.radio(["Preferential attachment (hubs)", "Random", "Small world"], {value: "Preferential attachment (hubs)", label: "Network"})
-viewof seed = Inputs.range([1, 500], {value: 20, step: 1, label: "Random seed"})
+viewof seed = debounce(Inputs.range([1, 500], {value: 20, step: 1, label: "Random seed"}))
 ```
 
 ```{ojs}
@@ -109,10 +109,10 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, mean, graphRandom, graphPrefAttach, graphSmallWorld, components, C, pct, fmt} from "../js/models.js"
+import {rng, range, mean, graphRandom, graphPrefAttach, graphSmallWorld, components, debounce, C, pct} from "../js/models.js"
 
 viewof kind = Inputs.radio(["Preferential attachment (hubs)", "Random", "Small world"], {value: "Preferential attachment (hubs)", label: "Network"})
-viewof seed = Inputs.range([1, 500], {value: 20, step: 1, label: "Random seed"})
+viewof seed = debounce(Inputs.range([1, 500], {value: 20, step: 1, label: "Random seed"}))
 
 robust = {
   const r = rng(seed), n = 500;

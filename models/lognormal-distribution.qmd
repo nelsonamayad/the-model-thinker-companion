@@ -18,7 +18,7 @@ verified: true
 ::: {.callout-note appearance="minimal" .book-source}
 Model **#8** · *The Model Thinker*, chapter 5, "Normal Distributions: The Bell Curve", pp. 66–68.
 
-Filed under [Distributions](../families/distributions.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R.
+Filed under [Distributions](../families/distributions.qmd) · [Equation-based](../index.qmd#category=Equation-based) · Runs as: Observable JS (simulation) · Reference implementation: base R · [REDCAPE uses](../many-models.qmd#sec-redcape): Explain, Predict.
 
 Source check: ✓ The formulation was checked against the book.
 :::
@@ -53,13 +53,13 @@ Five thousand people start with an income of 100 and receive a shock every year 
 
 ```{ojs}
 //| echo: false
-import {rng, range, mean, median, quantile, C, fmt, pct} from "../js/models.js"
+import {rng, mean, median, quantile, debounce, C, fmt, pct} from "../js/models.js"
 ```
 
 ```{ojs}
-viewof years = Inputs.range([1, 80], {value: 40, step: 1, label: "Years T"})
-viewof shock = Inputs.range([0.01, 0.25], {value: 0.12, step: 0.01, label: "Shock size (sd, share of 100)"})
-viewof seed = Inputs.range([1, 500], {value: 8, step: 1, label: "Random seed"})
+viewof years = debounce(Inputs.range([1, 80], {value: 40, step: 1, label: "Years T"}))
+viewof shock = debounce(Inputs.range([0.01, 0.25], {value: 0.12, step: 0.01, label: "Shock size (sd, share of 100)"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 8, step: 1, label: "Random seed"}))
 ```
 
 ```{ojs}
@@ -78,7 +78,12 @@ logn = {
     const s = v.slice().sort((a, b) => b - a), total = s.reduce((a, b) => a + b, 0);
     return {label, mean: mean(v), median: median(v), top1: s.slice(0, people / 100).reduce((a, b) => a + b, 0) / total};
   };
-  return {mult, add, m: summary(mult, "Multiplicative"), a: summary(add, "Additive")};
+  const domain = [Math.min(0, quantile(add, 0.005)), quantile(mult, 0.99)];
+  const rows = [
+    ...mult.map(v => ({v, k: "Multiplicative"})),
+    ...add.map(v => ({v, k: "Additive"}))
+  ].filter(d => d.v <= domain[1]);
+  return {mult, add, rows, domain, m: summary(mult, "Multiplicative"), a: summary(add, "Additive")};
 }
 ```
 
@@ -87,12 +92,12 @@ Plot.plot({
   ariaLabel: "Lognormal Distribution: incomes after multiplicative and additive shocks",
   ariaDescription: "Two histograms on a shared horizontal axis of income: multiplicative shocks (teal, top) are right-skewed with a long tail; additive shocks (orange, bottom) are symmetric. Vertical rules mark each group's median (dashed) and mean (solid). The summary below the chart states the result in words.",
   height: 340,
-  x: {label: "Income after T years", domain: [Math.min(0, quantile(logn.add, 0.005)), quantile(logn.mult, 0.99)]},
+  x: {label: "Income after T years", domain: logn.domain},
   y: {label: "People", grid: true},
   fy: {label: null, domain: ["Multiplicative", "Additive"]},
   color: {domain: ["Multiplicative", "Additive"], range: [C.teal, C.orange]},
   marks: [
-    Plot.rectY([...logn.mult.map(v => ({v, k: "Multiplicative"})), ...logn.add.map(v => ({v, k: "Additive"}))].filter(d => d.v <= quantile(logn.mult, 0.99)), Plot.binX({y: "count"}, {x: "v", fy: "k", fill: "k", thresholds: 60, fillOpacity: 0.8})),
+    Plot.rectY(logn.rows, Plot.binX({y: "count"}, {x: "v", fy: "k", fill: "k", thresholds: 60, fillOpacity: 0.8})),
     Plot.ruleX([logn.m, logn.a], {x: "median", fy: "label", stroke: "currentColor", strokeDasharray: "4 3"}),
     Plot.ruleX([logn.m, logn.a], {x: "mean", fy: "label", stroke: "currentColor", strokeWidth: 2})
   ]
@@ -116,11 +121,11 @@ The **Observable JS** runs on this page. The **R** version is the reference impl
 ## Observable JS {.unlisted}
 
 ```{.js}
-import {rng, range, mean, median, quantile, C, fmt, pct} from "../js/models.js"
+import {rng, mean, median, quantile, debounce, C, fmt, pct} from "../js/models.js"
 
-viewof years = Inputs.range([1, 80], {value: 40, step: 1, label: "Years T"})
-viewof shock = Inputs.range([0.01, 0.25], {value: 0.12, step: 0.01, label: "Shock size (sd, share of 100)"})
-viewof seed = Inputs.range([1, 500], {value: 8, step: 1, label: "Random seed"})
+viewof years = debounce(Inputs.range([1, 80], {value: 40, step: 1, label: "Years T"}))
+viewof shock = debounce(Inputs.range([0.01, 0.25], {value: 0.12, step: 0.01, label: "Shock size (sd, share of 100)"}))
+viewof seed = debounce(Inputs.range([1, 500], {value: 8, step: 1, label: "Random seed"}))
 
 logn = {
   const r = rng(seed), people = 5000;
@@ -137,19 +142,24 @@ logn = {
     const s = v.slice().sort((a, b) => b - a), total = s.reduce((a, b) => a + b, 0);
     return {label, mean: mean(v), median: median(v), top1: s.slice(0, people / 100).reduce((a, b) => a + b, 0) / total};
   };
-  return {mult, add, m: summary(mult, "Multiplicative"), a: summary(add, "Additive")};
+  const domain = [Math.min(0, quantile(add, 0.005)), quantile(mult, 0.99)];
+  const rows = [
+    ...mult.map(v => ({v, k: "Multiplicative"})),
+    ...add.map(v => ({v, k: "Additive"}))
+  ].filter(d => d.v <= domain[1]);
+  return {mult, add, rows, domain, m: summary(mult, "Multiplicative"), a: summary(add, "Additive")};
 }
 
 Plot.plot({
   ariaLabel: "Lognormal Distribution: incomes after multiplicative and additive shocks",
   ariaDescription: "Two histograms on a shared horizontal axis of income: multiplicative shocks (teal, top) are right-skewed with a long tail; additive shocks (orange, bottom) are symmetric. Vertical rules mark each group's median (dashed) and mean (solid). The summary below the chart states the result in words.",
   height: 340,
-  x: {label: "Income after T years", domain: [Math.min(0, quantile(logn.add, 0.005)), quantile(logn.mult, 0.99)]},
+  x: {label: "Income after T years", domain: logn.domain},
   y: {label: "People", grid: true},
   fy: {label: null, domain: ["Multiplicative", "Additive"]},
   color: {domain: ["Multiplicative", "Additive"], range: [C.teal, C.orange]},
   marks: [
-    Plot.rectY([...logn.mult.map(v => ({v, k: "Multiplicative"})), ...logn.add.map(v => ({v, k: "Additive"}))].filter(d => d.v <= quantile(logn.mult, 0.99)), Plot.binX({y: "count"}, {x: "v", fy: "k", fill: "k", thresholds: 60, fillOpacity: 0.8})),
+    Plot.rectY(logn.rows, Plot.binX({y: "count"}, {x: "v", fy: "k", fill: "k", thresholds: 60, fillOpacity: 0.8})),
     Plot.ruleX([logn.m, logn.a], {x: "median", fy: "label", stroke: "currentColor", strokeDasharray: "4 3"}),
     Plot.ruleX([logn.m, logn.a], {x: "mean", fy: "label", stroke: "currentColor", strokeWidth: 2})
   ]
