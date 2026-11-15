@@ -13,7 +13,7 @@ project:
 website:
   title: "The Model Thinker Companion"
   description: "Every model in Scott E. Page's The Model Thinker: its formulation, and an interactive application that runs in your browser."
-  favicon: assets/logo.svg
+  favicon: assets/logo-redcape.svg
   # Public URL (Netlify site recorded in _publish.yml), used for the sitemap
   # and canonical links.
   site-url: https://the-model-thinker-companion.netlify.app
@@ -29,8 +29,8 @@ website:
   bread-crumbs: true
   google-analytics: G-R14YE0E520
   navbar:
-    logo: assets/logo.svg
-    logo-alt: "The Model Thinker Companion logo"
+    logo: assets/logo-redcape.svg
+    logo-alt: "The Model Thinker Companion logo: seven connected points framed by a red cape, representing REDCAPE"
     title: false
     # Icons are Bootstrap Icons (https://icons.getbootstrap.com). The family
     # icons match ICONS in scripts/build_site.py (the home-page cards).

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">The Model Thinker Companion: REDCAPE logo</title>
+  <desc id="desc">Seven connected points radiate from a central model, framed by a red cape.</desc>
+  <rect width="64" height="64" rx="14" fill="#0f6e74"/>
+  <!-- The seven outer points stand for Reason, Explain, Design, Communicate, Act, Predict, and Explore. -->
+  <g fill="none" stroke="#d9f1f1" stroke-linecap="round" stroke-width="1.45" opacity=".72">
+    <path d="M32 32 32 10M32 32 48.7 18M32 32 53.2 35.5M32 32 43.5 50.5M32 32 20.5 50.5M32 32 10.8 35.5M32 32 15.3 18"/>
+  </g>
+  <!-- A minimal cape folds around the network: a quiet nod to REDCAPE. -->
+  <path d="M32 12.5c8.8 0 16 7.2 16 16v15.1L32 55V12.5Z" fill="#c0392b"/>
+  <path d="M32 12.5v42.5l10.8-7.7-7.5-8.3 7.5-11.6-10.8-4.8Z" fill="#e76454" opacity=".9"/>
+  <g stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".8">
+    <path d="M32 32 32 10M32 32 48.7 18M32 32 53.2 35.5M32 32 43.5 50.5M32 32 20.5 50.5M32 32 10.8 35.5M32 32 15.3 18"/>
+  </g>
+  <g fill="#f6cf37" stroke="#0f6e74" stroke-width="1.5">
+    <circle cx="32" cy="10" r="3.4"/>
+    <circle cx="48.7" cy="18" r="3.4"/>
+    <circle cx="53.2" cy="35.5" r="3.4"/>
+    <circle cx="43.5" cy="50.5" r="3.4"/>
+    <circle cx="20.5" cy="50.5" r="3.4"/>
+    <circle cx="10.8" cy="35.5" r="3.4"/>
+    <circle cx="15.3" cy="18" r="3.4"/>
+  </g>
+  <circle cx="32" cy="32" r="6.5" fill="#f6cf37" stroke="#fff" stroke-width="2"/>
+  <circle cx="32" cy="32" r="2.2" fill="#0f6e74"/>
+</svg>

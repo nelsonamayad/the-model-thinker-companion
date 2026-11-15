@@ -12,8 +12,8 @@ meta:
 logo:
   images:
     mark:
-      path: assets/logo.svg
-      alt: "The Model Thinker Companion logo: three overlapping lenses over a small network"
+      path: assets/logo-redcape.svg
+      alt: "The Model Thinker Companion logo: seven connected points framed by a red cape, representing REDCAPE"
   small: mark
   medium: mark
 
