@@ -12,8 +12,8 @@ meta:
 logo:
   images:
     mark:
-      path: assets/logo-redcape.svg
-      alt: "The Model Thinker Companion logo: seven connected points framed by a red cape, representing REDCAPE"
+      path: assets/logo-redcape-ribbon.svg
+      alt: "The Model Thinker Companion logo: a flowing red cape ribbon that suggests several overlapping perspectives"
   small: mark
   medium: mark
 

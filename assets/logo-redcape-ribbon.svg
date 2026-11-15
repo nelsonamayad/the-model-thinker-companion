@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">The Model Thinker Companion red ribbon logo</title>
+  <desc id="desc">An abstract flowing red cape ribbon, suggesting several overlapping perspectives.</desc>
+  <defs>
+    <linearGradient id="scarlet" x1="8" y1="53" x2="57" y2="12" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8f1022"/>
+      <stop offset=".48" stop-color="#df2439"/>
+      <stop offset="1" stop-color="#f34a52"/>
+    </linearGradient>
+    <linearGradient id="shadow" x1="18" y1="55" x2="54" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#650b19"/>
+      <stop offset="1" stop-color="#b8182d"/>
+    </linearGradient>
+  </defs>
+  <!-- One cape-like ribbon, viewed as several folds and perspectives. -->
+  <path fill="url(#shadow)" d="M7 42c9 7 17 6 24 1 9-7 14-8 21-5-5 5-8 10-16 14-10 5-21 3-29-10Z"/>
+  <path fill="url(#scarlet)" d="M5 39c9 6 17 5 23-1 7-7 12-14 25-23-5 6-4 12 4 15-8 2-14 1-21 5-9 5-14 17-26 10C7 43 6 41 5 39Z"/>
+  <path fill="#bd172d" d="M11 42c10 5 17 1 25-6 7-6 12-7 19-6-8 4-13 8-19 13-8 7-17 9-25-1Z" opacity=".92"/>
+  <path fill="#f34a52" d="M13 40c8 2 14-3 20-9 7-7 12-11 19-16-4 6-4 10 1 13-7-1-12 1-19 6-8 6-14 11-22 6Z"/>
+  <path d="M35 33c7-6 12-9 17-18" fill="none" stroke="#f7c96a" stroke-linecap="round" stroke-width="1.2" opacity=".9"/>
+</svg>
